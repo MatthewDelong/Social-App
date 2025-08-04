@@ -41,33 +41,32 @@
 ## :deciduous_tree: File Tree
 ```bash
 /.
-├── public/
-│   └── index.html
-├── src/
-│   ├── components/
-│   │   ├── CommentForm.jsx
-│   │   ├── Comments.jsx
-│   │   ├── Header.jsx
-│   │   ├── LikeButton.jsx
-│   │   └── Post.jsx
-│   ├── context/
-│   │   └── AppContext.jsx
-│   ├── pages/
-│   │   ├── Home.jsx
-│   │   ├── Login.jsx
-│   │   ├── NewPost.jsx
-│   │   ├── Profile.jsx
-│   │   └── Signup.jsx
-│   ├── firebase.js
-│   ├── App.jsx
-│   └── main.jsx
-├── .gitignore
+├── firebase.json
+├── .firebaserc
 ├── index.html
 ├── package.json
-├── postcss.config.cjs
-├── tailwind.config.js
 ├── vite.config.js
-└── firebase.json
+├── tailwind.config.js
+├── postcss.config.js
+└── src/
+    ├── main.jsx
+    ├── index.css
+    ├── firebase.js
+    ├── App.jsx
+    ├── context/
+    │   └── AppContext.jsx
+    ├── components/
+    │   └── ui/
+    │       ├── button.jsx
+    │       ├── input.jsx
+    │       ├── textarea.jsx
+    │       └── card.jsx
+    └── pages/
+        ├── Login.jsx
+        ├── Signup.jsx
+        ├── Home.jsx
+        ├── Profile.jsx
+        └── NewPost.jsx
 
 
 

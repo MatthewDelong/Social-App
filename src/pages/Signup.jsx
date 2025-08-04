@@ -1,26 +1,29 @@
-import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useState } from 'react';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
-import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button';
+import Input from '../components/ui/input';
+import Button from '../components/ui/button';
 
 export default function Signup() {
-  const { signup } = useApp();
   const [email, setEmail] = useState('');
-  const [pwd, setPwd] = useState('');
-  const nav = useNavigate();
+  const [password, setPassword] = useState('');
+  const navigate = useNavigate();
 
-  const doSignup = async () => {
-    await signup(email, pwd);
-    nav('/');
+  const handleSignup = async () => {
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      navigate('/');
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (
-    <div className="p-4 max-w-md mx-auto">
-      <h1 className="text-xl font-bold mb-4">Sign Up</h1>
-      <Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
-      <Input type="password" placeholder="Password" value={pwd} onChange={e => setPwd(e.target.value)} className="mt-2" />
-      <Button onClick={doSignup} className="mt-4 w-full">Sign Up</Button>
+    <div className="max-w-md mx-auto mt-10">
+      <Input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <Button onClick={handleSignup}>Sign Up</Button>
     </div>
   );
 }
