@@ -11,15 +11,9 @@
 - Run firebase init hosting in project root (Select build directory dist)
 - Replace placeholders in firebase.js and .firebaserc
 
-# Check dependencies package.json for updates-it will rewite your package.json
-- npm install -g npm-check-updates
-- ncu -u
-- npm install
-
 # Install dependencies
 - npm install react react-dom react-router-dom firebase
 - npm install -D vite @vitejs/plugin-react tailwindcss postcss autoprefixer
-- npm install -D @tailwindcss/postcss (If using  Tailwind 4.1+ which dependencies are)
 - npm install -g firebase-tools
 - npx tailwindcss init -p
 
@@ -67,8 +61,6 @@
         ├── Home.jsx
         ├── Profile.jsx
         └── NewPost.jsx
-
-
 
 ---
  
