@@ -42,6 +42,9 @@
 ├── vite.config.js
 ├── tailwind.config.js
 ├── postcss.config.js
+├── .gitignore
+├── README.md
+├── LICENSE
 └── src/
     ├── main.jsx
     ├── index.css
