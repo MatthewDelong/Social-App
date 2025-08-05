@@ -39,6 +39,7 @@
 ├── .firebaserc
 ├── index.html
 ├── package.json
+├── package-lock.json
 ├── vite.config.js
 ├── tailwind.config.js
 ├── postcss.config.js
@@ -48,6 +49,7 @@
 ├── public/
 │   ├── favicon.ico
 │   └── logo.png
+│   └── apple-touch-icon.png
 └── src/
     ├── main.jsx
     ├── index.css
@@ -56,11 +58,12 @@
     ├── context/
     │   └── AppContext.jsx
     ├── components/
-    │   └── ui/
-    │       ├── button.jsx
-    │       ├── input.jsx
-    │       ├── textarea.jsx
-    │       └── card.jsx
+    │   ├── ui/
+    │   │   ├── button.jsx
+    │   │   ├── input.jsx
+    │   │   ├── textarea.jsx
+    │   │   └── card.jsx
+    │   └─ Navbar.jsx
     └── pages/
         ├── Login.jsx
         ├── Signup.jsx
@@ -70,13 +73,6 @@
 
 ---
  
-## 🛠 Core Technologies  
-- ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) - Frontend framework
-- ![JavaScript](https://img.shields.io/badge/JavaScript-323330?style=for-the-badge&logo=javascript&logoColor=F7DF1E) - Scripting language
-- ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-grey?style=for-the-badge&logo=tailwind-css&logoColor=38B2AC) - CSS framework 
-
----
-
 ## 📜 License  
 - **Code (MIT License)**:  
   - Covers all original source code (HTML, CSS, JavaScript)  
