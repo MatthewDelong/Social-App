@@ -45,7 +45,7 @@
 ├── .gitignore
 ├── README.md
 ├── LICENSE
-├── public.html/
+├── public/
 │   ├── favicon.ico
 │   └── logo.png
 └── src/
