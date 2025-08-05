@@ -19,7 +19,8 @@
 
 # Firebase login
 - firebase login
-- firebase init hosting
+- firebase init hosting (If you ever need to reset or reconfigure)
+- npm run build
 - firebase deploy
 
 ---
@@ -69,8 +70,8 @@
         ├── Signup.jsx
         ├── Home.jsx
         ├── Profile.jsx
-        └── NewPost.jsx
-
+        ├── NewPost.jsx
+        └── ProfileSettings.jsx
 ---
  
 ## 📜 License  

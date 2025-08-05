@@ -1,3 +1,4 @@
+// src/pages/NewPost.jsx
 import { useState } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -12,20 +13,27 @@ export default function NewPost() {
   const navigate = useNavigate();
 
   const handlePost = async () => {
+    if (!content.trim()) return;
+
     await addDoc(collection(db, 'posts'), {
       content,
-      author: user.email,
+      author: user.displayName || user.email, // ✅ use displayName if set
       uid: user.uid,
       createdAt: serverTimestamp(),
       likes: [],
-      comments: []
+      comments: [],
     });
+
     navigate('/');
   };
 
   return (
     <div className="max-w-xl mx-auto mt-10">
-      <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="What's on your mind?" />
+      <Textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="What's on your mind?"
+      />
       <Button onClick={handlePost}>Post</Button>
     </div>
   );
