@@ -1,39 +1,39 @@
-```markdown
-# :speech_balloon: Social-App 
+# :speech_balloon: Social-App
 
-## Requirements 
-- Node.js v16+ 
-- Firebase project: (https://console.firebase.google.com/) 
-- Enable Email/Password authentication 
-- Firestore database 
-- Firestore rules to allow authenticated users to read/write posts 
-- Firebase CLI installed (`npm install -g firebase-tools`) 
-- Run `firebase init hosting` in project root (Select build directory `dist`) 
-- Replace placeholders in `firebase.js` and `.firebaserc` 
+# Requirements
+- Node.js v16+
+- Firebase project: (https://console.firebase.google.com/)
+- Enable Email/Password authentication
+- Firestore database
+- Firestore rules to allow authenticated users to read/write posts
+- Firebase CLI installed (npm install -g firebase-tools)
 
-## Install dependencies 
-- `npm install react react-dom react-router-dom firebase` 
-- `npm install -D vite @vitejs/plugin-react tailwindcss postcss autoprefixer` 
-- `npm install -g firebase-tools` 
-- `npx tailwindcss init -p` 
+- Run firebase init hosting in project root (Select build directory dist)
+- Replace placeholders in firebase.js and .firebaserc
 
-## Firebase login 
-- `firebase login` 
-- `firebase init hosting` (If you ever need to reset or reconfigure) 
-- `npm run build` 
-- `firebase deploy` 
+# Install dependencies
+- npm install react react-dom react-router-dom firebase
+- npm install -D vite @vitejs/plugin-react tailwindcss postcss autoprefixer
+- npm install -g firebase-tools
+- npx tailwindcss init -p
 
---- 
+# Firebase login
+- firebase login
+- firebase init hosting (If you ever need to reset or reconfigure)
+- npm run build
+- firebase deploy
 
-## Run Development Server 
-- `npm run dev` 
+---
 
-## Build for Production 
-- `npm run build` 
+## Run Development Server
+- npm run dev
 
---- 
+## Build for Production
+- npm run build
 
-## :deciduous_tree: File Tree 
+---
+
+## :deciduous_tree: File Tree
 ```
 ├── firebase.json
 ├── .firebaserc
@@ -63,7 +63,7 @@
     │   │   ├── input.jsx
     │   │   ├── textarea.jsx
     │   │   └── card.jsx
-    │   └── Navbar.jsx
+    │   └─ Navbar.jsx
     └── pages/
         ├── Login.jsx
         ├── Signup.jsx
@@ -71,21 +71,19 @@
         ├── Profile.jsx
         ├── NewPost.jsx
         └── ProfileSettings.jsx
-```
-
---- 
-
-## 📜 License 
-- **Code (MIT License)**: 
-  - Covers all original source code (HTML, CSS, JavaScript) 
-  - [View MIT License](LICENSE) 
-- **Content (CC BY 4.0)**: 
+  ```
+---
+ 
+## 📜 License  
+- **Code (MIT License)**:  
+  - Covers all original source code (HTML, CSS, JavaScript)  
+  - [View MIT License](LICENSE)  
+- **Content (CC BY 4.0)**:  
   - Applies to original text, graphics, and media created for Matthews-World-Social 
-  - [View Creative Commons License](https://creativecommons.org/licenses/by/4.0/) 
+  - [View Creative Commons License](https://creativecommons.org/licenses/by/4.0/)  
 
---- 
+  ---
 
-## 👨‍💻 Developer 
+## 👨‍💻 Developer  
 **Matthew Delong**  
-[GitHub Profile](https://github.com/MatthewDelong)
-```
+[GitHub Profile](https://github.com/MatthewDelong)  
