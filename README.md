@@ -34,8 +34,7 @@
 ---
 
 ## :deciduous_tree: File Tree
-```bash
-/.
+```
 ├── firebase.json
 ├── .firebaserc
 ├── index.html
