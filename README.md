@@ -15,9 +15,10 @@
 - npm install react react-dom react-router-dom firebase
 - npm install -D vite @vitejs/plugin-react tailwindcss postcss autoprefixer
 - npm install -g firebase-tools
+- npm install date-fns
 - npx tailwindcss init -p
 
-# Firebase login
+# Firebase login/Deploy
 - firebase login
 - firebase init hosting (If you ever need to reset or reconfigure)
 - npm run build
