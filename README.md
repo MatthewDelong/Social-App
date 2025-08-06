@@ -16,6 +16,8 @@
 - npm install -D vite @vitejs/plugin-react tailwindcss postcss autoprefixer
 - npm install -g firebase-tools
 - npm install date-fns
+- npm install firebase storage
+- npm install emoji-picker-react
 - npx tailwindcss init -p
 
 # Firebase login/Deploy
