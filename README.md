@@ -86,6 +86,17 @@
         └── ProfileSettings.jsx
   ```
 ---
+
+## 🖥 Screenshots  
+
+| Page      | Preview |
+|-----------|---------|
+| Login     | ![Login](https://github.com/user-attachments/assets/4ea1359c-b1a9-4447-94a0-65f51ba063be) |
+| Posts     | ![Posts](https://github.com/user-attachments/assets/57826956-d3c7-474c-8bd4-82123af5e599) |
+| Profile   | ![Profile](https://github.com/user-attachments/assets/00d6174e-2c3a-4d57-afdf-3a7bd5902bc1) |
+
+
+---
  
 ## 📜 License  
 - **Code (MIT License)**:  
