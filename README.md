@@ -59,8 +59,10 @@
 ├── LICENSE
 ├── public/
 │   ├── favicon.ico
-│   └── logo.png
-│   └── apple-touch-icon.png
+│   ├── logo.png
+│   ├── apple-touch-icon.png
+│   └── images/
+│       └── logo.png
 └── src/
     ├── main.jsx
     ├── index.css

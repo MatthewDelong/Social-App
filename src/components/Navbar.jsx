@@ -6,19 +6,21 @@ export default function Navbar() {
   const { user, logout } = useAppContext();
   const location = useLocation();
 
-  // Hide navbar on login/signup only if user is not logged in
-  const hideOnRoutes = ['/login', '/signup'];
-  const shouldHide = hideOnRoutes.includes(location.pathname) && !user;
-
-  if (shouldHide) return null;
+  // Define routes where navbar content (not logo) should be hidden if user is not logged in
+  const hideContentRoutes = ['/login', '/signup'];
+  const shouldHideContent = hideContentRoutes.includes(location.pathname) && !user;
 
   return (
     <nav className="bg-white shadow p-4 mb-6 flex justify-between items-center">
-      <div className="font-bold text-xl text-gray-800">
-        <Link to="/">🔥 Social App</Link>
+      {/* Logo - always visible */}
+      <div className="flex items-center">
+        <Link to="/">
+          <img src="/images/logo.png" alt="Logo" className="h-16 w-auto" />
+        </Link>
       </div>
 
-      {user && (
+      {/* Right-side content - only visible if user is logged in or not on login/signup */}
+      {!shouldHideContent && user && (
         <div className="flex items-center gap-4">
           <Link to="/profile" className="text-sm text-gray-700 hover:underline">
             Profile
