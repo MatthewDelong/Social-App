@@ -1,4 +1,3 @@
-// src/context/AppContext.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../firebase';
 import {
@@ -6,6 +5,8 @@ import {
   signOut,
   updateProfile
 } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const AppContext = createContext();
 
@@ -16,19 +17,29 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // Check if displayName is missing and set it if needed
         if (!currentUser.displayName) {
           try {
             await updateProfile(currentUser, {
-              displayName: 'Matthew Delong' // 👈 Customize this name
+              displayName: 'Matthew Delong'
             });
-            await currentUser.reload(); // Refresh the user data
+            await currentUser.reload();
           } catch (error) {
             console.error('Error updating display name:', error);
           }
         }
 
-        setUser({ ...auth.currentUser }); // Ensure updated info is set
+        let isAdmin = false;
+        try {
+          const docRef = doc(db, 'users', currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            isAdmin = docSnap.data().isAdmin || false;
+          }
+        } catch (error) {
+          console.error('Error fetching admin status:', error);
+        }
+
+        setUser({ ...auth.currentUser, isAdmin });
       } else {
         setUser(null);
       }

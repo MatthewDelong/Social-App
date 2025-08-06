@@ -59,7 +59,7 @@
 ├── LICENSE
 ├── public/
 │   ├── favicon.ico
-│   ├── logo.png
+│   ├── favicon-32x32.png
 │   ├── apple-touch-icon.png
 │   └── images/
 │       └── logo.png
@@ -78,6 +78,7 @@
     │   │   └── card.jsx
     │   └─ Navbar.jsx
     └── pages/
+        ├── AdminDashboard.jsx
         ├── Login.jsx
         ├── Signup.jsx
         ├── Home.jsx

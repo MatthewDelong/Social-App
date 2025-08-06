@@ -1,4 +1,3 @@
-// src/App.jsx
 import {
   BrowserRouter as Router,
   Routes,
@@ -14,12 +13,13 @@ import Home from './pages/Home';
 import Profile from './pages/Profile';
 import NewPost from './pages/NewPost';
 import Navbar from './components/Navbar';
-import ProfileSettings from './pages/ProfileSettings'; // ✅ Optional
+import ProfileSettings from './pages/ProfileSettings';
+import AdminDashboard from './pages/AdminDashboard'; // ✅ NEW
 
 function AppRoutes() {
   const { user, loading } = useAppContext();
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>; // ⏳ Prevent premature redirect
+  if (loading) return <div className="text-center mt-10">Loading...</div>;
 
   return (
     <>
@@ -30,7 +30,8 @@ function AppRoutes() {
         <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/" />} />
         <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
         <Route path="/new" element={user ? <NewPost /> : <Navigate to="/login" />} />
-        <Route path="/settings" element={user ? <ProfileSettings /> : <Navigate to="/login" />} /> {/* ✅ Optional */}
+        <Route path="/settings" element={user ? <ProfileSettings /> : <Navigate to="/login" />} />
+        <Route path="/admin" element={user?.isAdmin ? <AdminDashboard /> : <Navigate to="/" />} /> {/* ✅ Admin only */}
       </Routes>
     </>
   );
