@@ -1,5 +1,4 @@
 // src/pages/AdminDashboard.jsx
-
 import { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import {
@@ -9,6 +8,7 @@ import {
   getDocs,
   updateDoc
 } from 'firebase/firestore';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function AdminDashboard() {
   const [posts, setPosts] = useState([]);
@@ -58,10 +58,23 @@ export default function AdminDashboard() {
         {posts.length === 0 && <p className="text-gray-500">No posts found.</p>}
         {posts.map(post => (
           <div key={post.id} className="border p-3 mb-3 rounded bg-gray-50">
-            <p className="font-medium">{post.content}</p>
+            <p className="font-medium text-gray-800">{post.content}</p>
             <p className="text-sm text-gray-600 mt-1">
               By: <strong>{post.author || 'Unknown'}</strong>
             </p>
+
+            {/* ✅ Timestamp */}
+            <p className="text-xs text-gray-500">
+              {post.createdAt
+                ? formatDistanceToNow(
+                    typeof post.createdAt === 'string'
+                      ? new Date(post.createdAt)
+                      : post.createdAt.toDate(),
+                    { addSuffix: true }
+                  )
+                : ''}
+            </p>
+
             <button
               onClick={() => deletePost(post.id)}
               className="text-sm text-red-600 hover:underline mt-2"
