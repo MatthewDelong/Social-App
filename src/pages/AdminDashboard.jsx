@@ -9,6 +9,7 @@ import {
   getDocs,
   updateDoc
 } from 'firebase/firestore';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function AdminDashboard() {
   const [posts, setPosts] = useState([]);
@@ -61,6 +62,11 @@ export default function AdminDashboard() {
             <p className="font-medium">{post.content}</p>
             <p className="text-sm text-gray-600 mt-1">
               By: <strong>{post.author || 'Unknown'}</strong>
+              {post.createdAt && (
+                <span className="ml-4 text-gray-500 text-xs">
+                  {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                </span>
+              )}
             </p>
             <button
               onClick={() => deletePost(post.id)}
