@@ -130,9 +130,23 @@ export default function Home() {
     await updateDoc(doc(db, 'posts', postId), {
       content: editedContent
     });
+  // Immediately update local state for a better UX
+  setPosts((prevPosts) =>
+    prevPosts.map((p) =>
+      p.id === postId ? { ...p, content: editedContent } : p
+    )
+  );
+  
     setEditingPostId(null);
     setEditedContent('');
   };
+  
+    // Immediately update local state for a better UX
+  setPosts((prevPosts) =>
+    prevPosts.map((p) =>
+      p.id === postId ? { ...p, content: editedContent } : p
+    )
+  );
 
   const addEmoji = (key, emoji) => {
     setCommentMap((prev) => ({
