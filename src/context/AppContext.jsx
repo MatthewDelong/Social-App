@@ -14,6 +14,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
+        // Ensure displayName is set
         if (!currentUser.displayName) {
           await updateProfile(currentUser, { displayName: 'Matthew Delong' });
           await currentUser.reload();
@@ -30,10 +31,23 @@ export function AppProvider({ children }) {
             isModerator = data.isModerator || false;
           }
         } catch (e) {
-          console.error('Error loading role:', e);
+          console.error('Error loading user roles:', e);
         }
 
-        setUser({ ...auth.currentUser, isAdmin, isModerator });
+        // Assign role string for easier logic checks in UI
+        const role = isAdmin
+          ? 'admin'
+          : isModerator
+          ? 'moderator'
+          : 'user';
+
+        // Set user state including roles and role string
+        setUser({
+          ...auth.currentUser,
+          isAdmin,
+          isModerator,
+          role,
+        });
       } else {
         setUser(null);
       }
