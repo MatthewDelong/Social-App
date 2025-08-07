@@ -1,4 +1,3 @@
-// src/App.jsx
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,6 +6,7 @@ import {
 } from 'react-router-dom';
 
 import { useAppContext } from './context/AppContext';
+
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Home from './pages/Home';
@@ -14,7 +14,7 @@ import Profile from './pages/Profile';
 import NewPost from './pages/NewPost';
 import Navbar from './components/Navbar';
 import ProfileSettings from './pages/ProfileSettings';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminDashboard from './pages/AdminDashboard'; // ✅ NEW
 
 function AppRoutes() {
   const { user, loading } = useAppContext();
@@ -31,10 +31,7 @@ function AppRoutes() {
         <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
         <Route path="/new" element={user ? <NewPost /> : <Navigate to="/login" />} />
         <Route path="/settings" element={user ? <ProfileSettings /> : <Navigate to="/login" />} />
-        <Route
-          path="/admin"
-          element={(user?.isAdmin || user?.isModerator) ? <AdminDashboard /> : <Navigate to="/" />}
-        />
+        <Route path="/admin" element={user?.isAdmin ? <AdminDashboard /> : <Navigate to="/" />} /> {/* ✅ Admin only */}
       </Routes>
     </>
   );

@@ -1,7 +1,10 @@
-// src/context/AppContext.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../firebase';
-import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  signOut,
+  updateProfile
+} from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -15,25 +18,28 @@ export function AppProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         if (!currentUser.displayName) {
-          await updateProfile(currentUser, { displayName: 'Matthew Delong' });
-          await currentUser.reload();
+          try {
+            await updateProfile(currentUser, {
+              displayName: 'Matthew Delong'
+            });
+            await currentUser.reload();
+          } catch (error) {
+            console.error('Error updating display name:', error);
+          }
         }
 
         let isAdmin = false;
-        let isModerator = false;
-
         try {
-          const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
+          const docRef = doc(db, 'users', currentUser.uid);
+          const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            const data = docSnap.data();
-            isAdmin = data.isAdmin || false;
-            isModerator = data.isModerator || false;
+            isAdmin = docSnap.data().isAdmin || false;
           }
-        } catch (e) {
-          console.error('Error loading role:', e);
+        } catch (error) {
+          console.error('Error fetching admin status:', error);
         }
 
-        setUser({ ...auth.currentUser, isAdmin, isModerator });
+        setUser({ ...auth.currentUser, isAdmin });
       } else {
         setUser(null);
       }
