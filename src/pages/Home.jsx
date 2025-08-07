@@ -179,7 +179,7 @@ export default function Home() {
         <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
           <div className="flex justify-between">
             <p className="font-bold text-gray-800">{post.author}</p>
-            {post.uid === user.uid || user.role === 'admin' || user.role === 'moderator' (
+            {post.uid === user.uid && (
               <div className="space-x-2">
                 <button
                   onClick={() => {
