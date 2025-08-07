@@ -18,7 +18,7 @@ export default function NewPost() {
     setLoading(true);
     try {
       await addDoc(collection(db, 'posts'), {
-        text,
+        content: text,
         uid: user.uid,
         authorName: user.displayName || '',
         authorEmail: user.email || '',
