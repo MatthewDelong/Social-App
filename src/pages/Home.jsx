@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import {
   collection,
@@ -180,12 +179,27 @@ export default function Home() {
         <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
           <div className="flex justify-between">
             <p className="font-bold text-gray-800">{post.author}</p>
-            {post.createdAt && (
-              <p className="text-xs text-gray-500">
-                {formatDistanceToNow(post.createdAt.toDate ? post.createdAt.toDate() : new Date(post.createdAt), { addSuffix: true })}
-              </p>
+            {post.uid === user.uid && (
+              <div className="space-x-2">
+                <button
+                  onClick={() => {
+                    setEditingPostId(post.id);
+                    setEditedContent(post.content);
+                  }}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeletePost(post.id)}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Delete
+                </button>
+              </div>
             )}
           </div>
+
           {editingPostId === post.id ? (
             <div className="mt-2">
               <textarea
@@ -201,8 +215,221 @@ export default function Home() {
               </button>
             </div>
           ) : (
-            <p className="text-gray-700 mb-2">{post.content}</p>
+            <>
+              <p className="text-gray-700 mb-2">{post.content}</p>
+              {post.createdAt && (
+                <p className="text-xs text-gray-500 mb-2">
+                  {formatDistanceToNow(
+                    post.createdAt.seconds
+                      ? new Date(post.createdAt.seconds * 1000)
+                      : new Date(post.createdAt),
+                    { addSuffix: true }
+                  )}
+                </p>
+              )}
+            </>
           )}
+
+          <button
+            onClick={() => handleLike(post.id)}
+            className="text-blue-500 text-sm mb-2"
+          >
+            ❤️ Like ({post.likes?.length || 0})
+          </button>
+
+          {/* Comment Input */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Add a comment..."
+              value={commentMap[post.id] || ''}
+              onChange={(e) =>
+                setCommentMap({ ...commentMap, [post.id]: e.target.value })
+              }
+              className="border p-1 w-full rounded"
+            />
+            <button
+              onClick={() =>
+                setShowEmojiPicker((prev) => ({
+                  ...prev,
+                  [post.id]: !prev[post.id]
+                }))
+              }
+              className="text-sm text-yellow-500 mt-1"
+            >
+              😊
+            </button>
+            {showEmojiPicker[post.id] && (
+              <div className="absolute z-10 mt-2">
+                <EmojiPicker onEmojiClick={(e) => addEmoji(post.id, e)} />
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => handleComment(post.id)}
+            className="text-sm text-green-600 mt-1"
+          >
+            Comment
+          </button>
+
+          {/* Comments */}
+          <div className="mt-4 space-y-2 border-t pt-2">
+            {(post.comments || []).map((comment, i) => (
+              <div key={i} className="bg-gray-50 p-2 rounded">
+                <div className="flex justify-between items-start">
+                  <div className="w-full">
+                    <p className="text-sm font-semibold text-gray-800">{comment.author}</p>
+                    {comment.uid === user.uid && editCommentMap[`${post.id}-${i}`] !== undefined ? (
+                      <>
+                        <textarea
+                          className="w-full text-sm border rounded p-1 mt-1"
+                          value={editCommentMap[`${post.id}-${i}`]}
+                          onChange={(e) =>
+                            setEditCommentMap({
+                              ...editCommentMap,
+                              [`${post.id}-${i}`]: e.target.value
+                            })
+                          }
+                        />
+                        <button
+                          onClick={() => handleEditComment(post.id, i)}
+                          className="text-xs text-green-600 mt-1"
+                        >
+                          Save
+                        </button>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-700">{comment.text}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                    </p>
+
+                    {/* Replies */}
+                    {(comment.replies || []).map((reply, j) => {
+                      const key = `${post.id}-${i}-${j}`;
+                      return (
+                        <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
+                          <p className="text-sm font-semibold text-gray-800">{reply.author}</p>
+                          {editingReplyIndexMap[key] ? (
+                            <>
+                              <textarea
+                                className="w-full text-sm border rounded p-1 mt-1"
+                                value={editReplyMap[key]}
+                                onChange={(e) =>
+                                  setEditReplyMap({
+                                    ...editReplyMap,
+                                    [key]: e.target.value
+                                  })
+                                }
+                              />
+                              <button
+                                onClick={() => handleEditReply(post.id, i, j)}
+                                className="text-xs text-green-600 mt-1"
+                              >
+                                Save
+                              </button>
+                            </>
+                          ) : (
+                            <p className="text-sm text-gray-700">{reply.text}</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
+                          </p>
+
+                          {reply.uid === user.uid && (
+                            <div className="flex space-x-2 mt-1">
+                              <button
+                                onClick={() =>
+                                  setEditingReplyIndexMap((prev) => ({
+                                    ...prev,
+                                    [key]: true
+                                  }))
+                                }
+                                className="text-xs text-blue-600 hover:underline"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteReply(post.id, i, j)}
+                                className="text-xs text-red-500 hover:underline"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Reply Input */}
+                    <div className="relative mt-2">
+                      <input
+                        type="text"
+                        placeholder="Reply..."
+                        value={commentMap[`${post.id}-reply-${i}`] || ''}
+                        onChange={(e) =>
+                          setCommentMap({
+                            ...commentMap,
+                            [`${post.id}-reply-${i}`]: e.target.value
+                          })
+                        }
+                        className="border p-1 w-full rounded"
+                      />
+                      <button
+                        onClick={() =>
+                          setShowReplyEmojiPicker((prev) => ({
+                            ...prev,
+                            [`${post.id}-reply-${i}`]: !prev[`${post.id}-reply-${i}`]
+                          }))
+                        }
+                        className="text-sm text-yellow-500 mt-1"
+                      >
+                        😊
+                      </button>
+                      {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
+                        <div className="absolute z-10 mt-2">
+                          <EmojiPicker
+                            onEmojiClick={(e) =>
+                              addReplyEmoji(`${post.id}-reply-${i}`, e)
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleReply(post.id, i)}
+                      className="text-xs text-green-600 mt-1"
+                    >
+                      Reply
+                    </button>
+                  </div>
+
+                  {comment.uid === user.uid && (
+                    <div className="space-x-2 ml-2">
+                      <button
+                        onClick={() =>
+                          setEditCommentMap((prev) => ({
+                            ...prev,
+                            [`${post.id}-${i}`]: comment.text
+                          }))
+                        }
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteComment(post.id, i)}
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
