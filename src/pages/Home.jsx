@@ -130,23 +130,9 @@ export default function Home() {
     await updateDoc(doc(db, 'posts', postId), {
       content: editedContent
     });
-  // Immediately update local state for a better UX
-  setPosts((prevPosts) =>
-    prevPosts.map((p) =>
-      p.id === postId ? { ...p, content: editedContent } : p
-    )
-  );
-  
     setEditingPostId(null);
     setEditedContent('');
   };
-  
-    // Immediately update local state for a better UX
-  setPosts((prevPosts) =>
-    prevPosts.map((p) =>
-      p.id === postId ? { ...p, content: editedContent } : p
-    )
-  );
 
   const addEmoji = (key, emoji) => {
     setCommentMap((prev) => ({
@@ -193,8 +179,11 @@ export default function Home() {
         <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
           <div className="flex justify-between">
             <p className="font-bold text-gray-800">{post.author}</p>
-{(post.uid === user.uid || user.role === 'admin' || user.role === 'moderator') && (
+              {(post.uid === user.uid || user.role === 'admin' || user.role === 'moderator') && (
   <div className="space-x-2">
+    {/* Edit/Delete buttons go here */}
+  </div>
+)}
                 <button
                   onClick={() => {
                     setEditingPostId(post.id);
