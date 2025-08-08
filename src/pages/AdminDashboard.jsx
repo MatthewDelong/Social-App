@@ -139,26 +139,25 @@ export default function AdminDashboard() {
       <section className="mb-10">
         <h3 className="text-xl font-semibold mb-2">Posts</h3>
         {posts.length === 0 && <p className="text-gray-500">No posts found.</p>}
-{posts.map(post => (
-  <div key={post.id} className="border p-3 mb-3 rounded bg-gray-50">
-    <p className="font-medium text-gray-800">{post.content}</p>
-    <p className="text-sm text-gray-600 mt-1">
-      By: <strong>
-        {post.author || post.displayName || post.authorEmail || 'Unknown'}
-      </strong>
-    </p>
-    <p className="text-xs text-gray-500">
-      {post.createdAt
-        ? formatDistanceToNow(
-            typeof post.createdAt === 'string'
-              ? new Date(post.createdAt)
-              : post.createdAt.toDate(),
-            { addSuffix: true }
-          )
-        : ''}
-    </p>
-  </div>
-))}
+
+        {posts.map(post => (
+          <div key={post.id} className="border p-3 mb-3 rounded bg-gray-50">
+            <p className="font-medium text-gray-800">{post.text || post.content}</p>
+            <p className="text-sm text-gray-600 mt-1">
+              By: <strong>
+                {post.authorName || post.displayName || post.authorEmail || 'Unknown'}
+              </strong>
+            </p>
+            <p className="text-xs text-gray-500">
+              {post.createdAt
+                ? formatDistanceToNow(
+                    typeof post.createdAt === 'string'
+                      ? new Date(post.createdAt)
+                      : post.createdAt.toDate(),
+                    { addSuffix: true }
+                  )
+                : ''}
+            </p>
             <button
               onClick={() => deletePost(post.id)}
               className="text-sm text-red-600 hover:underline mt-2"
