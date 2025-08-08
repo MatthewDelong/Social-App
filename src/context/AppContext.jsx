@@ -1,9 +1,7 @@
-// src/context/AppContext.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
 
 const AppContext = createContext();
 
@@ -26,7 +24,7 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Load theme in real-time
+  // Load theme in real-time (runs even if logged out)
   useEffect(() => {
     const themeRef = doc(db, 'settings', 'theme');
     const unsubTheme = onSnapshot(themeRef, (snapshot) => {
@@ -34,15 +32,14 @@ export function AppProvider({ children }) {
         const newTheme = snapshot.data();
         setTheme(newTheme);
 
-        // Apply theme globally
+        // Apply background globally
         document.body.style.backgroundColor = newTheme.backgroundColor;
       }
     });
-
     return () => unsubTheme();
   }, []);
 
-  // Auth state
+  // Auth state listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -65,13 +62,11 @@ export function AppProvider({ children }) {
           console.error('Error loading user roles:', e);
         }
 
-        const role = isAdmin ? 'admin' : isModerator ? 'moderator' : 'user';
-
         setUser({
           ...auth.currentUser,
           isAdmin,
           isModerator,
-          role,
+          role: isAdmin ? 'admin' : isModerator ? 'moderator' : 'user'
         });
       } else {
         setUser(null);
