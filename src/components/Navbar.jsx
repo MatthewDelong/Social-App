@@ -16,28 +16,24 @@ export default function Navbar() {
   const { user, logout, theme } = useAppContext();
   const location = useLocation();
   const hideContentRoutes = ['/login', '/signup'];
-  const shouldShowOnlyLogo = hideContentRoutes.includes(location.pathname) && !user;
+  const isLoginOrSignup = hideContentRoutes.includes(location.pathname) && !user;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const textColorClass = getContrastYIQ(theme.navbarColor);
 
   return (
     <nav
-      className={`shadow ${shouldShowOnlyLogo ? 'py-1' : 'py-2'} px-4 mb-6`}
+      className="shadow py-2 px-4 mb-6"
       style={{ backgroundColor: theme.navbarColor }}
     >
-      <div
-        className={`max-w-6xl mx-auto flex items-center ${
-          shouldShowOnlyLogo ? 'justify-center' : 'justify-between'
-        }`}
-      >
+      <div className="flex justify-between items-center max-w-6xl mx-auto">
         {/* Logo */}
         <Link to="/">
           <img src="/images/logo.png" alt="Logo" className="h-8 w-auto" />
         </Link>
 
-        {/* Logged-in links */}
-        {!shouldShowOnlyLogo && user && (
+        {/* Right side */}
+        {!isLoginOrSignup && user && (
           <>
             {/* Hamburger button for mobile */}
             <button
@@ -72,7 +68,7 @@ export default function Navbar() {
       </div>
 
       {/* Mobile menu */}
-      {menuOpen && !shouldShowOnlyLogo && user && (
+      {menuOpen && !isLoginOrSignup && user && (
         <div className={`sm:hidden mt-4 flex flex-col gap-2 ${textColorClass}`}>
           <Link to="/profile" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Profile</Link>
           <Link to="/new" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>New Post</Link>
