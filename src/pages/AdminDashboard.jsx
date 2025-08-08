@@ -1,3 +1,4 @@
+// src/pages/AdminDashboard.jsx
 import { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import {
@@ -57,6 +58,9 @@ export default function AdminDashboard() {
     saveTheme({ navbarColor, backgroundColor });
   };
 
+  const presetNavbarColors = ['#ffffff', '#1E3A8A', '#4B5563', '#2563EB', '#DC2626'];
+  const presetBackgroundColors = ['#f9fafb', '#F3F4F6', '#E5E7EB', '#FEF3C7', '#D1FAE5'];
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <h2 className="text-2xl font-bold mb-6">Admin Dashboard</h2>
@@ -64,32 +68,71 @@ export default function AdminDashboard() {
       {/* THEME SETTINGS */}
       <section className="mb-10 border p-4 rounded bg-white">
         <h3 className="text-lg font-semibold mb-4">Theme Settings</h3>
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
+
+        {/* Live Preview */}
+        <div
+          className="p-3 rounded mb-4 shadow flex justify-between items-center"
+          style={{ backgroundColor: navbarColor }}
+        >
+          <span className="text-white font-medium">Navbar Preview</span>
+        </div>
+        <div
+          className="p-4 rounded mb-6"
+          style={{ backgroundColor: backgroundColor }}
+        >
+          <span className="text-gray-800">Page Background Preview</span>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-6 items-center">
+          {/* Navbar color picker */}
           <div>
-            <label className="block text-sm font-medium">Navbar Color</label>
+            <label className="block text-sm font-medium mb-1">Navbar Color</label>
             <input
               type="color"
               value={navbarColor}
               onChange={(e) => setNavbarColor(e.target.value)}
               className="w-16 h-10 p-0 border rounded"
             />
+            <div className="flex gap-1 mt-2">
+              {presetNavbarColors.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setNavbarColor(color)}
+                  className="w-6 h-6 rounded border"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
           </div>
+
+          {/* Background color picker */}
           <div>
-            <label className="block text-sm font-medium">Background Color</label>
+            <label className="block text-sm font-medium mb-1">Background Color</label>
             <input
               type="color"
               value={backgroundColor}
               onChange={(e) => setBackgroundColor(e.target.value)}
               className="w-16 h-10 p-0 border rounded"
             />
+            <div className="flex gap-1 mt-2">
+              {presetBackgroundColors.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setBackgroundColor(color)}
+                  className="w-6 h-6 rounded border"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
           </div>
-          <button
-            onClick={handleThemeSave}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Save Theme
-          </button>
         </div>
+
+        <button
+          onClick={handleThemeSave}
+          className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Save Theme
+        </button>
       </section>
 
       {/* POSTS SECTION */}

@@ -1,7 +1,8 @@
+// src/context/AppContext.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../firebase';
 import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const AppContext = createContext();
@@ -16,31 +17,33 @@ export function AppProvider({ children }) {
     backgroundColor: '#f9fafb'
   });
 
-  // Load theme from Firestore
-  const loadTheme = async () => {
-    try {
-      const themeDoc = await getDoc(doc(db, 'settings', 'theme'));
-      if (themeDoc.exists()) {
-        setTheme(themeDoc.data());
-      }
-    } catch (err) {
-      console.error('Error loading theme:', err);
-    }
-  };
-
   // Save theme to Firestore
   const saveTheme = async (newTheme) => {
     try {
       await setDoc(doc(db, 'settings', 'theme'), newTheme);
-      setTheme(newTheme);
     } catch (err) {
       console.error('Error saving theme:', err);
     }
   };
 
+  // Load theme in real-time
   useEffect(() => {
-    loadTheme(); // Load theme on app start
+    const themeRef = doc(db, 'settings', 'theme');
+    const unsubTheme = onSnapshot(themeRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const newTheme = snapshot.data();
+        setTheme(newTheme);
 
+        // Apply theme globally
+        document.body.style.backgroundColor = newTheme.backgroundColor;
+      }
+    });
+
+    return () => unsubTheme();
+  }, []);
+
+  // Auth state
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         if (!currentUser.displayName) {
