@@ -17,10 +17,10 @@ export default function NewPost() {
     await addDoc(collection(db, 'posts'), {
       content,
       authorName: user.displayName || '',
-      authorEmail: user.email,
+      authorEmail: user.email || '',
       uid: user.uid,
-      isAdmin: user.isAdmin || false,
-      isModerator: user.isModerator || false,
+      isAdmin: Boolean(user.isAdmin),
+      isModerator: Boolean(user.isModerator),
       createdAt: serverTimestamp(),
       likes: [],
       comments: [],

@@ -1,4 +1,3 @@
-// src/pages/AdminDashboard.jsx
 import { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import {
@@ -16,7 +15,6 @@ export default function AdminDashboard() {
   const [posts, setPosts] = useState([]);
   const [users, setUsers] = useState([]);
 
-  // Local form state for theme colors
   const [navbarColor, setNavbarColor] = useState(theme.navbarColor);
   const [backgroundColor, setBackgroundColor] = useState(theme.backgroundColor);
 
@@ -69,7 +67,6 @@ export default function AdminDashboard() {
       <section className="mb-10 border p-4 rounded bg-white">
         <h3 className="text-lg font-semibold mb-4">Theme Settings</h3>
 
-        {/* Live Preview */}
         <div
           className="p-3 rounded mb-4 shadow flex justify-between items-center"
           style={{ backgroundColor: navbarColor }}
@@ -142,11 +139,19 @@ export default function AdminDashboard() {
 
         {posts.map(post => (
           <div key={post.id} className="border p-3 mb-3 rounded bg-gray-50">
-            <p className="font-medium text-gray-800">{post.text || post.content}</p>
+            <p className="font-medium text-gray-800">{post.content}</p>
             <p className="text-sm text-gray-600 mt-1">
-              By: <strong>
-                {post.author || post.displayName || post.authorEmail || 'Unknown'}
-              </strong>
+              By: <strong>{post.authorName || post.authorEmail || 'Unknown'}</strong>
+              {post.isAdmin && (
+                <span className="ml-2 inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                  Admin
+                </span>
+              )}
+              {post.isModerator && (
+                <span className="ml-2 inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                  Moderator
+                </span>
+              )}
             </p>
             <p className="text-xs text-gray-500">
               {post.createdAt
