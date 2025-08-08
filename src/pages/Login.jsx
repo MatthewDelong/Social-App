@@ -23,7 +23,7 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center"
+      className="flex items-center justify-center min-h-[calc(100vh-3.5rem)]"
       style={{ backgroundColor: theme.backgroundColor }}
     >
       <div
