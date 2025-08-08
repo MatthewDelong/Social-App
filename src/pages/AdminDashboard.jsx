@@ -145,7 +145,7 @@ export default function AdminDashboard() {
             <p className="font-medium text-gray-800">{post.text || post.content}</p>
             <p className="text-sm text-gray-600 mt-1">
               By: <strong>
-                {post.authorName || post.displayName || post.authorEmail || 'Unknown'}
+                {post.author || post.displayName || post.authorEmail || 'Unknown'}
               </strong>
             </p>
             <p className="text-xs text-gray-500">
