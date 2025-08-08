@@ -5,7 +5,7 @@ import {
   Navigate
 } from 'react-router-dom';
 
-import { useAppContext } from './context/AppContext';
+import { AppProvider, useAppContext } from './context/AppContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Home from './pages/Home';
@@ -44,8 +44,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <Router>
-      <AppRoutes />
-    </Router>
+    <AppProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AppProvider>
   );
 }
