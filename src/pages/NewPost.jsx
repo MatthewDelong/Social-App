@@ -1,4 +1,3 @@
-// src/pages/NewPost.jsx
 import { useState } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -17,8 +16,10 @@ export default function NewPost() {
 
     await addDoc(collection(db, 'posts'), {
       content,
-      author: user.displayName || user.email, // ✅ use displayName if set
+      author: user.displayName || user.email,
       uid: user.uid,
+      isAdmin: user.isAdmin || false,
+      isModerator: user.isModerator || false,
       createdAt: serverTimestamp(),
       likes: [],
       comments: [],

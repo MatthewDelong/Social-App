@@ -58,7 +58,8 @@ export default function Home() {
       text: comment,
       author: user.displayName || user.email,
       uid: user.uid,
-      role: user.role || 'user', // ✅ store role
+      isAdmin: user.isAdmin || false,
+      isModerator: user.isModerator || false,
       createdAt: new Date().toISOString(),
       replies: []
     };
@@ -81,7 +82,8 @@ export default function Home() {
       text: replyText,
       author: user.displayName || user.email,
       uid: user.uid,
-      role: user.role || 'user', // ✅ store role
+      isAdmin: user.isAdmin || false,
+      isModerator: user.isModerator || false,
       createdAt: new Date().toISOString()
     };
 
@@ -132,6 +134,7 @@ export default function Home() {
     await updateDoc(doc(db, 'posts', postId), {
       content: editedContent
     });
+
     setPosts((prevPosts) =>
       prevPosts.map((p) =>
         p.id === postId ? { ...p, content: editedContent } : p
@@ -187,14 +190,14 @@ export default function Home() {
           <div className="flex justify-between">
             <p className="font-bold text-gray-800">
               {post.author}
-              {post.role === 'admin' && (
-                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
+              {post.isAdmin && (
+                <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
               )}
-              {post.role === 'moderator' && (
-                <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Moderator</span>
+              {post.isModerator && (
+                <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
               )}
             </p>
-            {(post.uid === user.uid || user.role === 'admin' || user.role === 'moderator') && (
+            {(post.uid === user.uid || user.isAdmin || user.isModerator) && (
               <div className="space-x-2">
                 <button
                   onClick={() => {
@@ -295,11 +298,11 @@ export default function Home() {
                   <div className="w-full">
                     <p className="text-sm font-semibold text-gray-800">
                       {comment.author}
-                      {comment.role === 'admin' && (
-                        <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
+                      {comment.isAdmin && (
+                        <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
                       )}
-                      {comment.role === 'moderator' && (
-                        <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
+                      {comment.isModerator && (
+                        <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
                       )}
                     </p>
                     {comment.uid === user.uid && editCommentMap[`${post.id}-${i}`] !== undefined ? (
@@ -335,11 +338,11 @@ export default function Home() {
                         <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
                           <p className="text-sm font-semibold text-gray-800">
                             {reply.author}
-                            {reply.role === 'admin' && (
-                              <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
+                            {reply.isAdmin && (
+                              <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
                             )}
-                            {reply.role === 'moderator' && (
-                              <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
+                            {reply.isModerator && (
+                              <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
                             )}
                           </p>
                           {editingReplyIndexMap[key] ? (
