@@ -23,16 +23,20 @@ export default function Navbar() {
 
   return (
     <nav
-      className="shadow py-2 px-4 mb-6"
+      className={`shadow ${shouldShowOnlyLogo ? 'py-1' : 'py-2'} px-4 mb-6`}
       style={{ backgroundColor: theme.navbarColor }}
     >
-      <div className="flex justify-between items-center max-w-6xl mx-auto">
+      <div
+        className={`max-w-6xl mx-auto flex items-center ${
+          shouldShowOnlyLogo ? 'justify-center' : 'justify-between'
+        }`}
+      >
         {/* Logo */}
         <Link to="/">
           <img src="/images/logo.png" alt="Logo" className="h-8 w-auto" />
         </Link>
 
-        {/* If not in login/signup or if user is logged in, show nav links */}
+        {/* Logged-in links */}
         {!shouldShowOnlyLogo && user && (
           <>
             {/* Hamburger button for mobile */}
