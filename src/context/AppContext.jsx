@@ -15,10 +15,12 @@ export function AppProvider({ children }) {
     backgroundColor: '#f9fafb'
   });
 
-  // Save theme to Firestore
+  // Save theme to Firestore & update locally instantly
   const saveTheme = async (newTheme) => {
     try {
-      await setDoc(doc(db, 'settings', 'theme'), newTheme);
+      setTheme(newTheme); // instantly update UI
+      document.body.style.backgroundColor = newTheme.backgroundColor; // update global bg
+      await setDoc(doc(db, 'settings', 'theme'), newTheme); // persist in Firestore
     } catch (err) {
       console.error('Error saving theme:', err);
     }
@@ -31,8 +33,6 @@ export function AppProvider({ children }) {
       if (snapshot.exists()) {
         const newTheme = snapshot.data();
         setTheme(newTheme);
-
-        // Apply background globally
         document.body.style.backgroundColor = newTheme.backgroundColor;
       }
     });
