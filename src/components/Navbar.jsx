@@ -32,8 +32,7 @@ export default function Navbar() {
     <Link to="/">
       <img src="/images/logo.png" alt="Logo" className="h-8 w-auto" />
     </Link>
-  </div>
-</nav>
+  
 
         {/* Hamburger button for mobile */}
         {!shouldHideContent && user && (
