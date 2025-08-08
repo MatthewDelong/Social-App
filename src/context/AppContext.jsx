@@ -35,8 +35,15 @@ export function AppProvider({ children }) {
         const newTheme = snapshot.data();
         setTheme(newTheme);
         document.body.style.backgroundColor = newTheme.backgroundColor;
+      } else {
+        // If no theme doc exists, fall back to defaults
+        setTheme({
+          navbarColor: '#ffffff',
+          backgroundColor: '#f9fafb'
+        });
+        document.body.style.backgroundColor = '#f9fafb';
       }
-      setLoadingTheme(false);
+      setLoadingTheme(false); // ✅ Always end loading
     });
     return () => unsubTheme();
   }, []);
