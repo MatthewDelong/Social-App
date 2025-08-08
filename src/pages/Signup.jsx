@@ -25,8 +25,8 @@ export default function Signup() {
 
   return (
     <div
-      className="pt-6 sm:pt-8 flex justify-center min-h-[calc(100vh-3.5rem)]"
-      style={{ backgroundColor: theme.backgroundColor }}
+      className="pt-6 sm:pt-8 flex justify-center"
+      style={{ backgroundColor: theme.backgroundColor, minHeight: '100vh' }}
     >
       <div
         className="max-w-md w-full p-6 border rounded shadow"
