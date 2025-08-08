@@ -58,6 +58,7 @@ export default function Home() {
       text: comment,
       author: user.displayName || user.email,
       uid: user.uid,
+      role: user.role || 'user', // ✅ store role
       createdAt: new Date().toISOString(),
       replies: []
     };
@@ -80,6 +81,7 @@ export default function Home() {
       text: replyText,
       author: user.displayName || user.email,
       uid: user.uid,
+      role: user.role || 'user', // ✅ store role
       createdAt: new Date().toISOString()
     };
 
@@ -130,12 +132,11 @@ export default function Home() {
     await updateDoc(doc(db, 'posts', postId), {
       content: editedContent
     });
-  // Immediately update local state for a better UX
     setPosts((prevPosts) =>
-    prevPosts.map((p) =>
-      p.id === postId ? { ...p, content: editedContent } : p
-    )
-  );
+      prevPosts.map((p) =>
+        p.id === postId ? { ...p, content: editedContent } : p
+      )
+    );
     setEditingPostId(null);
     setEditedContent('');
   };
@@ -184,9 +185,17 @@ export default function Home() {
       {posts.map((post) => (
         <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
           <div className="flex justify-between">
-            <p className="font-bold text-gray-800">{post.author}</p>
-{(post.uid === user.uid || user.role === 'admin' || user.role === 'moderator') && (
-  <div className="space-x-2">
+            <p className="font-bold text-gray-800">
+              {post.author}
+              {post.role === 'admin' && (
+                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
+              )}
+              {post.role === 'moderator' && (
+                <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Moderator</span>
+              )}
+            </p>
+            {(post.uid === user.uid || user.role === 'admin' || user.role === 'moderator') && (
+              <div className="space-x-2">
                 <button
                   onClick={() => {
                     setEditingPostId(post.id);
@@ -284,7 +293,15 @@ export default function Home() {
               <div key={i} className="bg-gray-50 p-2 rounded">
                 <div className="flex justify-between items-start">
                   <div className="w-full">
-                    <p className="text-sm font-semibold text-gray-800">{comment.author}</p>
+                    <p className="text-sm font-semibold text-gray-800">
+                      {comment.author}
+                      {comment.role === 'admin' && (
+                        <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
+                      )}
+                      {comment.role === 'moderator' && (
+                        <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
+                      )}
+                    </p>
                     {comment.uid === user.uid && editCommentMap[`${post.id}-${i}`] !== undefined ? (
                       <>
                         <textarea
@@ -316,7 +333,15 @@ export default function Home() {
                       const key = `${post.id}-${i}-${j}`;
                       return (
                         <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
-                          <p className="text-sm font-semibold text-gray-800">{reply.author}</p>
+                          <p className="text-sm font-semibold text-gray-800">
+                            {reply.author}
+                            {reply.role === 'admin' && (
+                              <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
+                            )}
+                            {reply.role === 'moderator' && (
+                              <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
+                            )}
+                          </p>
                           {editingReplyIndexMap[key] ? (
                             <>
                               <textarea
