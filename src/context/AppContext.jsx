@@ -1,3 +1,4 @@
+// src/context/AppContext.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
@@ -8,25 +9,24 @@ const AppContext = createContext();
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // Theme state
   const [theme, setTheme] = useState({
     navbarColor: '#ffffff',
     backgroundColor: '#f9fafb'
   });
+  const [themeLoading, setThemeLoading] = useState(true);
 
-  // Save theme to Firestore & update locally instantly
+  // Save theme instantly & to Firestore
   const saveTheme = async (newTheme) => {
     try {
-      setTheme(newTheme); // instantly update UI
-      document.body.style.backgroundColor = newTheme.backgroundColor; // update global bg
-      await setDoc(doc(db, 'settings', 'theme'), newTheme); // persist in Firestore
+      setTheme(newTheme);
+      document.body.style.backgroundColor = newTheme.backgroundColor;
+      await setDoc(doc(db, 'settings', 'theme'), newTheme);
     } catch (err) {
       console.error('Error saving theme:', err);
     }
   };
 
-  // Load theme in real-time (runs even if logged out)
+  // Load theme in real-time
   useEffect(() => {
     const themeRef = doc(db, 'settings', 'theme');
     const unsubTheme = onSnapshot(themeRef, (snapshot) => {
@@ -35,6 +35,7 @@ export function AppProvider({ children }) {
         setTheme(newTheme);
         document.body.style.backgroundColor = newTheme.backgroundColor;
       }
+      setThemeLoading(false);
     });
     return () => unsubTheme();
   }, []);
@@ -71,7 +72,6 @@ export function AppProvider({ children }) {
       } else {
         setUser(null);
       }
-
       setLoading(false);
     });
 
@@ -81,7 +81,13 @@ export function AppProvider({ children }) {
   const logout = () => signOut(auth);
 
   return (
-    <AppContext.Provider value={{ user, logout, loading, theme, saveTheme }}>
+    <AppContext.Provider value={{
+      user,
+      logout,
+      loading: loading || themeLoading,
+      theme,
+      saveTheme
+    }}>
       {children}
     </AppContext.Provider>
   );
