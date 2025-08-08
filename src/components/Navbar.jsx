@@ -23,15 +23,17 @@ export default function Navbar() {
   const textColorClass = getContrastYIQ(theme.navbarColor);
 
   return (
-    <nav
-      className={`shadow p-4 mb-6`}
-      style={{ backgroundColor: theme.navbarColor }}
-    >
-      <div className="flex justify-between items-center max-w-6xl mx-auto">
-        {/* Logo */}
-        <Link to="/">
-          <img src="/images/logo.png" alt="Logo" className="h-16 w-auto" />
-        </Link>
+<nav
+  className="shadow py-2 px-4 mb-6"
+  style={{ backgroundColor: theme.navbarColor }}
+>
+  <div className="flex justify-between items-center max-w-6xl mx-auto">
+    {/* Logo */}
+    <Link to="/">
+      <img src="/images/logo.png" alt="Logo" className="h-8 w-auto" />
+    </Link>
+  </div>
+</nav>
 
         {/* Hamburger button for mobile */}
         {!shouldHideContent && user && (
