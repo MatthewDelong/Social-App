@@ -16,16 +16,17 @@ export default function NewPost() {
 
     await addDoc(collection(db, 'posts'), {
       content,
-      authorName: user.displayName || '',
-      authorEmail: user.email || '',
+      author: user.displayName || user.email || 'Unknown', // consistent field name
+      authorEmail: user.email,
       uid: user.uid,
-      isAdmin: Boolean(user.isAdmin),
-      isModerator: Boolean(user.isModerator),
+      isAdmin: user.isAdmin || false,
+      isModerator: user.isModerator || false,
       createdAt: serverTimestamp(),
       likes: [],
       comments: [],
     });
 
+    setContent('');
     navigate('/');
   };
 

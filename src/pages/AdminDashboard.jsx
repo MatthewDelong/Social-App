@@ -81,7 +81,6 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-6 items-center">
-          {/* Navbar color picker */}
           <div>
             <label className="block text-sm font-medium mb-1">Navbar Color</label>
             <input
@@ -102,7 +101,6 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Background color picker */}
           <div>
             <label className="block text-sm font-medium mb-1">Background Color</label>
             <input
@@ -140,17 +138,13 @@ export default function AdminDashboard() {
         {posts.map(post => (
           <div key={post.id} className="border p-3 mb-3 rounded bg-gray-50">
             <p className="font-medium text-gray-800">{post.content}</p>
-            <p className="text-sm text-gray-600 mt-1">
-              By: <strong>{post.authorName || post.authorEmail || 'Unknown'}</strong>
+            <p className="text-sm text-gray-600 mt-1 flex items-center gap-2">
+              By: <strong>{post.author || post.authorEmail || 'Unknown'}</strong>
               {post.isAdmin && (
-                <span className="ml-2 inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                  Admin
-                </span>
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Admin</span>
               )}
               {post.isModerator && (
-                <span className="ml-2 inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                  Moderator
-                </span>
+                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Moderator</span>
               )}
             </p>
             <p className="text-xs text-gray-500">
@@ -178,7 +172,15 @@ export default function AdminDashboard() {
         <h3 className="text-xl font-semibold mb-2">Users</h3>
         {users.map(user => (
           <div key={user.id} className="border p-3 mb-3 rounded bg-white">
-            <p className="font-medium">{user.displayName || user.email}</p>
+            <p className="font-medium flex items-center gap-2">
+              {user.displayName || user.email}
+              {user.isAdmin && (
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Admin</span>
+              )}
+              {user.isModerator && (
+                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Moderator</span>
+              )}
+            </p>
             <p className="text-sm text-gray-500 mb-1">{user.email}</p>
 
             <div className="flex flex-wrap gap-4">
@@ -203,19 +205,6 @@ export default function AdminDashboard() {
                 >
                   Delete User
                 </button>
-              )}
-            </div>
-
-            <div className="mt-2">
-              {user.isAdmin && (
-                <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-2">
-                  Admin
-                </span>
-              )}
-              {user.isModerator && (
-                <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                  Moderator
-                </span>
               )}
             </div>
           </div>
