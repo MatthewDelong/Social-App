@@ -23,7 +23,7 @@ export default function Navbar() {
 
   return (
     <nav
-      className="shadow px-4 mb-6 h-14"
+      className="shadow px-4 mb-6 h-14 relative"
       style={{ backgroundColor: theme.navbarColor }}
     >
       <div className="flex justify-between items-center h-full max-w-6xl mx-auto">
@@ -69,7 +69,10 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {menuOpen && !isLoginOrSignup && user && (
-        <div className={`sm:hidden mt-4 flex flex-col gap-2 ${textColorClass}`}>
+        <div
+          className={`sm:hidden flex flex-col gap-2 absolute left-0 w-full p-4 shadow-md z-50 ${textColorClass}`}
+          style={{ top: '3.5rem', backgroundColor: theme.navbarColor }}
+        >
           <Link to="/profile" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Profile</Link>
           <Link to="/new" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>New Post</Link>
           <Link to="/settings" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Settings</Link>
