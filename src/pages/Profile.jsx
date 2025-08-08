@@ -9,9 +9,10 @@ import {
   where,
   onSnapshot
 } from 'firebase/firestore';
-import { db, auth } from '../firebase';
+import { db, auth, storage } from '../firebase';
 import { useAppContext } from '../context/AppContext';
 import { updateProfile } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Card from '../components/ui/card';
 
 export default function Profile() {
@@ -22,36 +23,42 @@ export default function Profile() {
   const [location, setLocation] = useState('');
   const [website, setWebsite] = useState('');
   const [message, setMessage] = useState('');
+  const [photo, setPhoto] = useState(null); // file object
+  const [photoURL, setPhotoURL] = useState(''); // preview URL
 
   // User profile preview data
   const [profileData, setProfileData] = useState({
     displayName: user.displayName || '',
     bio: '',
     location: '',
-    website: ''
+    website: '',
+    photoURL: user.photoURL || ''
   });
 
   useEffect(() => {
     const loadUserProfile = async () => {
-      const ref = doc(db, 'users', user.uid);
-      const snap = await getDoc(ref);
+      const refDoc = doc(db, 'users', user.uid);
+      const snap = await getDoc(refDoc);
       if (snap.exists()) {
         const data = snap.data();
         setBio(data.bio || '');
         setLocation(data.location || '');
         setWebsite(data.website || '');
+        setPhotoURL(data.photoURL || '');
         setProfileData({
           displayName: data.displayName || user.displayName || '',
           bio: data.bio || '',
           location: data.location || '',
-          website: data.website || ''
+          website: data.website || '',
+          photoURL: data.photoURL || user.photoURL || ''
         });
       } else {
-        await setDoc(ref, {
+        await setDoc(refDoc, {
           displayName: user.displayName,
           bio: '',
           location: '',
-          website: ''
+          website: '',
+          photoURL: user.photoURL || ''
         });
       }
     };
@@ -67,32 +74,51 @@ export default function Profile() {
     return () => unsub();
   }, [user.uid]);
 
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPhoto(file);
+      setPhotoURL(URL.createObjectURL(file)); // local preview
+    }
+  };
+
   const handleUpdate = async () => {
     try {
-      if (name.trim()) {
-        await updateProfile(auth.currentUser, {
-          displayName: name
-        });
-        await updateDoc(doc(db, 'users', user.uid), {
-          displayName: name
-        });
+      let uploadedPhotoURL = profileData.photoURL;
+
+      // If new photo selected, upload to Firebase Storage
+      if (photo) {
+        const photoRef = ref(storage, `profilePictures/${user.uid}`);
+        await uploadBytes(photoRef, photo);
+        uploadedPhotoURL = await getDownloadURL(photoRef);
       }
 
+      // Update Firebase Auth profile
+      await updateProfile(auth.currentUser, {
+        displayName: name || user.displayName,
+        photoURL: uploadedPhotoURL
+      });
+
+      // Update Firestore user document
       await updateDoc(doc(db, 'users', user.uid), {
+        displayName: name || user.displayName,
         bio,
         location,
-        website
+        website,
+        photoURL: uploadedPhotoURL
       });
 
       setProfileData({
         displayName: name || user.displayName || '',
         bio,
         location,
-        website
+        website,
+        photoURL: uploadedPhotoURL
       });
 
       setMessage('Profile updated successfully!');
       setName('');
+      setPhoto(null);
     } catch (error) {
       console.error('Error updating profile:', error);
       setMessage('Failed to update profile.');
@@ -131,6 +157,20 @@ export default function Profile() {
           onChange={(e) => setWebsite(e.target.value)}
           className="w-full border border-gray-300 p-2 rounded"
         />
+
+        {/* Profile Picture Upload */}
+        <div>
+          <label className="block font-semibold mb-1">Profile Picture</label>
+          {photoURL && (
+            <img
+              src={photoURL}
+              alt="Profile Preview"
+              className="w-20 h-20 rounded-full object-cover mb-2"
+            />
+          )}
+          <input type="file" accept="image/*" onChange={handlePhotoChange} />
+        </div>
+
         <button
           onClick={handleUpdate}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
@@ -143,6 +183,13 @@ export default function Profile() {
       {/* Profile Preview */}
       <div className="bg-white border rounded p-4 shadow">
         <h2 className="text-xl font-semibold mb-4">Profile Preview</h2>
+        {profileData.photoURL && (
+          <img
+            src={profileData.photoURL}
+            alt={profileData.displayName}
+            className="w-20 h-20 rounded-full object-cover mb-2"
+          />
+        )}
         <p><span className="font-bold">Name:</span> {profileData.displayName}</p>
         {profileData.bio && (
           <p className="mt-1"><span className="font-bold">Bio:</span> {profileData.bio}</p>
@@ -166,7 +213,14 @@ export default function Profile() {
         {posts.length === 0 && <p className="text-gray-600">No posts yet.</p>}
         {posts.map((post) => (
           <Card key={post.id}>
-            <p className="font-bold">{post.author}</p>
+            <div className="flex items-center mb-2">
+              <img
+                src={post.authorPhotoURL || '/images/default-avatar.png'}
+                alt={post.author}
+                className="w-8 h-8 rounded-full object-cover mr-2"
+              />
+              <p className="font-bold">{post.author}</p>
+            </div>
             <p>{post.content}</p>
           </Card>
         ))}

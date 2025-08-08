@@ -31,10 +31,17 @@ export default function NewPost() {
   const handlePost = async () => {
     if (!content.trim() || !user) return;
 
+    // Pick the best available profile picture (Firestore → Auth → fallback placeholder)
+    const profilePic =
+      userData?.photoURL ||
+      user?.photoURL ||
+      '/images/default-avatar.png'; // <-- add a default image in public/images
+
     await addDoc(collection(db, 'posts'), {
       content,
       author: user.displayName || user.email || 'Unknown',
       authorEmail: user.email,
+      authorPhotoURL: profilePic, // ✅ store profile pic in post
       uid: user.uid,
       isAdmin: userData?.isAdmin || false,
       isModerator: userData?.isModerator || false,

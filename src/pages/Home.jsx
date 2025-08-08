@@ -101,7 +101,9 @@ export default function Home() {
       isAdmin: user.isAdmin || false,
       isModerator: user.isModerator || false,
       createdAt: new Date(),
-      replies: []
+      replies: [],
+      // store author's profile picture at time of comment creation
+      authorPhotoURL: user.photoURL || ''
     };
 
     const updatedComments = [newComment, ...(post.comments || [])]; // prepend
@@ -158,7 +160,9 @@ export default function Home() {
       uid: user.uid,
       isAdmin: user.isAdmin || false,
       isModerator: user.isModerator || false,
-      createdAt: new Date()
+      createdAt: new Date(),
+      // store author's profile picture at time of reply creation
+      authorPhotoURL: user.photoURL || ''
     };
 
     const updatedComments = (post.comments || []).map((c, i) => {
@@ -231,20 +235,37 @@ export default function Home() {
 
   /* ---------- Render ---------- */
 
+  const avatarFallback = 'https://via.placeholder.com/40';
+
   return (
     <div className="max-w-xl mx-auto mt-10">
       {posts.map((post) => (
         <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
-          <div className="flex justify-between">
-            <p className="font-bold text-gray-800">
-              {post.author}
-              {post.isAdmin && (
-                <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
-              )}
-              {post.isModerator && (
-                <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
-              )}
-            </p>
+          <div className="flex justify-between items-start">
+            <div className="flex items-center">
+              {/* Post author avatar */}
+              <img
+                src={post.authorPhotoURL || (post.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                alt={post.author || 'User'}
+                className="w-10 h-10 rounded-full object-cover mr-3"
+              />
+              <div>
+                <p className="font-bold text-gray-800">
+                  {post.author}
+                  {post.isAdmin && (
+                    <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
+                  )}
+                  {post.isModerator && (
+                    <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
+                  )}
+                </p>
+                {post.createdAt && (
+                  <p className="text-xs text-gray-500">
+                    {formatDistanceToNow(new Date(getTime(post.createdAt)), { addSuffix: true })}
+                  </p>
+                )}
+              </div>
+            </div>
 
             {(post.uid === user.uid || user.isAdmin || user.isModerator) && (
               <div className="space-x-2">
@@ -280,12 +301,7 @@ export default function Home() {
             </div>
           ) : (
             <>
-              <p className="text-gray-700 mb-2">{post.content}</p>
-              {post.createdAt && (
-                <p className="text-xs text-gray-500 mb-2">
-                  {formatDistanceToNow(new Date(getTime(post.createdAt)), { addSuffix: true })}
-                </p>
-              )}
+              <p className="text-gray-700 mb-2 mt-3">{post.content}</p>
             </>
           )}
 
@@ -326,164 +342,182 @@ export default function Home() {
                 <div key={i} className="bg-gray-50 p-2 rounded">
                   <div className="flex justify-between items-start">
                     <div className="w-full">
-                      <p className="text-sm font-semibold text-gray-800">
-                        {comment.author}
-                        {comment.isAdmin && (
-                          <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
-                        )}
-                        {comment.isModerator && (
-                          <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
-                        )}
-                      </p>
-
-                      {/* Comment edit mode */}
-                      {editCommentMap[commentKey] !== undefined ? (
-                        <>
-                          <textarea
-                            className="w-full text-sm border rounded p-1 mt-1"
-                            value={editCommentMap[commentKey]}
-                            onChange={(e) =>
-                              setEditCommentMap((prev) => ({ ...prev, [commentKey]: e.target.value }))
-                            }
-                          />
-                          <div className="flex gap-2 mt-1">
-                            <button
-                              onClick={() => handleEditComment(post.id, i)}
-                              className="text-xs text-green-600"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() =>
-                                setEditCommentMap((prev) => {
-                                  const copy = { ...prev };
-                                  delete copy[commentKey];
-                                  return copy;
-                                })
-                              }
-                              className="text-xs text-gray-600"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-sm text-gray-700">{comment.text}</p>
-                      )}
-
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatDistanceToNow(new Date(getTime(comment.createdAt)), { addSuffix: true })}
-                      </p>
-
-                      {/* Replies (already newest-first in state) */}
-                      {(comment.replies || []).map((reply, j) => {
-                        const replyKey = `${post.id}-${i}-${j}`;
-                        return (
-                          <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
-                            <p className="text-sm font-semibold text-gray-800">
-                              {reply.author}
-                              {reply.isAdmin && (
-                                <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
-                              )}
-                              {reply.isModerator && (
-                                <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
-                              )}
-                            </p>
-
-                            {editingReplyIndexMap[replyKey] ? (
-                              <>
-                                <textarea
-                                  className="w-full text-sm border rounded p-1 mt-1"
-                                  value={editReplyMap[replyKey] || ''}
-                                  onChange={(e) =>
-                                    setEditReplyMap((prev) => ({ ...prev, [replyKey]: e.target.value }))
-                                  }
-                                />
-                                <div className="flex gap-2 mt-1">
-                                  <button
-                                    onClick={() => handleEditReply(post.id, i, j)}
-                                    className="text-xs text-green-600"
-                                  >
-                                    Save
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      setEditingReplyIndexMap((prev) => {
-                                        const copy = { ...prev };
-                                        delete copy[replyKey];
-                                        return copy;
-                                      })
-                                    }
-                                    className="text-xs text-gray-600"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </>
-                            ) : (
-                              <p className="text-sm text-gray-700">{reply.text}</p>
+                      <div className="flex items-start">
+                        {/* Comment author avatar */}
+                        <img
+                          src={comment.authorPhotoURL || (comment.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                          alt={comment.author || 'User'}
+                          className="w-8 h-8 rounded-full object-cover mr-2 mt-1"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-gray-800">
+                            {comment.author}
+                            {comment.isAdmin && (
+                              <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
                             )}
+                            {comment.isModerator && (
+                              <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
+                            )}
+                          </p>
 
-                            <p className="text-xs text-gray-500 mt-1">
-                              {formatDistanceToNow(new Date(getTime(reply.createdAt)), { addSuffix: true })}
-                            </p>
-
-                            {/* Reply edit/delete options for reply owner */}
-                            {reply.uid === user.uid && !editingReplyIndexMap[replyKey] && (
-                              <div className="flex space-x-2 mt-1">
+                          {/* Comment edit mode */}
+                          {editCommentMap[commentKey] !== undefined ? (
+                            <>
+                              <textarea
+                                className="w-full text-sm border rounded p-1 mt-1"
+                                value={editCommentMap[commentKey]}
+                                onChange={(e) =>
+                                  setEditCommentMap((prev) => ({ ...prev, [commentKey]: e.target.value }))
+                                }
+                              />
+                              <div className="flex gap-2 mt-1">
+                                <button
+                                  onClick={() => handleEditComment(post.id, i)}
+                                  className="text-xs text-green-600"
+                                >
+                                  Save
+                                </button>
                                 <button
                                   onClick={() =>
-                                    setEditingReplyIndexMap((prev) => ({ ...prev, [replyKey]: true })) ||
-                                    setEditReplyMap((prev) => ({ ...prev, [replyKey]: reply.text }))
+                                    setEditCommentMap((prev) => {
+                                      const copy = { ...prev };
+                                      delete copy[commentKey];
+                                      return copy;
+                                    })
                                   }
-                                  className="text-xs text-blue-600 hover:underline"
+                                  className="text-xs text-gray-600"
                                 >
-                                  Edit
+                                  Cancel
                                 </button>
-                                <button
-                                  onClick={() => handleDeleteReply(post.id, i, j)}
-                                  className="text-xs text-red-500 hover:underline"
-                                >
-                                  Delete
-                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-sm text-gray-700 mt-1">{comment.text}</p>
+                          )}
+
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatDistanceToNow(new Date(getTime(comment.createdAt)), { addSuffix: true })}
+                          </p>
+
+                          {/* Replies (already newest-first in state) */}
+                          {(comment.replies || []).map((reply, j) => {
+                            const replyKey = `${post.id}-${i}-${j}`;
+                            return (
+                              <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
+                                <div className="flex items-start">
+                                  <img
+                                    src={reply.authorPhotoURL || (reply.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                                    alt={reply.author || 'User'}
+                                    className="w-7 h-7 rounded-full object-cover mr-2 mt-1"
+                                  />
+                                  <div className="flex-1">
+                                    <p className="text-sm font-semibold text-gray-800">
+                                      {reply.author}
+                                      {reply.isAdmin && (
+                                        <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
+                                      )}
+                                      {reply.isModerator && (
+                                        <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
+                                      )}
+                                    </p>
+
+                                    {editingReplyIndexMap[replyKey] ? (
+                                      <>
+                                        <textarea
+                                          className="w-full text-sm border rounded p-1 mt-1"
+                                          value={editReplyMap[replyKey] || ''}
+                                          onChange={(e) =>
+                                            setEditReplyMap((prev) => ({ ...prev, [replyKey]: e.target.value }))
+                                          }
+                                        />
+                                        <div className="flex gap-2 mt-1">
+                                          <button
+                                            onClick={() => handleEditReply(post.id, i, j)}
+                                            className="text-xs text-green-600"
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            onClick={() =>
+                                              setEditingReplyIndexMap((prev) => {
+                                                const copy = { ...prev };
+                                                delete copy[replyKey];
+                                                return copy;
+                                              })
+                                            }
+                                            className="text-xs text-gray-600"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <p className="text-sm text-gray-700">{reply.text}</p>
+                                    )}
+
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      {formatDistanceToNow(new Date(getTime(reply.createdAt)), { addSuffix: true })}
+                                    </p>
+
+                                    {/* Reply edit/delete options for reply owner */}
+                                    {reply.uid === user.uid && !editingReplyIndexMap[replyKey] && (
+                                      <div className="flex space-x-2 mt-1">
+                                        <button
+                                          onClick={() =>
+                                            setEditingReplyIndexMap((prev) => ({ ...prev, [replyKey]: true })) ||
+                                            setEditReplyMap((prev) => ({ ...prev, [replyKey]: reply.text }))
+                                          }
+                                          className="text-xs text-blue-600 hover:underline"
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteReply(post.id, i, j)}
+                                          className="text-xs text-red-500 hover:underline"
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {/* Reply Input */}
+                          <div className="relative mt-2">
+                            <input
+                              type="text"
+                              placeholder="Reply..."
+                              value={commentMap[`${post.id}-reply-${i}`] || ''}
+                              onChange={(e) =>
+                                setCommentMap((prev) => ({ ...prev, [`${post.id}-reply-${i}`]: e.target.value }))
+                              }
+                              className="border p-1 w-full rounded"
+                            />
+                            <button
+                              onClick={() =>
+                                setShowReplyEmojiPicker((prev) => ({
+                                  ...prev,
+                                  [`${post.id}-reply-${i}`]: !prev[`${post.id}-reply-${i}`]
+                                }))
+                              }
+                              className="text-sm text-yellow-500 mt-1"
+                            >
+                              😊
+                            </button>
+                            {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
+                              <div className="absolute z-10 mt-2">
+                                <EmojiPicker onEmojiClick={(emojiData) => addReplyEmoji(`${post.id}-reply-${i}`, emojiData)} />
                               </div>
                             )}
                           </div>
-                        );
-                      })}
-
-                      {/* Reply Input */}
-                      <div className="relative mt-2">
-                        <input
-                          type="text"
-                          placeholder="Reply..."
-                          value={commentMap[`${post.id}-reply-${i}`] || ''}
-                          onChange={(e) =>
-                            setCommentMap((prev) => ({ ...prev, [`${post.id}-reply-${i}`]: e.target.value }))
-                          }
-                          className="border p-1 w-full rounded"
-                        />
-                        <button
-                          onClick={() =>
-                            setShowReplyEmojiPicker((prev) => ({
-                              ...prev,
-                              [`${post.id}-reply-${i}`]: !prev[`${post.id}-reply-${i}`]
-                            }))
-                          }
-                          className="text-sm text-yellow-500 mt-1"
-                        >
-                          😊
-                        </button>
-                        {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
-                          <div className="absolute z-10 mt-2">
-                            <EmojiPicker onEmojiClick={(emojiData) => addReplyEmoji(`${post.id}-reply-${i}`, emojiData)} />
-                          </div>
-                        )}
+                          <button onClick={() => handleReply(post.id, i)} className="text-xs text-green-600 mt-1">
+                            Reply
+                          </button>
+                        </div>
                       </div>
-                      <button onClick={() => handleReply(post.id, i)} className="text-xs text-green-600 mt-1">
-                        Reply
-                      </button>
-                    </div>
 
                     {/* Comment owner controls */}
                     {comment.uid === user.uid && editCommentMap[commentKey] === undefined && (
