@@ -25,7 +25,7 @@ export default function Signup() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center"
+      className="pt-6 sm:pt-8 flex justify-center min-h-[calc(100vh-3.5rem)]"
       style={{ backgroundColor: theme.backgroundColor }}
     >
       <div
@@ -41,20 +41,17 @@ export default function Signup() {
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
         />
-        
         <Input
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        
         <Input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        
         <Button onClick={handleSignup}>Sign Up</Button>
 
         <p className="mt-4 text-sm">
