@@ -10,41 +10,59 @@ export function AppProvider({ children }) {
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingTheme, setLoadingTheme] = useState(true);
 
-  // Theme state
-  const [theme, setTheme] = useState({
+  // Default theme
+  const defaultTheme = {
     navbarColor: '#ffffff',
     backgroundColor: '#f9fafb'
-  });
+  };
+
+  const [theme, setTheme] = useState(defaultTheme);
 
   // Save theme to Firestore & update locally instantly
   const saveTheme = async (newTheme) => {
     try {
-      setTheme(newTheme); // instantly update UI
-      document.body.style.backgroundColor = newTheme.backgroundColor; // update global bg
-      await setDoc(doc(db, 'settings', 'theme'), newTheme); // persist in Firestore
+      setTheme(newTheme);
+      document.body.style.backgroundColor = newTheme.backgroundColor;
+      await setDoc(doc(db, 'settings', 'theme'), newTheme);
     } catch (err) {
       console.error('Error saving theme:', err);
     }
   };
 
-  // Load theme in real-time (runs even if logged out)
+  // Load theme (first fetch, then subscribe)
   useEffect(() => {
     const themeRef = doc(db, 'settings', 'theme');
+
+    // First fetch to avoid stuck loading
+    (async () => {
+      try {
+        const docSnap = await getDoc(themeRef);
+        if (docSnap.exists()) {
+          const newTheme = docSnap.data();
+          setTheme(newTheme);
+          document.body.style.backgroundColor = newTheme.backgroundColor;
+        } else {
+          setTheme(defaultTheme);
+          document.body.style.backgroundColor = defaultTheme.backgroundColor;
+        }
+      } catch (err) {
+        console.error('Error loading theme:', err);
+        setTheme(defaultTheme);
+        document.body.style.backgroundColor = defaultTheme.backgroundColor;
+      } finally {
+        setLoadingTheme(false);
+      }
+    })();
+
+    // Real-time updates
     const unsubTheme = onSnapshot(themeRef, (snapshot) => {
       if (snapshot.exists()) {
         const newTheme = snapshot.data();
         setTheme(newTheme);
         document.body.style.backgroundColor = newTheme.backgroundColor;
-      } else {
-        // If no theme doc exists, fall back to defaults
-        setTheme({
-          navbarColor: '#ffffff',
-          backgroundColor: '#f9fafb'
-        });
-        document.body.style.backgroundColor = '#f9fafb';
       }
-      setLoadingTheme(false); // ✅ Always end loading
     });
+
     return () => unsubTheme();
   }, []);
 
