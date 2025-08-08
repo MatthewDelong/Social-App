@@ -23,10 +23,10 @@ export default function Navbar() {
 
   return (
     <nav
-      className="shadow py-2 px-4 mb-6"
+      className="shadow px-4 mb-6 h-14"
       style={{ backgroundColor: theme.navbarColor }}
     >
-      <div className="flex justify-between items-center max-w-6xl mx-auto">
+      <div className="flex justify-between items-center h-full max-w-6xl mx-auto">
         {/* Logo */}
         <Link to="/">
           <img src="/images/logo.png" alt="Logo" className="h-8 w-auto" />
