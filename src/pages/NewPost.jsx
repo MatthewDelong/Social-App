@@ -16,7 +16,8 @@ export default function NewPost() {
 
     await addDoc(collection(db, 'posts'), {
       content,
-      author: user.displayName || user.email,
+      authorName: user.displayName || '',
+      authorEmail: user.email,
       uid: user.uid,
       isAdmin: user.isAdmin || false,
       isModerator: user.isModerator || false,
