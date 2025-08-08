@@ -1,8 +1,7 @@
-// src/context/AppContext.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../firebase';
 import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const AppContext = createContext();
@@ -11,10 +10,39 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Theme state
+  const [theme, setTheme] = useState({
+    navbarColor: '#ffffff',
+    backgroundColor: '#f9fafb'
+  });
+
+  // Load theme from Firestore
+  const loadTheme = async () => {
+    try {
+      const themeDoc = await getDoc(doc(db, 'settings', 'theme'));
+      if (themeDoc.exists()) {
+        setTheme(themeDoc.data());
+      }
+    } catch (err) {
+      console.error('Error loading theme:', err);
+    }
+  };
+
+  // Save theme to Firestore
+  const saveTheme = async (newTheme) => {
+    try {
+      await setDoc(doc(db, 'settings', 'theme'), newTheme);
+      setTheme(newTheme);
+    } catch (err) {
+      console.error('Error saving theme:', err);
+    }
+  };
+
   useEffect(() => {
+    loadTheme(); // Load theme on app start
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // Ensure displayName is set
         if (!currentUser.displayName) {
           await updateProfile(currentUser, { displayName: 'Matthew Delong' });
           await currentUser.reload();
@@ -34,14 +62,8 @@ export function AppProvider({ children }) {
           console.error('Error loading user roles:', e);
         }
 
-        // Assign role string for easier logic checks in UI
-        const role = isAdmin
-          ? 'admin'
-          : isModerator
-          ? 'moderator'
-          : 'user';
+        const role = isAdmin ? 'admin' : isModerator ? 'moderator' : 'user';
 
-        // Set user state including roles and role string
         setUser({
           ...auth.currentUser,
           isAdmin,
@@ -61,7 +83,7 @@ export function AppProvider({ children }) {
   const logout = () => signOut(auth);
 
   return (
-    <AppContext.Provider value={{ user, logout, loading }}>
+    <AppContext.Provider value={{ user, logout, loading, theme, saveTheme }}>
       {children}
     </AppContext.Provider>
   );

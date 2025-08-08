@@ -1,4 +1,3 @@
-// src/pages/AdminDashboard.jsx
 import { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import {
@@ -9,10 +8,16 @@ import {
   updateDoc
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
+import { useAppContext } from '../context/AppContext';
 
 export default function AdminDashboard() {
+  const { theme, saveTheme } = useAppContext();
   const [posts, setPosts] = useState([]);
   const [users, setUsers] = useState([]);
+
+  // Local form state for theme colors
+  const [navbarColor, setNavbarColor] = useState(theme.navbarColor);
+  const [backgroundColor, setBackgroundColor] = useState(theme.backgroundColor);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -48,9 +53,44 @@ export default function AdminDashboard() {
     setUsers(users.map(u => u.id === userId ? { ...u, isModerator: !currentStatus } : u));
   };
 
+  const handleThemeSave = () => {
+    saveTheme({ navbarColor, backgroundColor });
+  };
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <h2 className="text-2xl font-bold mb-6">Admin Dashboard</h2>
+
+      {/* THEME SETTINGS */}
+      <section className="mb-10 border p-4 rounded bg-white">
+        <h3 className="text-lg font-semibold mb-4">Theme Settings</h3>
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div>
+            <label className="block text-sm font-medium">Navbar Color</label>
+            <input
+              type="color"
+              value={navbarColor}
+              onChange={(e) => setNavbarColor(e.target.value)}
+              className="w-16 h-10 p-0 border rounded"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Background Color</label>
+            <input
+              type="color"
+              value={backgroundColor}
+              onChange={(e) => setBackgroundColor(e.target.value)}
+              className="w-16 h-10 p-0 border rounded"
+            />
+          </div>
+          <button
+            onClick={handleThemeSave}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Save Theme
+          </button>
+        </div>
+      </section>
 
       {/* POSTS SECTION */}
       <section className="mb-10">
@@ -58,12 +98,10 @@ export default function AdminDashboard() {
         {posts.length === 0 && <p className="text-gray-500">No posts found.</p>}
         {posts.map(post => (
           <div key={post.id} className="border p-3 mb-3 rounded bg-gray-50">
-            <p className="font-medium text-gray-800">{post.content}</p>
+            <p className="font-medium text-gray-800">{post.text}</p>
             <p className="text-sm text-gray-600 mt-1">
-              By: <strong>{post.author || 'Unknown'}</strong>
+              By: <strong>{post.authorName || post.authorEmail || 'Unknown'}</strong>
             </p>
-
-            {/* ✅ Timestamp */}
             <p className="text-xs text-gray-500">
               {post.createdAt
                 ? formatDistanceToNow(
@@ -74,7 +112,6 @@ export default function AdminDashboard() {
                   )
                 : ''}
             </p>
-
             <button
               onClick={() => deletePost(post.id)}
               className="text-sm text-red-600 hover:underline mt-2"
@@ -118,7 +155,6 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            {/* Badges */}
             <div className="mt-2">
               {user.isAdmin && (
                 <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-2">
