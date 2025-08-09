@@ -23,12 +23,16 @@ export default function Profile() {
   const [website, setWebsite] = useState('');
   const [message, setMessage] = useState('');
 
+  const DEFAULT_AVATAR =
+    'https://firebasestorage.googleapis.com/v0/b/social-app-8a28d.firebasestorage.app/o/default-avatar.png?alt=media&token=78165d2b-f095-496c-9de2-5e143bfc41cc';
+
   // User profile preview data
   const [profileData, setProfileData] = useState({
     displayName: user.displayName || '',
     bio: '',
     location: '',
-    website: ''
+    website: '',
+    photoURL: user.photoURL || DEFAULT_AVATAR
   });
 
   useEffect(() => {
@@ -44,14 +48,16 @@ export default function Profile() {
           displayName: data.displayName || user.displayName || '',
           bio: data.bio || '',
           location: data.location || '',
-          website: data.website || ''
+          website: data.website || '',
+          photoURL: data.photoURL || user.photoURL || DEFAULT_AVATAR
         });
       } else {
         await setDoc(ref, {
           displayName: user.displayName,
           bio: '',
           location: '',
-          website: ''
+          website: '',
+          photoURL: user.photoURL || DEFAULT_AVATAR
         });
       }
     };
@@ -84,12 +90,13 @@ export default function Profile() {
         website
       });
 
-      setProfileData({
+      setProfileData((prev) => ({
+        ...prev,
         displayName: name || user.displayName || '',
         bio,
         location,
         website
-      });
+      }));
 
       setMessage('Profile updated successfully!');
       setName('');
@@ -143,6 +150,11 @@ export default function Profile() {
       {/* Profile Preview */}
       <div className="bg-white border rounded p-4 shadow">
         <h2 className="text-xl font-semibold mb-4">Profile Preview</h2>
+        <img
+          src={profileData.photoURL || DEFAULT_AVATAR}
+          alt="Profile Avatar"
+          className="w-24 h-24 rounded-full object-cover mb-4"
+        />
         <p><span className="font-bold">Name:</span> {profileData.displayName}</p>
         {profileData.bio && (
           <p className="mt-1"><span className="font-bold">Bio:</span> {profileData.bio}</p>
@@ -153,7 +165,12 @@ export default function Profile() {
         {profileData.website && (
           <p className="mt-1">
             <span className="font-bold">Website:</span>{' '}
-            <a href={profileData.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+            <a
+              href={profileData.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:underline"
+            >
               {profileData.website}
             </a>
           </p>
