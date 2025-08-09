@@ -1,60 +1,40 @@
+// src/context/AppContext.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../firebase';
+import { auth } from '../firebase';
 import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-  const [loadingTheme, setLoadingTheme] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const defaultTheme = {
+  // Theme state
+  const [theme, setTheme] = useState({
     navbarColor: '#ffffff',
     backgroundColor: '#f9fafb'
-  };
+  });
 
-  const [theme, setTheme] = useState(defaultTheme);
-
+  // Save theme to Firestore
   const saveTheme = async (newTheme) => {
     try {
-      setTheme(newTheme);
-      document.body.style.backgroundColor = newTheme.backgroundColor;
       await setDoc(doc(db, 'settings', 'theme'), newTheme);
     } catch (err) {
       console.error('Error saving theme:', err);
     }
   };
 
-  // Theme loading
+  // Load theme in real-time
   useEffect(() => {
     const themeRef = doc(db, 'settings', 'theme');
-
-    (async () => {
-      try {
-        const docSnap = await getDoc(themeRef);
-        if (docSnap.exists()) {
-          const newTheme = docSnap.data();
-          setTheme(newTheme);
-          document.body.style.backgroundColor = newTheme.backgroundColor;
-        } else {
-          setTheme(defaultTheme);
-          document.body.style.backgroundColor = defaultTheme.backgroundColor;
-        }
-      } catch (err) {
-        console.error('Error loading theme:', err);
-        setTheme(defaultTheme);
-        document.body.style.backgroundColor = defaultTheme.backgroundColor;
-      } finally {
-        setLoadingTheme(false);
-      }
-    })();
-
     const unsubTheme = onSnapshot(themeRef, (snapshot) => {
       if (snapshot.exists()) {
         const newTheme = snapshot.data();
         setTheme(newTheme);
+
+        // Apply theme globally
         document.body.style.backgroundColor = newTheme.backgroundColor;
       }
     });
@@ -62,11 +42,10 @@ export function AppProvider({ children }) {
     return () => unsubTheme();
   }, []);
 
-  // Auth loading
+  // Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // Default displayName if missing
         if (!currentUser.displayName) {
           await updateProfile(currentUser, { displayName: 'Matthew Delong' });
           await currentUser.reload();
@@ -86,18 +65,19 @@ export function AppProvider({ children }) {
           console.error('Error loading user roles:', e);
         }
 
+        const role = isAdmin ? 'admin' : isModerator ? 'moderator' : 'user';
+
         setUser({
           ...auth.currentUser,
           isAdmin,
           isModerator,
-          role: isAdmin ? 'admin' : isModerator ? 'moderator' : 'user'
+          role,
         });
       } else {
         setUser(null);
       }
 
-      // ✅ Now set loadingUser to false AFTER all role fetch is done
-      setLoadingUser(false);
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -106,15 +86,7 @@ export function AppProvider({ children }) {
   const logout = () => signOut(auth);
 
   return (
-    <AppContext.Provider
-      value={{
-        user,
-        logout,
-        loading: loadingUser || loadingTheme, // ✅ stays true until both are done
-        theme,
-        saveTheme
-      }}
-    >
+    <AppContext.Provider value={{ user, logout, loading, theme, saveTheme }}>
       {children}
     </AppContext.Provider>
   );

@@ -1,4 +1,3 @@
-// src/App.jsx
 import {
   BrowserRouter as Router,
   Routes,
@@ -17,12 +16,15 @@ import ProfileSettings from './pages/ProfileSettings';
 import AdminDashboard from './pages/AdminDashboard';
 
 function AppRoutes() {
-  const { user, loading } = useAppContext();
+  const { user, loading, theme } = useAppContext();
 
   if (loading) return <div className="text-center mt-10">Loading...</div>;
 
   return (
-    <>
+    <div
+      className="min-h-screen"
+      style={{ backgroundColor: theme.backgroundColor }}
+    >
       <Navbar />
       <Routes>
         <Route path="/" element={user ? <Home /> : <Navigate to="/login" />} />
@@ -36,7 +38,7 @@ function AppRoutes() {
           element={(user?.isAdmin || user?.isModerator) ? <AdminDashboard /> : <Navigate to="/" />}
         />
       </Routes>
-    </>
+    </div>
   );
 }
 
