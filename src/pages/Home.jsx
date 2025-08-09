@@ -360,7 +360,7 @@ export default function Home() {
                                     <p className="font-semibold text-gray-800">
                                       {replyUser?.displayName || reply.author}
                                       {replyUser?.isAdmin && (
-                                        <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
+                                        <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Admin</span>
                                       )}
                                       {replyUser?.isModerator && (
                                         <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Moderator</span>
