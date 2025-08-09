@@ -10,7 +10,6 @@ export function AppProvider({ children }) {
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingTheme, setLoadingTheme] = useState(true);
 
-  // Default theme
   const defaultTheme = {
     navbarColor: '#ffffff',
     backgroundColor: '#f9fafb'
@@ -18,7 +17,6 @@ export function AppProvider({ children }) {
 
   const [theme, setTheme] = useState(defaultTheme);
 
-  // Save theme to Firestore & update locally instantly
   const saveTheme = async (newTheme) => {
     try {
       setTheme(newTheme);
@@ -29,11 +27,10 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Load theme (first fetch, then subscribe for live updates)
+  // Theme loading
   useEffect(() => {
     const themeRef = doc(db, 'settings', 'theme');
 
-    // Initial load
     (async () => {
       try {
         const docSnap = await getDoc(themeRef);
@@ -54,7 +51,6 @@ export function AppProvider({ children }) {
       }
     })();
 
-    // Real-time updates
     const unsubTheme = onSnapshot(themeRef, (snapshot) => {
       if (snapshot.exists()) {
         const newTheme = snapshot.data();
@@ -66,49 +62,42 @@ export function AppProvider({ children }) {
     return () => unsubTheme();
   }, []);
 
-  // Auth state listener
+  // Auth loading
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setLoadingUser(true); // ✅ Always set loading when auth changes
-
       if (currentUser) {
-        try {
-          // Ensure display name exists
-          if (!currentUser.displayName) {
-            await updateProfile(currentUser, { displayName: 'Matthew Delong' });
-            await currentUser.reload();
-          }
-
-          let isAdmin = false;
-          let isModerator = false;
-
-          // Load roles from Firestore
-          try {
-            const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              isAdmin = data.isAdmin || false;
-              isModerator = data.isModerator || false;
-            }
-          } catch (roleErr) {
-            console.error('Error loading user roles:', roleErr);
-          }
-
-          setUser({
-            ...auth.currentUser,
-            isAdmin,
-            isModerator,
-            role: isAdmin ? 'admin' : isModerator ? 'moderator' : 'user'
-          });
-        } catch (err) {
-          console.error('Error setting user:', err);
-          setUser({ ...auth.currentUser });
+        // Default displayName if missing
+        if (!currentUser.displayName) {
+          await updateProfile(currentUser, { displayName: 'Matthew Delong' });
+          await currentUser.reload();
         }
+
+        let isAdmin = false;
+        let isModerator = false;
+
+        try {
+          const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            isAdmin = data.isAdmin || false;
+            isModerator = data.isModerator || false;
+          }
+        } catch (e) {
+          console.error('Error loading user roles:', e);
+        }
+
+        setUser({
+          ...auth.currentUser,
+          isAdmin,
+          isModerator,
+          role: isAdmin ? 'admin' : isModerator ? 'moderator' : 'user'
+        });
       } else {
         setUser(null);
       }
 
-      setLoadingUser(false); // ✅ Only finish loading after all async work
+      // ✅ Now set loadingUser to false AFTER all role fetch is done
+      setLoadingUser(false);
     });
 
     return () => unsubscribe();
@@ -121,7 +110,7 @@ export function AppProvider({ children }) {
       value={{
         user,
         logout,
-        loading: loadingUser || loadingTheme,
+        loading: loadingUser || loadingTheme, // ✅ stays true until both are done
         theme,
         saveTheme
       }}

@@ -1,123 +1,110 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../firebase';
-import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+// src/App.jsx
+import React from 'react';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation
+} from 'react-router-dom';
 
-const AppContext = createContext();
+import { AppProvider, useAppContext } from './context/AppContext';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import Home from './pages/Home';
+import Profile from './pages/Profile';
+import NewPost from './pages/NewPost';
+import Navbar from './components/Navbar';
+import ProfileSettings from './pages/ProfileSettings';
+import AdminDashboard from './pages/AdminDashboard';
 
-export function AppProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-  const [loadingTheme, setLoadingTheme] = useState(true);
+/**
+ * AppRoutes component
+ *
+ * Important behavior:
+ *  - We **do not** render any redirects until `loading` is false.
+ *    This prevents the navbar / UI flashing when auth/theme are still initializing.
+ *  - We render a single "Loading..." screen while loading.
+ *  - We use <Navigate replace /> for redirects to avoid polluting history.
+ */
+function AppRoutes() {
+  const { user, loading, theme } = useAppContext();
+  const location = useLocation();
 
-  const defaultTheme = {
-    navbarColor: '#ffffff',
-    backgroundColor: '#f9fafb'
-  };
+  // Block rendering/redirects until app finished loading user + theme
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-lg font-medium">Loading...</div>
+      </div>
+    );
+  }
 
-  const [theme, setTheme] = useState(defaultTheme);
+  // Minimal navbar shown on auth pages
+  const AuthNavbar = () => (
+    <div
+      className="w-full p-4 flex justify-center items-center shadow"
+      style={{ backgroundColor: theme?.navbarColor }}
+    >
+      <img src="/logo.png" alt="Logo" className="h-8" />
+    </div>
+  );
 
-  const saveTheme = async (newTheme) => {
-    try {
-      setTheme(newTheme);
-      document.body.style.backgroundColor = newTheme.backgroundColor;
-      await setDoc(doc(db, 'settings', 'theme'), newTheme);
-    } catch (err) {
-      console.error('Error saving theme:', err);
-    }
-  };
-
-  // Theme loading
-  useEffect(() => {
-    const themeRef = doc(db, 'settings', 'theme');
-
-    (async () => {
-      try {
-        const docSnap = await getDoc(themeRef);
-        if (docSnap.exists()) {
-          const newTheme = docSnap.data();
-          setTheme(newTheme);
-          document.body.style.backgroundColor = newTheme.backgroundColor;
-        } else {
-          setTheme(defaultTheme);
-          document.body.style.backgroundColor = defaultTheme.backgroundColor;
-        }
-      } catch (err) {
-        console.error('Error loading theme:', err);
-        setTheme(defaultTheme);
-        document.body.style.backgroundColor = defaultTheme.backgroundColor;
-      } finally {
-        setLoadingTheme(false);
-      }
-    })();
-
-    const unsubTheme = onSnapshot(themeRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const newTheme = snapshot.data();
-        setTheme(newTheme);
-        document.body.style.backgroundColor = newTheme.backgroundColor;
-      }
-    });
-
-    return () => unsubTheme();
-  }, []);
-
-  // Auth loading
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        // Default displayName if missing
-        if (!currentUser.displayName) {
-          await updateProfile(currentUser, { displayName: 'Matthew Delong' });
-          await currentUser.reload();
-        }
-
-        let isAdmin = false;
-        let isModerator = false;
-
-        try {
-          const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            isAdmin = data.isAdmin || false;
-            isModerator = data.isModerator || false;
-          }
-        } catch (e) {
-          console.error('Error loading user roles:', e);
-        }
-
-        setUser({
-          ...auth.currentUser,
-          isAdmin,
-          isModerator,
-          role: isAdmin ? 'admin' : isModerator ? 'moderator' : 'user'
-        });
-      } else {
-        setUser(null);
-      }
-
-      // ✅ Now set loadingUser to false AFTER all role fetch is done
-      setLoadingUser(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const logout = () => signOut(auth);
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
 
   return (
-    <AppContext.Provider
-      value={{
-        user,
-        logout,
-        loading: loadingUser || loadingTheme, // ✅ stays true until both are done
-        theme,
-        saveTheme
-      }}
+    <div
+      className="min-h-screen transition-colors duration-300"
+      style={{ backgroundColor: theme?.backgroundColor }}
     >
-      {children}
-    </AppContext.Provider>
+      {isAuthPage ? <AuthNavbar /> : <Navbar />}
+
+      <Routes>
+        <Route
+          path="/"
+          element={user ? <Home /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/login"
+          element={!user ? <Login /> : <Navigate to="/" replace />}
+        />
+
+        <Route
+          path="/signup"
+          element={!user ? <Signup /> : <Navigate to="/" replace />}
+        />
+
+        <Route
+          path="/profile"
+          element={user ? <Profile /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/new"
+          element={user ? <NewPost /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/settings"
+          element={user ? <ProfileSettings /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/admin"
+          element={(user?.isAdmin || user?.isModerator) ? <AdminDashboard /> : <Navigate to="/" replace />}
+        />
+      </Routes>
+    </div>
   );
 }
 
-export const useAppContext = () => useContext(AppContext);
+export default function App() {
+  return (
+    <AppProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AppProvider>
+  );
+}
