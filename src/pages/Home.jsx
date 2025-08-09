@@ -12,7 +12,7 @@ import {
 import { db } from '../firebase';
 import { useAppContext } from '../context/AppContext';
 import { formatDistanceToNow } from 'date-fns';
-import EmojiPicker from 'emoji-picker-react'; 
+import EmojiPicker from 'emoji-picker-react';
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
@@ -24,7 +24,7 @@ export default function Home() {
   const [editedContent, setEditedContent] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState({});
   const [showReplyEmojiPicker, setShowReplyEmojiPicker] = useState({});
-  const { user } = useAppContext(); 
+  const { user } = useAppContext();
 
   // Helper: safely get timestamp in ms for many formats (Firestore Timestamp, Date, string)
   const getTime = (createdAt) => {
@@ -32,14 +32,29 @@ export default function Home() {
     if (createdAt.seconds && typeof createdAt.seconds === 'number') return createdAt.seconds * 1000;
     if (createdAt instanceof Date) return createdAt.getTime();
     return new Date(createdAt).getTime();
-  }; 
+  };
+
+  // small helper: return a safe avatar url.
+  // - if photoURL is present and non-empty (after trimming) return it
+  // - else if this entity belongs to current user and user's photoURL exists, return user's photoURL
+  // - otherwise return avatarFallback
+  const avatarFallback = 'https://via.placeholder.com/40';
+  const getAvatarUrl = (photoURL, isOwner) => {
+    const p = photoURL?.toString?.().trim();
+    if (p) return p;
+    if (isOwner) {
+      const up = user?.photoURL?.toString?.().trim();
+      if (up) return up;
+    }
+    return avatarFallback;
+  };
 
   // Listen to posts, order by createdAt (Firestore desc) and normalize local structure:
   // ensure posts.comments and replies are sorted newest -> oldest
   useEffect(() => {
     const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })); 
+      const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
       // Normalize: sort comments & replies newest -> oldest (safe for mixed timestamp types)
       const normalized = docs.map((p) => {
@@ -49,48 +64,48 @@ export default function Home() {
           return { ...c, replies };
         });
         return { ...p, comments: commentsWithSortedReplies };
-      }); 
+      });
 
       // ensure posts themselves are sorted newest -> oldest as a fallback
-      normalized.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt)); 
+      normalized.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
 
       setPosts(normalized);
-    }); 
+    });
 
     return () => unsub();
-  }, []); 
+  }, []);
 
-  /* ---------- Post actions ---------- */ 
+  /* ---------- Post actions ---------- */
 
   const handleLike = async (id) => {
     const postRef = doc(db, 'posts', id);
     const post = posts.find((p) => p.id === id);
     const likes = new Set(post?.likes || []);
     likes.add(user.uid);
-    await updateDoc(postRef, { likes: Array.from(likes) }); 
+    await updateDoc(postRef, { likes: Array.from(likes) });
 
     // update local optimistically
     setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, likes: Array.from(likes) } : p)));
-  }; 
+  };
 
   const handleDeletePost = async (postId) => {
     await deleteDoc(doc(db, 'posts', postId));
     setPosts((prev) => prev.filter((p) => p.id !== postId));
-  }; 
+  };
 
   const handleEditPost = async (postId) => {
     await updateDoc(doc(db, 'posts', postId), { content: editedContent });
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, content: editedContent } : p)));
     setEditingPostId(null);
     setEditedContent('');
-  }; 
+  };
 
-  /* ---------- Comment actions ---------- */ 
+  /* ---------- Comment actions ---------- */
 
   // Add comment — prepend so stored order matches newest-first UI
   const handleComment = async (id) => {
     const commentText = commentMap[id];
-    if (!commentText?.trim()) return; 
+    if (!commentText?.trim()) return;
 
     const post = posts.find((p) => p.id === id);
     const postRef = doc(db, 'posts', id);
@@ -104,15 +119,15 @@ export default function Home() {
       replies: [],
       // store author's profile picture at time of comment creation
       authorPhotoURL: user.photoURL || ''
-    }; 
+    };
 
     const updatedComments = [newComment, ...(post.comments || [])]; // prepend
-    await updateDoc(postRef, { comments: updatedComments }); 
+    await updateDoc(postRef, { comments: updatedComments });
 
     // update local state
     setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, comments: updatedComments } : p)));
     setCommentMap((prev) => ({ ...prev, [id]: '' }));
-  }; 
+  };
 
   const handleDeleteComment = async (postId, index) => {
     const post = posts.find((p) => p.id === postId);
@@ -121,19 +136,19 @@ export default function Home() {
     updatedComments.splice(index, 1);
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-  }; 
+  };
 
   const handleEditComment = async (postId, index) => {
     const key = `${postId}-${index}`;
     const newText = editCommentMap[key];
-    if (!newText?.trim()) return; 
+    if (!newText?.trim()) return;
 
     const post = posts.find((p) => p.id === postId);
-    if (!post) return; 
+    if (!post) return;
 
     const updatedComments = (post.comments || []).map((c, i) => (i === index ? { ...c, text: newText } : c));
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))); 
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
 
     // remove edit key to exit edit mode
     setEditCommentMap((prev) => {
@@ -141,18 +156,18 @@ export default function Home() {
       delete copy[key];
       return copy;
     });
-  }; 
+  };
 
-  /* ---------- Reply actions ---------- */ 
+  /* ---------- Reply actions ---------- */
 
   // Add reply — prepend to keep newest-first
   const handleReply = async (postId, commentIndex) => {
     const replyKey = `${postId}-reply-${commentIndex}`;
     const replyText = commentMap[replyKey];
-    if (!replyText?.trim()) return; 
+    if (!replyText?.trim()) return;
 
     const post = posts.find((p) => p.id === postId);
-    if (!post) return; 
+    if (!post) return;
 
     const reply = {
       text: replyText,
@@ -163,50 +178,50 @@ export default function Home() {
       createdAt: new Date(),
       // store author's profile picture at time of reply creation
       authorPhotoURL: user.photoURL || ''
-    }; 
+    };
 
     const updatedComments = (post.comments || []).map((c, i) => {
       if (i !== commentIndex) return c;
       const newReplies = [reply, ...(c.replies || [])]; // prepend
       return { ...c, replies: newReplies };
-    }); 
+    });
 
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
     setCommentMap((prev) => ({ ...prev, [replyKey]: '' }));
-  }; 
+  };
 
   const handleDeleteReply = async (postId, commentIndex, replyIndex) => {
     const post = posts.find((p) => p.id === postId);
-    if (!post) return; 
+    if (!post) return;
 
     const updatedComments = (post.comments || []).map((c, i) => {
       if (i !== commentIndex) return c;
       const newReplies = (c.replies || []).slice();
       newReplies.splice(replyIndex, 1);
       return { ...c, replies: newReplies };
-    }); 
+    });
 
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-  }; 
+  };
 
   const handleEditReply = async (postId, commentIndex, replyIndex) => {
     const key = `${postId}-${commentIndex}-${replyIndex}`;
     const newText = editReplyMap[key];
-    if (!newText?.trim()) return; 
+    if (!newText?.trim()) return;
 
     const post = posts.find((p) => p.id === postId);
-    if (!post) return; 
+    if (!post) return;
 
     const updatedComments = (post.comments || []).map((c, i) => {
       if (i !== commentIndex) return c;
       const replies = (c.replies || []).map((r, j) => (j === replyIndex ? { ...r, text: newText } : r));
       return { ...c, replies };
-    }); 
+    });
 
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))); 
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
 
     // clear editing state
     setEditReplyMap((prev) => {
@@ -219,23 +234,21 @@ export default function Home() {
       delete copy[key];
       return copy;
     });
-  }; 
+  };
 
-  /* ---------- Emoji helpers ---------- */ 
+  /* ---------- Emoji helpers ---------- */
 
   const addEmoji = (key, emoji) => {
     setCommentMap((prev) => ({ ...prev, [key]: (prev[key] || '') + emoji.emoji }));
     setShowEmojiPicker((prev) => ({ ...prev, [key]: false }));
-  }; 
+  };
 
   const addReplyEmoji = (key, emoji) => {
     setCommentMap((prev) => ({ ...prev, [key]: (prev[key] || '') + emoji.emoji }));
     setShowReplyEmojiPicker((prev) => ({ ...prev, [key]: false }));
-  }; 
+  };
 
-  /* ---------- Render ---------- */ 
-
-  const avatarFallback = 'https://via.placeholder.com/40'; 
+  /* ---------- Render ---------- */
 
   return (
     <div className="max-w-xl mx-auto mt-10">
@@ -245,7 +258,10 @@ export default function Home() {
             <div className="flex items-center">
               {/* Post author avatar */}
               <img
-                src={post.authorPhotoURL || (post.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                src={
+                  // prefer stored authorPhotoURL if non-empty; otherwise, if post belongs to current user prefer user's photoURL; otherwise fallback
+                  getAvatarUrl(post.authorPhotoURL, post.uid === user?.uid)
+                }
                 alt={post.author || 'User'}
                 className="w-10 h-10 rounded-full object-cover mr-3"
               />
@@ -265,7 +281,7 @@ export default function Home() {
                   </p>
                 )}
               </div>
-            </div> 
+            </div>
 
             {(post.uid === user.uid || user.isAdmin || user.isModerator) && (
               <div className="space-x-2">
@@ -286,7 +302,7 @@ export default function Home() {
                 </button>
               </div>
             )}
-          </div> 
+          </div>
 
           {editingPostId === post.id ? (
             <div className="mt-2">
@@ -300,12 +316,14 @@ export default function Home() {
               </button>
             </div>
           ) : (
-            <p className="text-gray-700 mb-2 mt-3">{post.content}</p>
-          )} 
+            <>
+              <p className="text-gray-700 mb-2 mt-3">{post.content}</p>
+            </>
+          )}
 
           <button onClick={() => handleLike(post.id)} className="text-blue-500 text-sm mb-2">
             ❤️ Like ({post.likes?.length || 0})
-          </button> 
+          </button>
 
           {/* Comment Input */}
           <div className="relative">
@@ -330,7 +348,7 @@ export default function Home() {
           </div>
           <button onClick={() => handleComment(post.id)} className="text-sm text-green-600 mt-1">
             Comment
-          </button> 
+          </button>
 
           {/* Comments */}
           <div className="mt-4 space-y-2 border-t pt-2">
@@ -343,7 +361,9 @@ export default function Home() {
                       <div className="flex items-start">
                         {/* Comment author avatar */}
                         <img
-                          src={comment.authorPhotoURL || (comment.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                          src={
+                            getAvatarUrl(comment.authorPhotoURL, comment.uid === user?.uid)
+                          }
                           alt={comment.author || 'User'}
                           className="w-8 h-8 rounded-full object-cover mr-2 mt-1"
                         />
@@ -356,7 +376,7 @@ export default function Home() {
                             {comment.isModerator && (
                               <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
                             )}
-                          </p> 
+                          </p>
 
                           {/* Comment edit mode */}
                           {editCommentMap[commentKey] !== undefined ? (
@@ -391,11 +411,11 @@ export default function Home() {
                             </>
                           ) : (
                             <p className="text-sm text-gray-700 mt-1">{comment.text}</p>
-                          )} 
+                          )}
 
                           <p className="text-xs text-gray-500 mt-1">
                             {formatDistanceToNow(new Date(getTime(comment.createdAt)), { addSuffix: true })}
-                          </p> 
+                          </p>
 
                           {/* Replies (already newest-first in state) */}
                           {(comment.replies || []).map((reply, j) => {
@@ -404,7 +424,9 @@ export default function Home() {
                               <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
                                 <div className="flex items-start">
                                   <img
-                                    src={reply.authorPhotoURL || (reply.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                                    src={
+                                      getAvatarUrl(reply.authorPhotoURL, reply.uid === user?.uid)
+                                    }
                                     alt={reply.author || 'User'}
                                     className="w-7 h-7 rounded-full object-cover mr-2 mt-1"
                                   />
@@ -417,7 +439,7 @@ export default function Home() {
                                       {reply.isModerator && (
                                         <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
                                       )}
-                                    </p> 
+                                    </p>
 
                                     {editingReplyIndexMap[replyKey] ? (
                                       <>
@@ -451,11 +473,11 @@ export default function Home() {
                                       </>
                                     ) : (
                                       <p className="text-sm text-gray-700">{reply.text}</p>
-                                    )} 
+                                    )}
 
                                     <p className="text-xs text-gray-500 mt-1">
                                       {formatDistanceToNow(new Date(getTime(reply.createdAt)), { addSuffix: true })}
-                                    </p> 
+                                    </p>
 
                                     {/* Reply edit/delete options for reply owner */}
                                     {reply.uid === user.uid && !editingReplyIndexMap[replyKey] && (
@@ -481,7 +503,7 @@ export default function Home() {
                                 </div>
                               </div>
                             );
-                          })} 
+                          })}
 
                           {/* Reply Input */}
                           <div className="relative mt-2">
@@ -515,23 +537,269 @@ export default function Home() {
                             Reply
                           </button>
                         </div>
-                      </div> 
-
-                    {/* Comment owner controls */}
-                    {comment.uid === user.uid && editCommentMap[commentKey] === undefined && (
-                      <div className="space-x-2 ml-2">
-                        <button
-                          onClick={() => setEditCommentMap((prev) => ({ ...prev, [commentKey]: comment.text }))}
-                          className="text-xs text-blue-600 hover:underline"
-                        >
-                          Edit
-                        </button>
-                        <button onClick={() => handleDeleteComment(post.id, i)} className="text-xs text-red-500 hover:underline">
-                          Delete
-                        </button>
                       </div>
-                    )}
+
+                    // src/pages/Home.jsx
+import { useEffect, useState } from 'react';
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  updateDoc,
+  deleteDoc,
+  doc
+} from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAppContext } from '../context/AppContext';
+import { formatDistanceToNow } from 'date-fns';
+import EmojiPicker from 'emoji-picker-react';
+
+// Import local fallback avatar image
+import defaultAvatar from '../assets/default-avatar.png';
+
+export default function Home() {
+  const [posts, setPosts] = useState([]);
+  const [commentMap, setCommentMap] = useState({});
+  const [editCommentMap, setEditCommentMap] = useState({});
+  const [editReplyMap, setEditReplyMap] = useState({});
+  const [editingReplyIndexMap, setEditingReplyIndexMap] = useState({});
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editedContent, setEditedContent] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState({});
+  const [showReplyEmojiPicker, setShowReplyEmojiPicker] = useState({});
+  const { user } = useAppContext();
+
+  const getTime = (createdAt) => {
+    if (!createdAt) return 0;
+    if (createdAt.seconds && typeof createdAt.seconds === 'number') return createdAt.seconds * 1000;
+    if (createdAt instanceof Date) return createdAt.getTime();
+    return new Date(createdAt).getTime();
+  };
+
+  useEffect(() => {
+    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const normalized = docs.map((p) => {
+        const comments = (p.comments || []).slice().sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
+        const commentsWithSortedReplies = comments.map((c) => {
+          const replies = (c.replies || []).slice().sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
+          return { ...c, replies };
+        });
+        return { ...p, comments: commentsWithSortedReplies };
+      });
+      normalized.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
+      setPosts(normalized);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleLike = async (id) => {
+    const postRef = doc(db, 'posts', id);
+    const post = posts.find((p) => p.id === id);
+    const likes = new Set(post?.likes || []);
+    likes.add(user.uid);
+    await updateDoc(postRef, { likes: Array.from(likes) });
+    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, likes: Array.from(likes) } : p)));
+  };
+
+  const handleDeletePost = async (postId) => {
+    await deleteDoc(doc(db, 'posts', postId));
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+  };
+
+  const handleEditPost = async (postId) => {
+    await updateDoc(doc(db, 'posts', postId), { content: editedContent });
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, content: editedContent } : p)));
+    setEditingPostId(null);
+    setEditedContent('');
+  };
+
+  const handleComment = async (id) => {
+    const commentText = commentMap[id];
+    if (!commentText?.trim()) return;
+    const post = posts.find((p) => p.id === id);
+    const postRef = doc(db, 'posts', id);
+    const newComment = {
+      text: commentText,
+      author: user.displayName || user.email,
+      uid: user.uid,
+      isAdmin: user.isAdmin || false,
+      isModerator: user.isModerator || false,
+      createdAt: new Date(),
+      replies: [],
+      authorPhotoURL: user.photoURL || ''
+    };
+    const updatedComments = [newComment, ...(post.comments || [])];
+    await updateDoc(postRef, { comments: updatedComments });
+    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, comments: updatedComments } : p)));
+    setCommentMap((prev) => ({ ...prev, [id]: '' }));
+  };
+
+  const handleDeleteComment = async (postId, index) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    const updatedComments = (post.comments || []).slice();
+    updatedComments.splice(index, 1);
+    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
+  };
+
+  const handleEditComment = async (postId, index) => {
+    const key = `${postId}-${index}`;
+    const newText = editCommentMap[key];
+    if (!newText?.trim()) return;
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    const updatedComments = (post.comments || []).map((c, i) => (i === index ? { ...c, text: newText } : c));
+    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
+    setEditCommentMap((prev) => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+  };
+
+  const handleReply = async (postId, commentIndex) => {
+    const replyKey = `${postId}-reply-${commentIndex}`;
+    const replyText = commentMap[replyKey];
+    if (!replyText?.trim()) return;
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    const reply = {
+      text: replyText,
+      author: user.displayName || user.email,
+      uid: user.uid,
+      isAdmin: user.isAdmin || false,
+      isModerator: user.isModerator || false,
+      createdAt: new Date(),
+      authorPhotoURL: user.photoURL || ''
+    };
+    const updatedComments = (post.comments || []).map((c, i) => {
+      if (i !== commentIndex) return c;
+      const newReplies = [reply, ...(c.replies || [])];
+      return { ...c, replies: newReplies };
+    });
+    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
+    setCommentMap((prev) => ({ ...prev, [replyKey]: '' }));
+  };
+
+  const handleDeleteReply = async (postId, commentIndex, replyIndex) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    const updatedComments = (post.comments || []).map((c, i) => {
+      if (i !== commentIndex) return c;
+      const newReplies = (c.replies || []).slice();
+      newReplies.splice(replyIndex, 1);
+      return { ...c, replies: newReplies };
+    });
+    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
+  };
+
+  const handleEditReply = async (postId, commentIndex, replyIndex) => {
+    const key = `${postId}-${commentIndex}-${replyIndex}`;
+    const newText = editReplyMap[key];
+    if (!newText?.trim()) return;
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    const updatedComments = (post.comments || []).map((c, i) => {
+      if (i !== commentIndex) return c;
+      const replies = (c.replies || []).map((r, j) => (j === replyIndex ? { ...r, text: newText } : r));
+      return { ...c, replies };
+    });
+    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
+    setEditReplyMap((prev) => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+    setEditingReplyIndexMap((prev) => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+  };
+
+  const addEmoji = (key, emoji) => {
+    setCommentMap((prev) => ({ ...prev, [key]: (prev[key] || '') + emoji.emoji }));
+    setShowEmojiPicker((prev) => ({ ...prev, [key]: false }));
+  };
+
+  const addReplyEmoji = (key, emoji) => {
+    setCommentMap((prev) => ({ ...prev, [key]: (prev[key] || '') + emoji.emoji }));
+    setShowReplyEmojiPicker((prev) => ({ ...prev, [key]: false }));
+  };
+
+  const avatarFallback = defaultAvatar;
+
+  return (
+    <div className="max-w-xl mx-auto mt-10">
+      {posts.map((post) => (
+        <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center">
+              <img
+                src={post.authorPhotoURL || (post.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                alt={post.author || 'User'}
+                className="w-10 h-10 rounded-full object-cover mr-3"
+              />
+              <div>
+                <p className="font-bold text-gray-800">
+                  {post.author}
+                  {post.isAdmin && <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>}
+                  {post.isModerator && <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>}
+                </p>
+                {post.createdAt && (
+                  <p className="text-xs text-gray-500">
+                    {formatDistanceToNow(new Date(getTime(post.createdAt)), { addSuffix: true })}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <p className="mt-2 text-gray-700">{post.content}</p>
+
+          {/* Comments */}
+          <div className="mt-4">
+            {(post.comments || []).map((comment, i) => {
+              const commentKey = `${post.id}-${i}`;
+              return (
+                <div key={i} className="mt-3">
+                  <div className="flex items-start">
+                    <img
+                      src={comment.authorPhotoURL || (comment.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                      alt={comment.author || 'User'}
+                      className="w-8 h-8 rounded-full object-cover mr-2"
+                    />
+                    <div>
+                      <p className="font-semibold">{comment.author}</p>
+                      <p>{comment.text}</p>
+                    </div>
                   </div>
+
+                  {/* Replies */}
+                  {(comment.replies || []).map((reply, j) => {
+                    const replyKey = `${post.id}-${i}-${j}`;
+                    return (
+                      <div key={j} className="ml-10 mt-2 flex items-start">
+                        <img
+                          src={reply.authorPhotoURL || (reply.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                          alt={reply.author || 'User'}
+                          className="w-6 h-6 rounded-full object-cover mr-2"
+                        />
+                        <div>
+                          <p className="font-semibold">{reply.author}</p>
+                          <p>{reply.text}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
