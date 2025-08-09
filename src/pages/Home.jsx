@@ -197,10 +197,10 @@ export default function Home() {
             <div className="flex justify-between">
               <p className="font-bold text-gray-800">
                 {postUser?.displayName || post.author || 'Unknown User'}
-                {post.role === 'admin' && (
+                {usersMap[post.uid]?.isAdmin && (
                   <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
                 )}
-                {post.role === 'moderator' && (
+                {usersMap[post.uid]?.isModerator && (
                   <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Moderator</span>
                 )}
               </p>
@@ -298,10 +298,10 @@ export default function Home() {
                     <div className="w-full">
                       <p className="text-sm font-semibold text-gray-800">
                         {comment.author || usersMap[comment.uid]?.displayName || 'Unknown User'}
-                        {comment.role === 'admin' && (
+                        {usersMap[comment.uid]?.isAdmin && (
                           <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
                         )}
-                        {comment.role === 'moderator' && (
+                        {usersMap[comment.uid]?.isModerator && (
                           <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
                         )}
                       </p>
@@ -315,10 +315,10 @@ export default function Home() {
                           <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
                             <p className="text-sm font-semibold text-gray-800">
                               {reply.author || usersMap[reply.uid]?.displayName || 'Unknown User'}
-                              {reply.role === 'admin' && (
+                              {usersMap[reply.uid]?.isAdmin && (
                                 <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
                               )}
-                              {reply.role === 'moderator' && (
+                              {usersMap[reply.uid]?.isModerator && (
                                 <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
                               )}
                             </p>
