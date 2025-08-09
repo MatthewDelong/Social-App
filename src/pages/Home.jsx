@@ -18,13 +18,10 @@ export default function Home() {
   const [posts, setPosts] = useState([]);
   const [usersMap, setUsersMap] = useState({});
   const [commentMap, setCommentMap] = useState({});
-  const [editCommentMap, setEditCommentMap] = useState({});
+  const [editMap, setEditMap] = useState({});
   const [editingPostId, setEditingPostId] = useState(null);
   const [editedContent, setEditedContent] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState({});
-  const [showReplyEmojiPicker, setShowReplyEmojiPicker] = useState({});
-  const [editReplyMap, setEditReplyMap] = useState({});
-  const [editingReplyIndexMap, setEditingReplyIndexMap] = useState({});
   const { user, theme } = useAppContext();
 
   // ✅ Safe date formatter
@@ -81,78 +78,113 @@ export default function Home() {
     await updateDoc(postRef, { likes: Array.from(likes) });
   };
 
-  // ✅ Add comment
-  const handleComment = async (id) => {
-    const comment = commentMap[id];
-    if (!comment?.trim()) return;
-    const post = posts.find((p) => p.id === id);
-    const postRef = doc(db, 'posts', id);
-    const newComment = {
-      text: comment,
+  // ✅ Update comments recursively in Firestore
+  const updateCommentsAtPath = (comments, path, newComment) => {
+    if (path.length === 0) {
+      return [...comments, newComment];
+    }
+    const [index, ...rest] = path;
+    return comments.map((c, i) =>
+      i === index
+        ? { ...c, replies: updateCommentsAtPath(c.replies || [], rest, newComment) }
+        : c
+    );
+  };
+
+  // ✅ Add reply (handles comments and replies-to-replies)
+  const handleReply = async (postId, path) => {
+    const key = `${postId}-${path.join('-')}`;
+    const text = commentMap[key];
+    if (!text?.trim()) return;
+
+    const post = posts.find((p) => p.id === postId);
+    const newReply = {
+      text,
       author: user.displayName || user.email || 'Unknown User',
       uid: user.uid,
       role: user.role || 'user',
       createdAt: new Date().toISOString(),
       replies: []
     };
-    await updateDoc(postRef, {
-      comments: [...(post.comments || []), newComment]
-    });
-    setCommentMap((prev) => ({ ...prev, [id]: '' }));
+
+    const updatedComments = updateCommentsAtPath(post.comments || [], path, newReply);
+    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+
+    setCommentMap((prev) => ({ ...prev, [key]: '' }));
   };
 
-  // ✅ Add reply
-  const handleReply = async (postId, commentIndex) => {
-    const replyKey = `${postId}-reply-${commentIndex}`;
-    const replyText = commentMap[replyKey];
-    if (!replyText?.trim()) return;
+  // ✅ Add comment (top-level only)
+  const handleComment = async (postId) => {
+    const text = commentMap[postId];
+    if (!text?.trim()) return;
     const post = posts.find((p) => p.id === postId);
-    const updatedComments = [...(post.comments || [])];
-    const reply = {
-      text: replyText,
+    const newComment = {
+      text,
       author: user.displayName || user.email || 'Unknown User',
       uid: user.uid,
       role: user.role || 'user',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      replies: []
     };
-    updatedComments[commentIndex].replies = [
-      ...(updatedComments[commentIndex].replies || []),
-      reply
-    ];
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setCommentMap((prev) => ({ ...prev, [replyKey]: '' }));
+    await updateDoc(doc(db, 'posts', postId), {
+      comments: [...(post.comments || []), newComment]
+    });
+    setCommentMap((prev) => ({ ...prev, [postId]: '' }));
   };
 
-  // ✅ Delete comment
-  const handleDeleteComment = async (postId, index) => {
+  // ✅ Recursive delete
+  const deleteAtPath = (comments, path) => {
+    if (path.length === 1) {
+      const newComments = [...comments];
+      newComments.splice(path[0], 1);
+      return newComments;
+    }
+    const [index, ...rest] = path;
+    return comments.map((c, i) =>
+      i === index
+        ? { ...c, replies: deleteAtPath(c.replies || [], rest) }
+        : c
+    );
+  };
+
+  const handleDelete = async (postId, path) => {
     const post = posts.find((p) => p.id === postId);
-    if (!post?.comments) return;
-    const updatedComments = [...post.comments];
-    updatedComments.splice(index, 1);
+    const updatedComments = deleteAtPath(post.comments || [], path);
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
   };
 
-  // ✅ Edit comment
-  const handleEditComment = async (postId, index) => {
-    const newText = editCommentMap[`${postId}-${index}`];
-    if (!newText?.trim()) return;
+  // ✅ Recursive edit
+  const editAtPath = (comments, path, newText) => {
+    if (path.length === 1) {
+      return comments.map((c, i) =>
+        i === path[0] ? { ...c, text: newText } : c
+      );
+    }
+    const [index, ...rest] = path;
+    return comments.map((c, i) =>
+      i === index
+        ? { ...c, replies: editAtPath(c.replies || [], rest, newText) }
+        : c
+    );
+  };
+
+  const handleEdit = async (postId, path) => {
+    const key = `${postId}-${path.join('-')}`;
+    const text = editMap[key];
+    if (!text?.trim()) return;
+
     const post = posts.find((p) => p.id === postId);
-    const updatedComments = [...post.comments];
-    updatedComments[index].text = newText;
+    const updatedComments = editAtPath(post.comments || [], path, text);
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setEditCommentMap((prev) => ({ ...prev, [`${postId}-${index}`]: '' }));
-  };
 
-  // ✅ Delete post
-  const handleDeletePost = async (postId) => {
-    await deleteDoc(doc(db, 'posts', postId));
+    setEditMap((prev) => ({ ...prev, [key]: '' }));
   };
 
   // ✅ Edit post
   const handleEditPost = async (postId) => {
     await updateDoc(doc(db, 'posts', postId), { content: editedContent });
-    setPosts((prevPosts) =>
-      prevPosts.map((p) =>
+    setPosts((prev) =>
+      prev.map((p) =>
         p.id === postId ? { ...p, content: editedContent } : p
       )
     );
@@ -169,30 +201,78 @@ export default function Home() {
     setShowEmojiPicker((prev) => ({ ...prev, [key]: false }));
   };
 
-  const addReplyEmoji = (key, emoji) => {
-    setCommentMap((prev) => ({
-      ...prev,
-      [key]: (prev[key] || '') + emoji.emoji
-    }));
-    setShowReplyEmojiPicker((prev) => ({ ...prev, [key]: false }));
-  };
+  // 🔹 Recursive render
+  const renderReplies = (replies, postId, path) => {
+    return replies.map((reply, index) => {
+      const currentPath = [...path, index];
+      const key = `${postId}-${currentPath.join('-')}`;
+      return (
+        <div key={key} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
+          <p className="text-sm font-semibold text-gray-800">
+            {reply.author || usersMap[reply.uid]?.displayName || 'Unknown User'}
+            {usersMap[reply.uid]?.isAdmin && (
+              <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
+            )}
+            {usersMap[reply.uid]?.isModerator && (
+              <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
+            )}
+          </p>
+          <p className="text-sm text-gray-700">{reply.text}</p>
+          <p className="text-xs text-gray-500 mt-1">{safeFormatDate(reply.createdAt)}</p>
 
-  // ✅ Delete reply
-  const handleDeleteReply = async (postId, commentIndex, replyIndex) => {
-    const post = posts.find((p) => p.id === postId);
-    const updatedComments = [...post.comments];
-    updatedComments[commentIndex].replies.splice(replyIndex, 1);
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-  };
+          {/* Reply input */}
+          <div className="mt-2">
+            <input
+              type="text"
+              placeholder="Reply..."
+              value={commentMap[key] || ''}
+              onChange={(e) => setCommentMap({ ...commentMap, [key]: e.target.value })}
+              className="border p-1 w-full rounded text-sm"
+            />
+            <button
+              onClick={() =>
+                setShowEmojiPicker((prev) => ({ ...prev, [key]: !prev[key] }))
+              }
+              className="text-xs text-yellow-500 mt-1"
+            >
+              😊
+            </button>
+            {showEmojiPicker[key] && (
+              <div className="absolute z-10 mt-2">
+                <EmojiPicker onEmojiClick={(e) => addEmoji(key, e)} />
+              </div>
+            )}
+            <button
+              onClick={() => handleReply(postId, currentPath)}
+              className="text-xs text-green-600 mt-1 ml-2"
+            >
+              Reply
+            </button>
+            <button
+              onClick={() => handleDelete(postId, currentPath)}
+              className="text-xs text-red-500 ml-2"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => handleEdit(postId, currentPath)}
+              className="text-xs text-blue-500 ml-2"
+            >
+              Edit
+            </button>
+            <input
+              type="text"
+              placeholder="Edit reply..."
+              value={editMap[key] || ''}
+              onChange={(e) => setEditMap({ ...editMap, [key]: e.target.value })}
+              className="border p-1 w-full rounded text-sm mt-1"
+            />
+          </div>
 
-  // ✅ Edit reply
-  const handleEditReply = async (postId, commentIndex, replyIndex) => {
-    const key = `${postId}-${commentIndex}-${replyIndex}`;
-    const post = posts.find((p) => p.id === postId);
-    const updatedComments = [...post.comments];
-    updatedComments[commentIndex].replies[replyIndex].text = editReplyMap[key];
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setEditingReplyIndexMap((prev) => ({ ...prev, [key]: false }));
+          {renderReplies(reply.replies || [], postId, currentPath)}
+        </div>
+      );
+    });
   };
 
   return (
@@ -226,7 +306,7 @@ export default function Home() {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDeletePost(post.id)}
+                    onClick={() => deleteDoc(doc(db, 'posts', post.id))}
                     className="text-xs text-red-500 hover:underline"
                   >
                     Delete
@@ -302,80 +382,81 @@ export default function Home() {
 
             {/* Comments */}
             <div className="mt-4 space-y-2 border-t pt-2">
-              {(post.comments || []).map((comment, i) => (
-                <div key={i} className="bg-gray-50 p-2 rounded">
-                  <div className="flex justify-between items-start">
-                    <div className="w-full">
-                      <p className="text-sm font-semibold text-gray-800">
-                        {comment.author || usersMap[comment.uid]?.displayName || 'Unknown User'}
-                        {usersMap[comment.uid]?.isAdmin && (
-                          <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
-                        )}
-                        {usersMap[comment.uid]?.isModerator && (
-                          <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
-                        )}
-                      </p>
-                      <p className="text-sm text-gray-700">{comment.text}</p>
-                      <p className="text-xs text-gray-500 mt-1">{safeFormatDate(comment.createdAt)}</p>
+              {(post.comments || []).map((comment, i) => {
+                const path = [i];
+                const key = `${post.id}-${i}`;
+                return (
+                  <div key={i} className="bg-gray-50 p-2 rounded">
+                    <p className="text-sm font-semibold text-gray-800">
+                      {comment.author || usersMap[comment.uid]?.displayName || 'Unknown User'}
+                      {usersMap[comment.uid]?.isAdmin && (
+                        <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
+                      )}
+                      {usersMap[comment.uid]?.isModerator && (
+                        <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-700">{comment.text}</p>
+                    <p className="text-xs text-gray-500 mt-1">{safeFormatDate(comment.createdAt)}</p>
 
-                      {/* Reply input */}
-                      <div className="mt-2 ml-4">
-                        <input
-                          type="text"
-                          placeholder="Reply..."
-                          value={commentMap[`${post.id}-reply-${i}`] || ''}
-                          onChange={(e) =>
-                            setCommentMap({ ...commentMap, [`${post.id}-reply-${i}`]: e.target.value })
-                          }
-                          className="border p-1 w-full rounded text-sm"
-                        />
-                        <button
-                          onClick={() =>
-                            setShowReplyEmojiPicker((prev) => ({
-                              ...prev,
-                              [`${post.id}-reply-${i}`]: !prev[`${post.id}-reply-${i}`]
-                            }))
-                          }
-                          className="text-xs text-yellow-500 mt-1"
-                        >
-                          😊
-                        </button>
-                        {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
-                          <div className="absolute z-10 mt-2">
-                            <EmojiPicker onEmojiClick={(e) => addReplyEmoji(`${post.id}-reply-${i}`, e)} />
-                          </div>
-                        )}
-                        <button
-                          onClick={() => handleReply(post.id, i)}
-                          className="text-xs text-green-600 mt-1 ml-2"
-                        >
-                          Reply
-                        </button>
-                      </div>
-
-                      {/* Replies */}
-                      {(comment.replies || []).map((reply, j) => {
-                        const key = `${post.id}-${i}-${j}`;
-                        return (
-                          <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
-                            <p className="text-sm font-semibold text-gray-800">
-                              {reply.author || usersMap[reply.uid]?.displayName || 'Unknown User'}
-                              {usersMap[reply.uid]?.isAdmin && (
-                                <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
-                              )}
-                              {usersMap[reply.uid]?.isModerator && (
-                                <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
-                              )}
-                            </p>
-                            <p className="text-sm text-gray-700">{reply.text}</p>
-                            <p className="text-xs text-gray-500 mt-1">{safeFormatDate(reply.createdAt)}</p>
-                          </div>
-                        );
-                      })}
+                    {/* Reply input */}
+                    <div className="mt-2 ml-4">
+                      <input
+                        type="text"
+                        placeholder="Reply..."
+                        value={commentMap[key] || ''}
+                        onChange={(e) =>
+                          setCommentMap({ ...commentMap, [key]: e.target.value })
+                        }
+                        className="border p-1 w-full rounded text-sm"
+                      />
+                      <button
+                        onClick={() =>
+                          setShowEmojiPicker((prev) => ({
+                            ...prev,
+                            [key]: !prev[key]
+                          }))
+                        }
+                        className="text-xs text-yellow-500 mt-1"
+                      >
+                        😊
+                      </button>
+                      {showEmojiPicker[key] && (
+                        <div className="absolute z-10 mt-2">
+                          <EmojiPicker onEmojiClick={(e) => addEmoji(key, e)} />
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleReply(post.id, path)}
+                        className="text-xs text-green-600 mt-1 ml-2"
+                      >
+                        Reply
+                      </button>
+                      <button
+                        onClick={() => handleDelete(post.id, path)}
+                        className="text-xs text-red-500 ml-2"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => handleEdit(post.id, path)}
+                        className="text-xs text-blue-500 ml-2"
+                      >
+                        Edit
+                      </button>
+                      <input
+                        type="text"
+                        placeholder="Edit comment..."
+                        value={editMap[key] || ''}
+                        onChange={(e) => setEditMap({ ...editMap, [key]: e.target.value })}
+                        className="border p-1 w-full rounded text-sm mt-1"
+                      />
                     </div>
+
+                    {renderReplies(comment.replies || [], post.id, path)}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );
