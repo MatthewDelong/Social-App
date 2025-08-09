@@ -16,63 +16,61 @@ export default function Navbar() {
   const { user, logout, theme } = useAppContext();
   const location = useLocation();
   const hideContentRoutes = ['/login', '/signup'];
-  const isLoginOrSignup = hideContentRoutes.includes(location.pathname) && !user;
+  const shouldHideContent = hideContentRoutes.includes(location.pathname) && !user;
 
   const [menuOpen, setMenuOpen] = useState(false);
+
   const textColorClass = getContrastYIQ(theme.navbarColor);
 
   return (
     <nav
-      className="shadow px-4 mb-6 h-14 relative"
+      className={`shadow p-4 mb-6`}
       style={{ backgroundColor: theme.navbarColor }}
     >
-      <div className="flex justify-between items-center h-full max-w-6xl mx-auto">
+      <div className="flex justify-between items-center max-w-6xl mx-auto">
         {/* Logo */}
         <Link to="/">
-          <img src="/images/logo.png" alt="Logo" className="h-8 w-auto" />
+          <img src="/images/logo.png" alt="Logo" className="h-16 w-auto" />
         </Link>
 
-        {/* Right side */}
-        {!isLoginOrSignup && user && (
-          <>
-            {/* Hamburger button for mobile */}
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className={`sm:hidden focus:outline-none ${textColorClass}`}
+        {/* Hamburger button for mobile */}
+        {!shouldHideContent && user && (
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className={`sm:hidden focus:outline-none ${textColorClass}`}
+          >
+            {/* Simple hamburger icon */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth="2"
+              stroke="currentColor"
+              className="w-6 h-6"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth="2"
-                stroke="currentColor"
-                className="w-6 h-6"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
 
-            {/* Desktop links */}
-            <div className={`hidden sm:flex items-center gap-4 ${textColorClass}`}>
-              <Link to="/profile" className="text-sm hover:underline">Profile</Link>
-              <Link to="/new" className="text-sm hover:underline">New Post</Link>
-              <Link to="/settings" className="text-sm hover:underline">Settings</Link>
-              {user.isAdmin && (
-                <Link to="/admin" className="text-sm hover:underline">Admin Dashboard</Link>
-              )}
-              <span className="text-sm hidden sm:inline">{user.displayName || user.email}</span>
-              <button onClick={logout} className="text-sm hover:underline">Logout</button>
-            </div>
-          </>
+        {/* Desktop links */}
+        {!shouldHideContent && user && (
+          <div className={`hidden sm:flex items-center gap-4 ${textColorClass}`}>
+            <Link to="/profile" className="text-sm hover:underline">Profile</Link>
+            <Link to="/new" className="text-sm hover:underline">New Post</Link>
+            <Link to="/settings" className="text-sm hover:underline">Settings</Link>
+            {user.isAdmin && (
+              <Link to="/admin" className="text-sm hover:underline">Admin Dashboard</Link>
+            )}
+            <span className="text-sm hidden sm:inline">{user.displayName || user.email}</span>
+            <button onClick={logout} className="text-sm hover:underline">Logout</button>
+          </div>
         )}
       </div>
 
       {/* Mobile menu */}
-      {menuOpen && !isLoginOrSignup && user && (
-        <div
-          className={`sm:hidden flex flex-col gap-2 absolute left-0 w-full p-4 shadow-md z-50 ${textColorClass}`}
-          style={{ top: '3.5rem', backgroundColor: theme.navbarColor }}
-        >
+      {menuOpen && !shouldHideContent && user && (
+        <div className={`sm:hidden mt-4 flex flex-col gap-2 ${textColorClass}`}>
           <Link to="/profile" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Profile</Link>
           <Link to="/new" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>New Post</Link>
           <Link to="/settings" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Settings</Link>
@@ -80,12 +78,7 @@ export default function Navbar() {
             <Link to="/admin" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>
           )}
           <span className="text-sm">{user.displayName || user.email}</span>
-          <button
-            onClick={() => { logout(); setMenuOpen(false); }}
-            className="text-sm hover:underline"
-          >
-            Logout
-          </button>
+          <button onClick={() => { logout(); setMenuOpen(false); }} className="text-sm hover:underline">Logout</button>
         </div>
       )}
     </nav>

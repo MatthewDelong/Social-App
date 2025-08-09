@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { useState } from 'react';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAppContext } from '../context/AppContext';
 import Textarea from '../components/ui/textarea';
@@ -8,49 +8,24 @@ import { useNavigate } from 'react-router-dom';
 
 export default function NewPost() {
   const [content, setContent] = useState('');
-  const [userData, setUserData] = useState(null);
   const { user } = useAppContext();
   const navigate = useNavigate();
 
-  // Fetch full user record from Firestore
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (user?.uid) {
-        const userRef = doc(db, 'users', user.uid);
-        const snap = await getDoc(userRef);
-        if (snap.exists()) {
-          setUserData(snap.data());
-        } else {
-          setUserData({});
-        }
-      }
-    };
-    fetchUserData();
-  }, [user]);
-
   const handlePost = async () => {
-    if (!content.trim() || !user) return;
-
-    // Pick the best available profile picture (Firestore → Auth → fallback placeholder)
-    const profilePic =
-      userData?.photoURL ||
-      user?.photoURL ||
-      '/images/default-avatar.png'; // <-- add a default image in public/images
+    if (!content.trim()) return;
 
     await addDoc(collection(db, 'posts'), {
       content,
-      author: user.displayName || user.email || 'Unknown',
+      authorName: user.displayName || '',
       authorEmail: user.email,
-      authorPhotoURL: profilePic, // ✅ store profile pic in post
       uid: user.uid,
-      isAdmin: userData?.isAdmin || false,
-      isModerator: userData?.isModerator || false,
+      isAdmin: user.isAdmin || false,
+      isModerator: user.isModerator || false,
       createdAt: serverTimestamp(),
       likes: [],
       comments: [],
     });
 
-    setContent('');
     navigate('/');
   };
 

@@ -1,4 +1,3 @@
-// src/pages/Home.jsx
 import { useEffect, useState } from 'react';
 import {
   collection,
@@ -18,272 +17,184 @@ export default function Home() {
   const [posts, setPosts] = useState([]);
   const [commentMap, setCommentMap] = useState({});
   const [editCommentMap, setEditCommentMap] = useState({});
-  const [editReplyMap, setEditReplyMap] = useState({});
-  const [editingReplyIndexMap, setEditingReplyIndexMap] = useState({});
   const [editingPostId, setEditingPostId] = useState(null);
   const [editedContent, setEditedContent] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState({});
   const [showReplyEmojiPicker, setShowReplyEmojiPicker] = useState({});
+  const [editReplyMap, setEditReplyMap] = useState({});
+  const [editingReplyIndexMap, setEditingReplyIndexMap] = useState({});
   const { user } = useAppContext();
 
-  // Helper: safely get timestamp in ms for many formats (Firestore Timestamp, Date, string)
-  const getTime = (createdAt) => {
-    if (!createdAt) return 0;
-    if (createdAt.seconds && typeof createdAt.seconds === 'number') return createdAt.seconds * 1000;
-    if (createdAt instanceof Date) return createdAt.getTime();
-    return new Date(createdAt).getTime();
-  };
-
-  // small helper: return a safe avatar url.
-  // - if photoURL is present and non-empty (after trimming) return it
-  // - else if this entity belongs to current user and user's photoURL exists, return user's photoURL
-  // - otherwise return avatarFallback
-  const avatarFallback = 'https://via.placeholder.com/40';
-  const getAvatarUrl = (photoURL, isOwner) => {
-    const p = photoURL?.toString?.().trim();
-    if (p) return p;
-    if (isOwner) {
-      const up = user?.photoURL?.toString?.().trim();
-      if (up) return up;
-    }
-    return avatarFallback;
-  };
-
-  // Listen to posts, order by createdAt (Firestore desc) and normalize local structure:
-  // ensure posts.comments and replies are sorted newest -> oldest
   useEffect(() => {
     const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-      // Normalize: sort comments & replies newest -> oldest (safe for mixed timestamp types)
-      const normalized = docs.map((p) => {
-        const comments = (p.comments || []).slice().sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
-        const commentsWithSortedReplies = comments.map((c) => {
-          const replies = (c.replies || []).slice().sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
-          return { ...c, replies };
-        });
-        return { ...p, comments: commentsWithSortedReplies };
-      });
-
-      // ensure posts themselves are sorted newest -> oldest as a fallback
-      normalized.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
-
-      setPosts(normalized);
+      const docs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setPosts(docs);
     });
-
     return () => unsub();
   }, []);
-
-  /* ---------- Post actions ---------- */
 
   const handleLike = async (id) => {
     const postRef = doc(db, 'posts', id);
     const post = posts.find((p) => p.id === id);
-    const likes = new Set(post?.likes || []);
+    const likes = new Set(post.likes || []);
     likes.add(user.uid);
-    await updateDoc(postRef, { likes: Array.from(likes) });
-
-    // update local optimistically
-    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, likes: Array.from(likes) } : p)));
-  };
-
-  const handleDeletePost = async (postId) => {
-    await deleteDoc(doc(db, 'posts', postId));
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
-  };
-
-  const handleEditPost = async (postId) => {
-    await updateDoc(doc(db, 'posts', postId), { content: editedContent });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, content: editedContent } : p)));
-    setEditingPostId(null);
-    setEditedContent('');
-  };
-
-  /* ---------- Comment actions ---------- */
-
-  // Add comment — prepend so stored order matches newest-first UI
-  const handleComment = async (id) => {
-    const commentText = commentMap[id];
-    if (!commentText?.trim()) return;
-
-    const post = posts.find((p) => p.id === id);
-    const postRef = doc(db, 'posts', id);
-    const newComment = {
-      text: commentText,
-      author: user.displayName || user.email,
-      uid: user.uid,
-      isAdmin: user.isAdmin || false,
-      isModerator: user.isModerator || false,
-      createdAt: new Date(),
-      replies: [],
-      // store author's profile picture at time of comment creation
-      authorPhotoURL: user.photoURL || ''
-    };
-
-    const updatedComments = [newComment, ...(post.comments || [])]; // prepend
-    await updateDoc(postRef, { comments: updatedComments });
-
-    // update local state
-    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, comments: updatedComments } : p)));
-    setCommentMap((prev) => ({ ...prev, [id]: '' }));
-  };
-
-  const handleDeleteComment = async (postId, index) => {
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    const updatedComments = (post.comments || []).slice();
-    updatedComments.splice(index, 1);
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-  };
-
-  const handleEditComment = async (postId, index) => {
-    const key = `${postId}-${index}`;
-    const newText = editCommentMap[key];
-    if (!newText?.trim()) return;
-
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-
-    const updatedComments = (post.comments || []).map((c, i) => (i === index ? { ...c, text: newText } : c));
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-
-    // remove edit key to exit edit mode
-    setEditCommentMap((prev) => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
+    await updateDoc(postRef, {
+      likes: Array.from(likes)
     });
   };
 
-  /* ---------- Reply actions ---------- */
+  const handleComment = async (id) => {
+    const comment = commentMap[id];
+    if (!comment.trim()) return;
 
-  // Add reply — prepend to keep newest-first
+    const post = posts.find((p) => p.id === id);
+    const postRef = doc(db, 'posts', id);
+
+    const newComment = {
+      text: comment,
+      author: user.displayName || user.email,
+      uid: user.uid,
+      role: user.role || 'user', // ✅ store role
+      createdAt: new Date().toISOString(),
+      replies: []
+    };
+
+    await updateDoc(postRef, {
+      comments: [...(post.comments || []), newComment]
+    });
+
+    setCommentMap((prev) => ({ ...prev, [id]: '' }));
+  };
+
   const handleReply = async (postId, commentIndex) => {
     const replyKey = `${postId}-reply-${commentIndex}`;
     const replyText = commentMap[replyKey];
-    if (!replyText?.trim()) return;
+    if (!replyText.trim()) return;
 
     const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-
+    const updatedComments = [...(post.comments || [])];
     const reply = {
       text: replyText,
       author: user.displayName || user.email,
       uid: user.uid,
-      isAdmin: user.isAdmin || false,
-      isModerator: user.isModerator || false,
-      createdAt: new Date(),
-      // store author's profile picture at time of reply creation
-      authorPhotoURL: user.photoURL || ''
+      role: user.role || 'user', // ✅ store role
+      createdAt: new Date().toISOString()
     };
 
-    const updatedComments = (post.comments || []).map((c, i) => {
-      if (i !== commentIndex) return c;
-      const newReplies = [reply, ...(c.replies || [])]; // prepend
-      return { ...c, replies: newReplies };
+    updatedComments[commentIndex].replies = [
+      ...(updatedComments[commentIndex].replies || []),
+      reply
+    ];
+
+    await updateDoc(doc(db, 'posts', postId), {
+      comments: updatedComments
     });
 
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
     setCommentMap((prev) => ({ ...prev, [replyKey]: '' }));
   };
 
-  const handleDeleteReply = async (postId, commentIndex, replyIndex) => {
+  const handleDeleteComment = async (postId, index) => {
     const post = posts.find((p) => p.id === postId);
-    if (!post) return;
+    if (!post || !post.comments) return;
 
-    const updatedComments = (post.comments || []).map((c, i) => {
-      if (i !== commentIndex) return c;
-      const newReplies = (c.replies || []).slice();
-      newReplies.splice(replyIndex, 1);
-      return { ...c, replies: newReplies };
-    });
+    const updatedComments = [...post.comments];
+    updatedComments.splice(index, 1);
 
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-  };
-
-  const handleEditReply = async (postId, commentIndex, replyIndex) => {
-    const key = `${postId}-${commentIndex}-${replyIndex}`;
-    const newText = editReplyMap[key];
-    if (!newText?.trim()) return;
-
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-
-    const updatedComments = (post.comments || []).map((c, i) => {
-      if (i !== commentIndex) return c;
-      const replies = (c.replies || []).map((r, j) => (j === replyIndex ? { ...r, text: newText } : r));
-      return { ...c, replies };
-    });
-
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-
-    // clear editing state
-    setEditReplyMap((prev) => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
-    setEditingReplyIndexMap((prev) => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
+    await updateDoc(doc(db, 'posts', postId), {
+      comments: updatedComments
     });
   };
 
-  /* ---------- Emoji helpers ---------- */
+  const handleEditComment = async (postId, index) => {
+    const newText = editCommentMap[`${postId}-${index}`];
+    if (!newText.trim()) return;
+
+    const post = posts.find((p) => p.id === postId);
+    const updatedComments = [...post.comments];
+    updatedComments[index].text = newText;
+
+    await updateDoc(doc(db, 'posts', postId), {
+      comments: updatedComments
+    });
+
+    setEditCommentMap((prev) => ({ ...prev, [`${postId}-${index}`]: '' }));
+  };
+
+  const handleDeletePost = async (postId) => {
+    await deleteDoc(doc(db, 'posts', postId));
+  };
+
+  const handleEditPost = async (postId) => {
+    await updateDoc(doc(db, 'posts', postId), {
+      content: editedContent
+    });
+    setPosts((prevPosts) =>
+      prevPosts.map((p) =>
+        p.id === postId ? { ...p, content: editedContent } : p
+      )
+    );
+    setEditingPostId(null);
+    setEditedContent('');
+  };
 
   const addEmoji = (key, emoji) => {
-    setCommentMap((prev) => ({ ...prev, [key]: (prev[key] || '') + emoji.emoji }));
+    setCommentMap((prev) => ({
+      ...prev,
+      [key]: (prev[key] || '') + emoji.emoji
+    }));
     setShowEmojiPicker((prev) => ({ ...prev, [key]: false }));
   };
 
   const addReplyEmoji = (key, emoji) => {
-    setCommentMap((prev) => ({ ...prev, [key]: (prev[key] || '') + emoji.emoji }));
+    setCommentMap((prev) => ({
+      ...prev,
+      [key]: (prev[key] || '') + emoji.emoji
+    }));
     setShowReplyEmojiPicker((prev) => ({ ...prev, [key]: false }));
   };
 
-  /* ---------- Render ---------- */
+  const handleDeleteReply = async (postId, commentIndex, replyIndex) => {
+    const post = posts.find((p) => p.id === postId);
+    const updatedComments = [...post.comments];
+    updatedComments[commentIndex].replies.splice(replyIndex, 1);
+
+    await updateDoc(doc(db, 'posts', postId), {
+      comments: updatedComments
+    });
+  };
+
+  const handleEditReply = async (postId, commentIndex, replyIndex) => {
+    const key = `${postId}-${commentIndex}-${replyIndex}`;
+    const post = posts.find((p) => p.id === postId);
+    const updatedComments = [...post.comments];
+    updatedComments[commentIndex].replies[replyIndex].text = editReplyMap[key];
+
+    await updateDoc(doc(db, 'posts', postId), {
+      comments: updatedComments
+    });
+
+    setEditingReplyIndexMap((prev) => ({ ...prev, [key]: false }));
+  };
 
   return (
     <div className="max-w-xl mx-auto mt-10">
       {posts.map((post) => (
         <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center">
-              {/* Post author avatar */}
-              <img
-                src={
-                  // prefer stored authorPhotoURL if non-empty; otherwise, if post belongs to current user prefer user's photoURL; otherwise fallback
-                  getAvatarUrl(post.authorPhotoURL, post.uid === user?.uid)
-                }
-                alt={post.author || 'User'}
-                className="w-10 h-10 rounded-full object-cover mr-3"
-              />
-              <div>
-                <p className="font-bold text-gray-800">
-                  {post.author}
-                  {post.isAdmin && (
-                    <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
-                  )}
-                  {post.isModerator && (
-                    <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
-                  )}
-                </p>
-                {post.createdAt && (
-                  <p className="text-xs text-gray-500">
-                    {formatDistanceToNow(new Date(getTime(post.createdAt)), { addSuffix: true })}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {(post.uid === user.uid || user.isAdmin || user.isModerator) && (
+          <div className="flex justify-between">
+            <p className="font-bold text-gray-800">
+              {post.author}
+              {post.role === 'admin' && (
+                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
+              )}
+              {post.role === 'moderator' && (
+                <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Moderator</span>
+              )}
+            </p>
+            {(post.uid === user.uid || user.role === 'admin' || user.role === 'moderator') && (
               <div className="space-x-2">
                 <button
                   onClick={() => {
@@ -311,17 +222,33 @@ export default function Home() {
                 value={editedContent}
                 onChange={(e) => setEditedContent(e.target.value)}
               />
-              <button onClick={() => handleEditPost(post.id)} className="text-sm text-green-600 mt-1">
+              <button
+                onClick={() => handleEditPost(post.id)}
+                className="text-sm text-green-600 mt-1"
+              >
                 Save
               </button>
             </div>
           ) : (
             <>
-              <p className="text-gray-700 mb-2 mt-3">{post.content}</p>
+              <p className="text-gray-700 mb-2">{post.content}</p>
+              {post.createdAt && (
+                <p className="text-xs text-gray-500 mb-2">
+                  {formatDistanceToNow(
+                    post.createdAt.seconds
+                      ? new Date(post.createdAt.seconds * 1000)
+                      : new Date(post.createdAt),
+                    { addSuffix: true }
+                  )}
+                </p>
+              )}
             </>
           )}
 
-          <button onClick={() => handleLike(post.id)} className="text-blue-500 text-sm mb-2">
+          <button
+            onClick={() => handleLike(post.id)}
+            className="text-blue-500 text-sm mb-2"
+          >
             ❤️ Like ({post.likes?.length || 0})
           </button>
 
@@ -331,478 +258,208 @@ export default function Home() {
               type="text"
               placeholder="Add a comment..."
               value={commentMap[post.id] || ''}
-              onChange={(e) => setCommentMap({ ...commentMap, [post.id]: e.target.value })}
+              onChange={(e) =>
+                setCommentMap({ ...commentMap, [post.id]: e.target.value })
+              }
               className="border p-1 w-full rounded"
             />
             <button
-              onClick={() => setShowEmojiPicker((prev) => ({ ...prev, [post.id]: !prev[post.id] }))}
+              onClick={() =>
+                setShowEmojiPicker((prev) => ({
+                  ...prev,
+                  [post.id]: !prev[post.id]
+                }))
+              }
               className="text-sm text-yellow-500 mt-1"
             >
               😊
             </button>
             {showEmojiPicker[post.id] && (
               <div className="absolute z-10 mt-2">
-                <EmojiPicker onEmojiClick={(emojiData) => addEmoji(post.id, emojiData)} />
+                <EmojiPicker onEmojiClick={(e) => addEmoji(post.id, e)} />
               </div>
             )}
           </div>
-          <button onClick={() => handleComment(post.id)} className="text-sm text-green-600 mt-1">
+          <button
+            onClick={() => handleComment(post.id)}
+            className="text-sm text-green-600 mt-1"
+          >
             Comment
           </button>
 
           {/* Comments */}
           <div className="mt-4 space-y-2 border-t pt-2">
-            {(post.comments || []).map((comment, i) => {
-              const commentKey = `${post.id}-${i}`;
-              return (
-                <div key={i} className="bg-gray-50 p-2 rounded">
-                  <div className="flex justify-between items-start">
-                    <div className="w-full">
-                      <div className="flex items-start">
-                        {/* Comment author avatar */}
-                        <img
-                          src={
-                            getAvatarUrl(comment.authorPhotoURL, comment.uid === user?.uid)
+            {(post.comments || []).map((comment, i) => (
+              <div key={i} className="bg-gray-50 p-2 rounded">
+                <div className="flex justify-between items-start">
+                  <div className="w-full">
+                    <p className="text-sm font-semibold text-gray-800">
+                      {comment.author}
+                      {comment.role === 'admin' && (
+                        <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
+                      )}
+                      {comment.role === 'moderator' && (
+                        <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
+                      )}
+                    </p>
+                    {comment.uid === user.uid && editCommentMap[`${post.id}-${i}`] !== undefined ? (
+                      <>
+                        <textarea
+                          className="w-full text-sm border rounded p-1 mt-1"
+                          value={editCommentMap[`${post.id}-${i}`]}
+                          onChange={(e) =>
+                            setEditCommentMap({
+                              ...editCommentMap,
+                              [`${post.id}-${i}`]: e.target.value
+                            })
                           }
-                          alt={comment.author || 'User'}
-                          className="w-8 h-8 rounded-full object-cover mr-2 mt-1"
                         />
-                        <div className="flex-1">
+                        <button
+                          onClick={() => handleEditComment(post.id, i)}
+                          className="text-xs text-green-600 mt-1"
+                        >
+                          Save
+                        </button>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-700">{comment.text}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                    </p>
+
+                    {/* Replies */}
+                    {(comment.replies || []).map((reply, j) => {
+                      const key = `${post.id}-${i}-${j}`;
+                      return (
+                        <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
                           <p className="text-sm font-semibold text-gray-800">
-                            {comment.author}
-                            {comment.isAdmin && (
-                              <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
+                            {reply.author}
+                            {reply.role === 'admin' && (
+                              <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
                             )}
-                            {comment.isModerator && (
-                              <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
+                            {reply.role === 'moderator' && (
+                              <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
                             )}
                           </p>
-
-                          {/* Comment edit mode */}
-                          {editCommentMap[commentKey] !== undefined ? (
+                          {editingReplyIndexMap[key] ? (
                             <>
                               <textarea
                                 className="w-full text-sm border rounded p-1 mt-1"
-                                value={editCommentMap[commentKey]}
+                                value={editReplyMap[key]}
                                 onChange={(e) =>
-                                  setEditCommentMap((prev) => ({ ...prev, [commentKey]: e.target.value }))
+                                  setEditReplyMap({
+                                    ...editReplyMap,
+                                    [key]: e.target.value
+                                  })
                                 }
                               />
-                              <div className="flex gap-2 mt-1">
-                                <button
-                                  onClick={() => handleEditComment(post.id, i)}
-                                  className="text-xs text-green-600"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    setEditCommentMap((prev) => {
-                                      const copy = { ...prev };
-                                      delete copy[commentKey];
-                                      return copy;
-                                    })
-                                  }
-                                  className="text-xs text-gray-600"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
+                              <button
+                                onClick={() => handleEditReply(post.id, i, j)}
+                                className="text-xs text-green-600 mt-1"
+                              >
+                                Save
+                              </button>
                             </>
                           ) : (
-                            <p className="text-sm text-gray-700 mt-1">{comment.text}</p>
+                            <p className="text-sm text-gray-700">{reply.text}</p>
                           )}
-
                           <p className="text-xs text-gray-500 mt-1">
-                            {formatDistanceToNow(new Date(getTime(comment.createdAt)), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
                           </p>
 
-                          {/* Replies (already newest-first in state) */}
-                          {(comment.replies || []).map((reply, j) => {
-                            const replyKey = `${post.id}-${i}-${j}`;
-                            return (
-                              <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
-                                <div className="flex items-start">
-                                  <img
-                                    src={
-                                      getAvatarUrl(reply.authorPhotoURL, reply.uid === user?.uid)
-                                    }
-                                    alt={reply.author || 'User'}
-                                    className="w-7 h-7 rounded-full object-cover mr-2 mt-1"
-                                  />
-                                  <div className="flex-1">
-                                    <p className="text-sm font-semibold text-gray-800">
-                                      {reply.author}
-                                      {reply.isAdmin && (
-                                        <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>
-                                      )}
-                                      {reply.isModerator && (
-                                        <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
-                                      )}
-                                    </p>
-
-                                    {editingReplyIndexMap[replyKey] ? (
-                                      <>
-                                        <textarea
-                                          className="w-full text-sm border rounded p-1 mt-1"
-                                          value={editReplyMap[replyKey] || ''}
-                                          onChange={(e) =>
-                                            setEditReplyMap((prev) => ({ ...prev, [replyKey]: e.target.value }))
-                                          }
-                                        />
-                                        <div className="flex gap-2 mt-1">
-                                          <button
-                                            onClick={() => handleEditReply(post.id, i, j)}
-                                            className="text-xs text-green-600"
-                                          >
-                                            Save
-                                          </button>
-                                          <button
-                                            onClick={() =>
-                                              setEditingReplyIndexMap((prev) => {
-                                                const copy = { ...prev };
-                                                delete copy[replyKey];
-                                                return copy;
-                                              })
-                                            }
-                                            className="text-xs text-gray-600"
-                                          >
-                                            Cancel
-                                          </button>
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <p className="text-sm text-gray-700">{reply.text}</p>
-                                    )}
-
-                                    <p className="text-xs text-gray-500 mt-1">
-                                      {formatDistanceToNow(new Date(getTime(reply.createdAt)), { addSuffix: true })}
-                                    </p>
-
-                                    {/* Reply edit/delete options for reply owner */}
-                                    {reply.uid === user.uid && !editingReplyIndexMap[replyKey] && (
-                                      <div className="flex space-x-2 mt-1">
-                                        <button
-                                          onClick={() =>
-                                            setEditingReplyIndexMap((prev) => ({ ...prev, [replyKey]: true })) ||
-                                            setEditReplyMap((prev) => ({ ...prev, [replyKey]: reply.text }))
-                                          }
-                                          className="text-xs text-blue-600 hover:underline"
-                                        >
-                                          Edit
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteReply(post.id, i, j)}
-                                          className="text-xs text-red-500 hover:underline"
-                                        >
-                                          Delete
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-
-                          {/* Reply Input */}
-                          <div className="relative mt-2">
-                            <input
-                              type="text"
-                              placeholder="Reply..."
-                              value={commentMap[`${post.id}-reply-${i}`] || ''}
-                              onChange={(e) =>
-                                setCommentMap((prev) => ({ ...prev, [`${post.id}-reply-${i}`]: e.target.value }))
-                              }
-                              className="border p-1 w-full rounded"
-                            />
-                            <button
-                              onClick={() =>
-                                setShowReplyEmojiPicker((prev) => ({
-                                  ...prev,
-                                  [`${post.id}-reply-${i}`]: !prev[`${post.id}-reply-${i}`]
-                                }))
-                              }
-                              className="text-sm text-yellow-500 mt-1"
-                            >
-                              😊
-                            </button>
-                            {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
-                              <div className="absolute z-10 mt-2">
-                                <EmojiPicker onEmojiClick={(emojiData) => addReplyEmoji(`${post.id}-reply-${i}`, emojiData)} />
-                              </div>
-                            )}
-                          </div>
-                          <button onClick={() => handleReply(post.id, i)} className="text-xs text-green-600 mt-1">
-                            Reply
-                          </button>
+                          {reply.uid === user.uid && (
+                            <div className="flex space-x-2 mt-1">
+                              <button
+                                onClick={() =>
+                                  setEditingReplyIndexMap((prev) => ({
+                                    ...prev,
+                                    [key]: true
+                                  }))
+                                }
+                                className="text-xs text-blue-600 hover:underline"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteReply(post.id, i, j)}
+                                className="text-xs text-red-500 hover:underline"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      );
+                    })}
 
-                    // src/pages/Home.jsx
-import { useEffect, useState } from 'react';
-import {
-  collection,
-  onSnapshot,
-  query,
-  orderBy,
-  updateDoc,
-  deleteDoc,
-  doc
-} from 'firebase/firestore';
-import { db } from '../firebase';
-import { useAppContext } from '../context/AppContext';
-import { formatDistanceToNow } from 'date-fns';
-import EmojiPicker from 'emoji-picker-react';
-
-// Import local fallback avatar image
-import defaultAvatar from '../assets/default-avatar.png';
-
-export default function Home() {
-  const [posts, setPosts] = useState([]);
-  const [commentMap, setCommentMap] = useState({});
-  const [editCommentMap, setEditCommentMap] = useState({});
-  const [editReplyMap, setEditReplyMap] = useState({});
-  const [editingReplyIndexMap, setEditingReplyIndexMap] = useState({});
-  const [editingPostId, setEditingPostId] = useState(null);
-  const [editedContent, setEditedContent] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState({});
-  const [showReplyEmojiPicker, setShowReplyEmojiPicker] = useState({});
-  const { user } = useAppContext();
-
-  const getTime = (createdAt) => {
-    if (!createdAt) return 0;
-    if (createdAt.seconds && typeof createdAt.seconds === 'number') return createdAt.seconds * 1000;
-    if (createdAt instanceof Date) return createdAt.getTime();
-    return new Date(createdAt).getTime();
-  };
-
-  useEffect(() => {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const normalized = docs.map((p) => {
-        const comments = (p.comments || []).slice().sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
-        const commentsWithSortedReplies = comments.map((c) => {
-          const replies = (c.replies || []).slice().sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
-          return { ...c, replies };
-        });
-        return { ...p, comments: commentsWithSortedReplies };
-      });
-      normalized.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
-      setPosts(normalized);
-    });
-    return () => unsub();
-  }, []);
-
-  const handleLike = async (id) => {
-    const postRef = doc(db, 'posts', id);
-    const post = posts.find((p) => p.id === id);
-    const likes = new Set(post?.likes || []);
-    likes.add(user.uid);
-    await updateDoc(postRef, { likes: Array.from(likes) });
-    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, likes: Array.from(likes) } : p)));
-  };
-
-  const handleDeletePost = async (postId) => {
-    await deleteDoc(doc(db, 'posts', postId));
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
-  };
-
-  const handleEditPost = async (postId) => {
-    await updateDoc(doc(db, 'posts', postId), { content: editedContent });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, content: editedContent } : p)));
-    setEditingPostId(null);
-    setEditedContent('');
-  };
-
-  const handleComment = async (id) => {
-    const commentText = commentMap[id];
-    if (!commentText?.trim()) return;
-    const post = posts.find((p) => p.id === id);
-    const postRef = doc(db, 'posts', id);
-    const newComment = {
-      text: commentText,
-      author: user.displayName || user.email,
-      uid: user.uid,
-      isAdmin: user.isAdmin || false,
-      isModerator: user.isModerator || false,
-      createdAt: new Date(),
-      replies: [],
-      authorPhotoURL: user.photoURL || ''
-    };
-    const updatedComments = [newComment, ...(post.comments || [])];
-    await updateDoc(postRef, { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, comments: updatedComments } : p)));
-    setCommentMap((prev) => ({ ...prev, [id]: '' }));
-  };
-
-  const handleDeleteComment = async (postId, index) => {
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    const updatedComments = (post.comments || []).slice();
-    updatedComments.splice(index, 1);
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-  };
-
-  const handleEditComment = async (postId, index) => {
-    const key = `${postId}-${index}`;
-    const newText = editCommentMap[key];
-    if (!newText?.trim()) return;
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    const updatedComments = (post.comments || []).map((c, i) => (i === index ? { ...c, text: newText } : c));
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-    setEditCommentMap((prev) => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
-  };
-
-  const handleReply = async (postId, commentIndex) => {
-    const replyKey = `${postId}-reply-${commentIndex}`;
-    const replyText = commentMap[replyKey];
-    if (!replyText?.trim()) return;
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    const reply = {
-      text: replyText,
-      author: user.displayName || user.email,
-      uid: user.uid,
-      isAdmin: user.isAdmin || false,
-      isModerator: user.isModerator || false,
-      createdAt: new Date(),
-      authorPhotoURL: user.photoURL || ''
-    };
-    const updatedComments = (post.comments || []).map((c, i) => {
-      if (i !== commentIndex) return c;
-      const newReplies = [reply, ...(c.replies || [])];
-      return { ...c, replies: newReplies };
-    });
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-    setCommentMap((prev) => ({ ...prev, [replyKey]: '' }));
-  };
-
-  const handleDeleteReply = async (postId, commentIndex, replyIndex) => {
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    const updatedComments = (post.comments || []).map((c, i) => {
-      if (i !== commentIndex) return c;
-      const newReplies = (c.replies || []).slice();
-      newReplies.splice(replyIndex, 1);
-      return { ...c, replies: newReplies };
-    });
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-  };
-
-  const handleEditReply = async (postId, commentIndex, replyIndex) => {
-    const key = `${postId}-${commentIndex}-${replyIndex}`;
-    const newText = editReplyMap[key];
-    if (!newText?.trim()) return;
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    const updatedComments = (post.comments || []).map((c, i) => {
-      if (i !== commentIndex) return c;
-      const replies = (c.replies || []).map((r, j) => (j === replyIndex ? { ...r, text: newText } : r));
-      return { ...c, replies };
-    });
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-    setEditReplyMap((prev) => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
-    setEditingReplyIndexMap((prev) => {
-      const copy = { ...prev };
-      delete copy[key];
-      return copy;
-    });
-  };
-
-  const addEmoji = (key, emoji) => {
-    setCommentMap((prev) => ({ ...prev, [key]: (prev[key] || '') + emoji.emoji }));
-    setShowEmojiPicker((prev) => ({ ...prev, [key]: false }));
-  };
-
-  const addReplyEmoji = (key, emoji) => {
-    setCommentMap((prev) => ({ ...prev, [key]: (prev[key] || '') + emoji.emoji }));
-    setShowReplyEmojiPicker((prev) => ({ ...prev, [key]: false }));
-  };
-
-  const avatarFallback = defaultAvatar;
-
-  return (
-    <div className="max-w-xl mx-auto mt-10">
-      {posts.map((post) => (
-        <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center">
-              <img
-                src={post.authorPhotoURL || (post.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
-                alt={post.author || 'User'}
-                className="w-10 h-10 rounded-full object-cover mr-3"
-              />
-              <div>
-                <p className="font-bold text-gray-800">
-                  {post.author}
-                  {post.isAdmin && <span className="ml-2 px-1 bg-red-200 text-red-800 text-xs rounded">Admin</span>}
-                  {post.isModerator && <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>}
-                </p>
-                {post.createdAt && (
-                  <p className="text-xs text-gray-500">
-                    {formatDistanceToNow(new Date(getTime(post.createdAt)), { addSuffix: true })}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <p className="mt-2 text-gray-700">{post.content}</p>
-
-          {/* Comments */}
-          <div className="mt-4">
-            {(post.comments || []).map((comment, i) => {
-              const commentKey = `${post.id}-${i}`;
-              return (
-                <div key={i} className="mt-3">
-                  <div className="flex items-start">
-                    <img
-                      src={comment.authorPhotoURL || (comment.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
-                      alt={comment.author || 'User'}
-                      className="w-8 h-8 rounded-full object-cover mr-2"
-                    />
-                    <div>
-                      <p className="font-semibold">{comment.author}</p>
-                      <p>{comment.text}</p>
+                    {/* Reply Input */}
+                    <div className="relative mt-2">
+                      <input
+                        type="text"
+                        placeholder="Reply..."
+                        value={commentMap[`${post.id}-reply-${i}`] || ''}
+                        onChange={(e) =>
+                          setCommentMap({
+                            ...commentMap,
+                            [`${post.id}-reply-${i}`]: e.target.value
+                          })
+                        }
+                        className="border p-1 w-full rounded"
+                      />
+                      <button
+                        onClick={() =>
+                          setShowReplyEmojiPicker((prev) => ({
+                            ...prev,
+                            [`${post.id}-reply-${i}`]: !prev[`${post.id}-reply-${i}`]
+                          }))
+                        }
+                        className="text-sm text-yellow-500 mt-1"
+                      >
+                        😊
+                      </button>
+                      {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
+                        <div className="absolute z-10 mt-2">
+                          <EmojiPicker
+                            onEmojiClick={(e) =>
+                              addReplyEmoji(`${post.id}-reply-${i}`, e)
+                            }
+                          />
+                        </div>
+                      )}
                     </div>
+                    <button
+                      onClick={() => handleReply(post.id, i)}
+                      className="text-xs text-green-600 mt-1"
+                    >
+                      Reply
+                    </button>
                   </div>
 
-                  {/* Replies */}
-                  {(comment.replies || []).map((reply, j) => {
-                    const replyKey = `${post.id}-${i}-${j}`;
-                    return (
-                      <div key={j} className="ml-10 mt-2 flex items-start">
-                        <img
-                          src={reply.authorPhotoURL || (reply.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
-                          alt={reply.author || 'User'}
-                          className="w-6 h-6 rounded-full object-cover mr-2"
-                        />
-                        <div>
-                          <p className="font-semibold">{reply.author}</p>
-                          <p>{reply.text}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {comment.uid === user.uid && (
+                    <div className="space-x-2 ml-2">
+                      <button
+                        onClick={() =>
+                          setEditCommentMap((prev) => ({
+                            ...prev,
+                            [`${post.id}-${i}`]: comment.text
+                          }))
+                        }
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteComment(post.id, i)}
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       ))}

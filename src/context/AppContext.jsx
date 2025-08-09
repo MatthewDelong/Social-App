@@ -77,30 +77,20 @@ export function AppProvider({ children }) {
 
         let isAdmin = false;
         let isModerator = false;
-        let photoURL = currentUser.photoURL || '';
 
         try {
-          const userDocRef = doc(db, 'users', currentUser.uid);
-          const docSnap = await getDoc(userDocRef);
+          const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
           if (docSnap.exists()) {
             const data = docSnap.data();
             isAdmin = data.isAdmin || false;
             isModerator = data.isModerator || false;
-
-            // Prefer Firestore photoURL if it exists
-            if (data.photoURL) {
-              photoURL = data.photoURL;
-            }
           }
         } catch (e) {
-          console.error('Error loading user roles/profile:', e);
+          console.error('Error loading user roles:', e);
         }
 
         setUser({
-          uid: currentUser.uid,
-          email: currentUser.email,
-          displayName: currentUser.displayName,
-          photoURL, // ✅ Always include photoURL here
+          ...auth.currentUser,
           isAdmin,
           isModerator,
           role: isAdmin ? 'admin' : isModerator ? 'moderator' : 'user'
