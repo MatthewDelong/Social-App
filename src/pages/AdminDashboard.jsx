@@ -19,24 +19,20 @@ export default function AdminDashboard() {
   const [usersMap, setUsersMap] = useState({});
   const [loading, setLoading] = useState(true);
 
+  const defaultAvatar =
+    'https://firebasestorage.googleapis.com/v0/b/social-app-8a28d.firebasestorage.app/o/default-avatar.png?alt=media&token=78165d2b-f095-496c-9de2-5e143bfc41cc';
+
   // Local form state for theme colors
   const [navbarColor, setNavbarColor] = useState(theme?.navbarColor || '#ffffff');
   const [backgroundColor, setBackgroundColor] = useState(theme?.backgroundColor || '#f9fafb');
 
-  // Safe date formatting helper that accepts:
-  // - Firestore Timestamp (has toDate() or seconds)
-  // - ISO string
-  // - JS Date
-  // returns '' on failure
   const safeFormatDate = (value) => {
     if (!value) return '';
     try {
       let d;
-      // Firestore Timestamp has toDate()
       if (typeof value.toDate === 'function') {
         d = value.toDate();
       } else if (value?.seconds) {
-        // Some Firestore shapes expose seconds
         d = new Date(value.seconds * 1000);
       } else if (typeof value === 'string') {
         d = new Date(value);
@@ -48,24 +44,20 @@ export default function AdminDashboard() {
       if (isNaN(d.getTime())) return '';
       return formatDistanceToNow(d, { addSuffix: true });
     } catch (err) {
-      // don't crash the UI if a weird value shows up
       console.error('safeFormatDate error', err);
       return '';
     }
   };
 
-  // Fetch posts + users on mount
   useEffect(() => {
     let mounted = true;
 
     const fetchData = async () => {
       setLoading(true);
       try {
-        // fetch posts
         const postSnapshot = await getDocs(collection(db, 'posts'));
         const fetchedPosts = postSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-        // fetch users
         const userSnapshot = await getDocs(collection(db, 'users'));
         const fetchedUsers = userSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
@@ -74,10 +66,8 @@ export default function AdminDashboard() {
         setPosts(fetchedPosts);
         setUsers(fetchedUsers);
 
-        // build usersMap for quick lookup by UID/id
         const map = {};
         fetchedUsers.forEach((u) => {
-          // try to support both id==uid and a separate uid field if present
           const key = u.id || u.uid;
           map[key] = u;
         });
@@ -90,7 +80,6 @@ export default function AdminDashboard() {
     };
 
     fetchData();
-
     return () => {
       mounted = false;
     };
@@ -109,7 +98,6 @@ export default function AdminDashboard() {
     try {
       await deleteDoc(doc(db, 'users', userId));
       setUsers((prev) => prev.filter((u) => u.id !== userId));
-      // also remove from usersMap
       setUsersMap((prev) => {
         const copy = { ...prev };
         delete copy[userId];
@@ -124,8 +112,13 @@ export default function AdminDashboard() {
     try {
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, { isAdmin: !currentStatus });
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isAdmin: !currentStatus } : u)));
-      setUsersMap((prev) => ({ ...prev, [userId]: { ...(prev[userId] || {}), isAdmin: !currentStatus } }));
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, isAdmin: !currentStatus } : u))
+      );
+      setUsersMap((prev) => ({
+        ...prev,
+        [userId]: { ...(prev[userId] || {}), isAdmin: !currentStatus }
+      }));
     } catch (err) {
       console.error('Error toggling admin:', err);
     }
@@ -135,8 +128,13 @@ export default function AdminDashboard() {
     try {
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, { isModerator: !currentStatus });
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, isModerator: !currentStatus } : u)));
-      setUsersMap((prev) => ({ ...prev, [userId]: { ...(prev[userId] || {}), isModerator: !currentStatus } }));
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, isModerator: !currentStatus } : u))
+      );
+      setUsersMap((prev) => ({
+        ...prev,
+        [userId]: { ...(prev[userId] || {}), isModerator: !currentStatus }
+      }));
     } catch (err) {
       console.error('Error toggling moderator:', err);
     }
@@ -144,22 +142,13 @@ export default function AdminDashboard() {
 
   const handleThemeSave = async () => {
     try {
-      // call central saveTheme (which will write to Firestore)
       await saveTheme({ navbarColor, backgroundColor });
-      // update local state too (AppContext probably does this already)
     } catch (err) {
       console.error('Error saving theme:', err);
     }
   };
 
-  // Render helpers
   const authorDisplayForPost = (post) => {
-    // Priority:
-    // 1) usersMap[post.uid]?.displayName
-    // 2) post.authorName
-    // 3) post.author (legacy)
-    // 4) post.authorEmail
-    // 5) 'Unknown'
     const uidKey = post.uid || post.authorUid || post.authorId || null;
     if (uidKey && usersMap[uidKey]?.displayName) return usersMap[uidKey].displayName;
     if (post.authorName) return post.authorName;
@@ -215,34 +204,47 @@ export default function AdminDashboard() {
       <section className="mb-10">
         <h3 className="text-xl font-semibold mb-2">Posts</h3>
         {posts.length === 0 && <p className="text-gray-500">No posts found.</p>}
-        {posts.map((post) => (
-          <div key={post.id} className="border p-3 mb-3 rounded bg-gray-50">
-            {/* post content may have different keys depending on how posts were created; try common ones */}
-            <p className="font-medium text-gray-800">{post.title || post.content || post.text || 'Untitled'}</p>
-
-            <p className="text-sm text-gray-600 mt-1">
-              By:&nbsp;
-              <strong>{authorDisplayForPost(post)}</strong>
-            </p>
-
-            <p className="text-xs text-gray-500 mt-1">
-              {post.createdAt ? safeFormatDate(post.createdAt) : ''}
-            </p>
-
-            <div className="mt-2 flex gap-3 items-center">
-              <button
-                onClick={() => deletePost(post.id)}
-                className="text-sm text-red-600 hover:underline"
-              >
-                Delete Post
-              </button>
-
-              {/* show post metadata */}
-              <div className="text-xs text-gray-500">Likes: {post.likes?.length || 0}</div>
-              <div className="text-xs text-gray-500">Comments: {post.comments?.length || 0}</div>
+        {posts.map((post) => {
+          const user = usersMap[post.uid] || {};
+          return (
+            <div key={post.id} className="border p-3 mb-3 rounded bg-gray-50">
+              <div className="flex items-center gap-3 mb-2">
+                <img
+                  src={user.photoURL || defaultAvatar}
+                  alt="avatar"
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+                <p className="font-medium text-gray-800 flex items-center gap-2">
+                  {authorDisplayForPost(post)}
+                  {user.isAdmin && (
+                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                      Admin
+                    </span>
+                  )}
+                  {user.isModerator && (
+                    <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">
+                      Moderator
+                    </span>
+                  )}
+                </p>
+              </div>
+              <p className="font-semibold">{post.title || post.content || post.text || 'Untitled'}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {post.createdAt ? safeFormatDate(post.createdAt) : ''}
+              </p>
+              <div className="mt-2 flex gap-3 items-center">
+                <button
+                  onClick={() => deletePost(post.id)}
+                  className="text-sm text-red-600 hover:underline"
+                >
+                  Delete Post
+                </button>
+                <div className="text-xs text-gray-500">Likes: {post.likes?.length || 0}</div>
+                <div className="text-xs text-gray-500">Comments: {post.comments?.length || 0}</div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </section>
 
       {/* USERS SECTION */}
@@ -250,46 +252,49 @@ export default function AdminDashboard() {
         <h3 className="text-xl font-semibold mb-2">Users</h3>
         {users.length === 0 && <p className="text-gray-500">No users found.</p>}
         {users.map((u) => (
-          <div key={u.id} className="border p-3 mb-3 rounded bg-white">
-            <p className="font-medium">{u.displayName || u.email || 'Unknown'}</p>
-            <p className="text-sm text-gray-500 mb-1">{u.email}</p>
-
-            <div className="flex flex-wrap gap-4">
-              <button
-                onClick={() => toggleAdmin(u.id, !!u.isAdmin)}
-                className="text-sm text-blue-600 hover:underline"
-              >
-                {u.isAdmin ? 'Revoke Admin' : 'Make Admin'}
-              </button>
-
-              <button
-                onClick={() => toggleModerator(u.id, !!u.isModerator)}
-                className="text-sm text-green-600 hover:underline"
-              >
-                {u.isModerator ? 'Revoke Moderator' : 'Make Moderator'}
-              </button>
-
-              {!u.isAdmin && (
+          <div key={u.id} className="border p-3 mb-3 rounded bg-white flex items-center gap-4">
+            <img
+              src={u.photoURL || defaultAvatar}
+              alt="avatar"
+              className="w-10 h-10 rounded-full object-cover"
+            />
+            <div className="flex-1">
+              <p className="font-medium flex items-center gap-2">
+                {u.displayName || u.email || 'Unknown'}
+                {u.isAdmin && (
+                  <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                    Admin
+                  </span>
+                )}
+                {u.isModerator && (
+                  <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">
+                    Moderator
+                  </span>
+                )}
+              </p>
+              <p className="text-sm text-gray-500 mb-1">{u.email}</p>
+              <div className="flex flex-wrap gap-4">
                 <button
-                  onClick={() => deleteUser(u.id)}
-                  className="text-sm text-red-600 hover:underline"
+                  onClick={() => toggleAdmin(u.id, !!u.isAdmin)}
+                  className="text-sm text-blue-600 hover:underline"
                 >
-                  Delete User
+                  {u.isAdmin ? 'Revoke Admin' : 'Make Admin'}
                 </button>
-              )}
-            </div>
-
-            <div className="mt-2">
-              {u.isAdmin && (
-                <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-2">
-                  Admin
-                </span>
-              )}
-              {u.isModerator && (
-                <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                  Moderator
-                </span>
-              )}
+                <button
+                  onClick={() => toggleModerator(u.id, !!u.isModerator)}
+                  className="text-sm text-green-600 hover:underline"
+                >
+                  {u.isModerator ? 'Revoke Moderator' : 'Make Moderator'}
+                </button>
+                {!u.isAdmin && (
+                  <button
+                    onClick={() => deleteUser(u.id)}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Delete User
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}
