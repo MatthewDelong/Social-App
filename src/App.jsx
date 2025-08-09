@@ -36,7 +36,7 @@ function AppRoutes() {
       className="w-full p-4 flex justify-center items-center shadow"
       style={{ backgroundColor: theme?.navbarColor }}
     >
-      <img src="/logo.png" alt="Logo" className="h-8" />
+      <img src="images/logo.png" alt="Logo" className="h-8" />
     </div>
   );
 
