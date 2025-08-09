@@ -20,9 +20,11 @@ function AppRoutes() {
   const { user, loading, theme } = useAppContext();
   const location = useLocation();
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>;
+  // ✅ Prevent redirect until loading is done
+  if (loading) {
+    return <div className="text-center mt-10">Loading...</div>;
+  }
 
-  // Minimal navbar for login & signup pages
   const AuthNavbar = () => (
     <div
       className="w-full p-4 flex justify-center items-center shadow"
@@ -32,7 +34,6 @@ function AppRoutes() {
     </div>
   );
 
-  // Detect if current page is login or signup
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
 
   return (
@@ -42,15 +43,75 @@ function AppRoutes() {
     >
       {isAuthPage ? <AuthNavbar /> : <Navbar />}
       <Routes>
-        <Route path="/" element={user ? <Home /> : <Navigate to="/login" />} />
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-        <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/" />} />
-        <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
-        <Route path="/new" element={user ? <NewPost /> : <Navigate to="/login" />} />
-        <Route path="/settings" element={user ? <ProfileSettings /> : <Navigate to="/login" />} />
+        <Route
+          path="/"
+          element={
+            user
+              ? <Home />
+              : loading
+                ? <div className="text-center mt-10">Loading...</div>
+                : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            !user
+              ? <Login />
+              : loading
+                ? <div className="text-center mt-10">Loading...</div>
+                : <Navigate to="/" replace />
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            !user
+              ? <Signup />
+              : loading
+                ? <div className="text-center mt-10">Loading...</div>
+                : <Navigate to="/" replace />
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            user
+              ? <Profile />
+              : loading
+                ? <div className="text-center mt-10">Loading...</div>
+                : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/new"
+          element={
+            user
+              ? <NewPost />
+              : loading
+                ? <div className="text-center mt-10">Loading...</div>
+                : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            user
+              ? <ProfileSettings />
+              : loading
+                ? <div className="text-center mt-10">Loading...</div>
+                : <Navigate to="/login" replace />
+          }
+        />
         <Route
           path="/admin"
-          element={(user?.isAdmin || user?.isModerator) ? <AdminDashboard /> : <Navigate to="/" />}
+          element={
+            (user?.isAdmin || user?.isModerator)
+              ? <AdminDashboard />
+              : loading
+                ? <div className="text-center mt-10">Loading...</div>
+                : <Navigate to="/" replace />
+          }
         />
       </Routes>
     </div>
