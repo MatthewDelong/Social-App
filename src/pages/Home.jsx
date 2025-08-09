@@ -34,6 +34,21 @@ export default function Home() {
     return new Date(createdAt).getTime();
   };
 
+  // small helper: return a safe avatar url.
+  // - if photoURL is present and non-empty (after trimming) return it
+  // - else if this entity belongs to current user and user's photoURL exists, return user's photoURL
+  // - otherwise return avatarFallback
+  const avatarFallback = 'https://via.placeholder.com/40';
+  const getAvatarUrl = (photoURL, isOwner) => {
+    const p = photoURL?.toString?.().trim();
+    if (p) return p;
+    if (isOwner) {
+      const up = user?.photoURL?.toString?.().trim();
+      if (up) return up;
+    }
+    return avatarFallback;
+  };
+
   // Listen to posts, order by createdAt (Firestore desc) and normalize local structure:
   // ensure posts.comments and replies are sorted newest -> oldest
   useEffect(() => {
@@ -235,8 +250,6 @@ export default function Home() {
 
   /* ---------- Render ---------- */
 
-  const avatarFallback = 'https://via.placeholder.com/40';
-
   return (
     <div className="max-w-xl mx-auto mt-10">
       {posts.map((post) => (
@@ -245,7 +258,10 @@ export default function Home() {
             <div className="flex items-center">
               {/* Post author avatar */}
               <img
-                src={post.authorPhotoURL || (post.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                src={
+                  // prefer stored authorPhotoURL if non-empty; otherwise, if post belongs to current user prefer user's photoURL; otherwise fallback
+                  getAvatarUrl(post.authorPhotoURL, post.uid === user?.uid)
+                }
                 alt={post.author || 'User'}
                 className="w-10 h-10 rounded-full object-cover mr-3"
               />
@@ -345,7 +361,9 @@ export default function Home() {
                       <div className="flex items-start">
                         {/* Comment author avatar */}
                         <img
-                          src={comment.authorPhotoURL || (comment.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                          src={
+                            getAvatarUrl(comment.authorPhotoURL, comment.uid === user?.uid)
+                          }
                           alt={comment.author || 'User'}
                           className="w-8 h-8 rounded-full object-cover mr-2 mt-1"
                         />
@@ -406,7 +424,9 @@ export default function Home() {
                               <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
                                 <div className="flex items-start">
                                   <img
-                                    src={reply.authorPhotoURL || (reply.uid === user?.uid ? user?.photoURL : '') || avatarFallback}
+                                    src={
+                                      getAvatarUrl(reply.authorPhotoURL, reply.uid === user?.uid)
+                                    }
                                     alt={reply.author || 'User'}
                                     className="w-7 h-7 rounded-full object-cover mr-2 mt-1"
                                   />
