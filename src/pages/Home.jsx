@@ -21,10 +21,10 @@ export default function Home() {
   const [editMap, setEditMap] = useState({});
   const [editingPostId, setEditingPostId] = useState(null);
   const [editedContent, setEditedContent] = useState('');
+  const [editingCommentKey, setEditingCommentKey] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState({});
   const { user, theme } = useAppContext();
 
-  // ✅ Safe date formatter
   const safeFormatDate = (dateValue) => {
     if (!dateValue) return '';
     try {
@@ -43,7 +43,6 @@ export default function Home() {
     }
   };
 
-  // 🔹 Fetch all users into a map
   const fetchUsers = async () => {
     const snap = await getDocs(collection(db, 'users'));
     const map = {};
@@ -53,7 +52,6 @@ export default function Home() {
     setUsersMap(map);
   };
 
-  // 🔹 Load posts live
   useEffect(() => {
     fetchUsers();
     const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
@@ -69,7 +67,6 @@ export default function Home() {
     return () => unsub();
   }, []);
 
-  // ✅ Like a post
   const handleLike = async (id) => {
     const postRef = doc(db, 'posts', id);
     const post = posts.find((p) => p.id === id);
@@ -78,7 +75,6 @@ export default function Home() {
     await updateDoc(postRef, { likes: Array.from(likes) });
   };
 
-  // ✅ Update comments recursively in Firestore
   const updateCommentsAtPath = (comments, path, newComment) => {
     if (path.length === 0) {
       return [...comments, newComment];
@@ -91,7 +87,6 @@ export default function Home() {
     );
   };
 
-  // ✅ Add reply (handles comments and replies-to-replies)
   const handleReply = async (postId, path) => {
     const key = `${postId}-${path.join('-')}`;
     const text = commentMap[key];
@@ -113,7 +108,6 @@ export default function Home() {
     setCommentMap((prev) => ({ ...prev, [key]: '' }));
   };
 
-  // ✅ Add comment (top-level only)
   const handleComment = async (postId) => {
     const text = commentMap[postId];
     if (!text?.trim()) return;
@@ -132,7 +126,6 @@ export default function Home() {
     setCommentMap((prev) => ({ ...prev, [postId]: '' }));
   };
 
-  // ✅ Recursive delete
   const deleteAtPath = (comments, path) => {
     if (path.length === 1) {
       const newComments = [...comments];
@@ -153,7 +146,6 @@ export default function Home() {
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
   };
 
-  // ✅ Recursive edit
   const editAtPath = (comments, path, newText) => {
     if (path.length === 1) {
       return comments.map((c, i) =>
@@ -178,9 +170,9 @@ export default function Home() {
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
 
     setEditMap((prev) => ({ ...prev, [key]: '' }));
+    setEditingCommentKey(null);
   };
 
-  // ✅ Edit post
   const handleEditPost = async (postId) => {
     await updateDoc(doc(db, 'posts', postId), { content: editedContent });
     setPosts((prev) =>
@@ -192,7 +184,6 @@ export default function Home() {
     setEditedContent('');
   };
 
-  // ✅ Emoji helpers
   const addEmoji = (key, emoji) => {
     setCommentMap((prev) => ({
       ...prev,
@@ -201,11 +192,12 @@ export default function Home() {
     setShowEmojiPicker((prev) => ({ ...prev, [key]: false }));
   };
 
-  // 🔹 Recursive render
   const renderReplies = (replies, postId, path) => {
     return replies.map((reply, index) => {
       const currentPath = [...path, index];
       const key = `${postId}-${currentPath.join('-')}`;
+      const isEditing = editingCommentKey === key;
+
       return (
         <div key={key} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
           <p className="text-sm font-semibold text-gray-800">
@@ -217,10 +209,39 @@ export default function Home() {
               <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
             )}
           </p>
-          <p className="text-sm text-gray-700">{reply.text}</p>
+
+          {isEditing ? (
+            <>
+              <input
+                type="text"
+                value={editMap[key] || ''}
+                onChange={(e) => setEditMap({ ...editMap, [key]: e.target.value })}
+                className="border p-1 w-full rounded text-sm mt-1"
+              />
+              <div className="flex gap-2 mt-1">
+                <button
+                  onClick={() => handleEdit(postId, currentPath)}
+                  className="text-xs text-green-600"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingCommentKey(null);
+                    setEditMap((prev) => ({ ...prev, [key]: '' }));
+                  }}
+                  className="text-xs text-gray-500"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-gray-700">{reply.text}</p>
+          )}
+
           <p className="text-xs text-gray-500 mt-1">{safeFormatDate(reply.createdAt)}</p>
 
-          {/* Reply input */}
           <div className="mt-2">
             <input
               type="text"
@@ -255,18 +276,14 @@ export default function Home() {
               Delete
             </button>
             <button
-              onClick={() => handleEdit(postId, currentPath)}
+              onClick={() => {
+                setEditingCommentKey(key);
+                setEditMap((prev) => ({ ...prev, [key]: reply.text }));
+              }}
               className="text-xs text-blue-500 ml-2"
             >
               Edit
             </button>
-            <input
-              type="text"
-              placeholder="Edit reply..."
-              value={editMap[key] || ''}
-              onChange={(e) => setEditMap({ ...editMap, [key]: e.target.value })}
-              className="border p-1 w-full rounded text-sm mt-1"
-            />
           </div>
 
           {renderReplies(reply.replies || [], postId, currentPath)}
@@ -322,12 +339,23 @@ export default function Home() {
                   value={editedContent}
                   onChange={(e) => setEditedContent(e.target.value)}
                 />
-                <button
-                  onClick={() => handleEditPost(post.id)}
-                  className="text-sm text-green-600 mt-1"
-                >
-                  Save
-                </button>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    onClick={() => handleEditPost(post.id)}
+                    className="text-sm text-green-600"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingPostId(null);
+                      setEditedContent('');
+                    }}
+                    className="text-sm text-gray-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ) : (
               <>
@@ -345,7 +373,6 @@ export default function Home() {
               ❤️ Like ({post.likes?.length || 0})
             </button>
 
-            {/* Comment Input */}
             <div className="relative">
               <input
                 type="text"
@@ -380,11 +407,12 @@ export default function Home() {
               Comment
             </button>
 
-            {/* Comments */}
             <div className="mt-4 space-y-2 border-t pt-2">
               {(post.comments || []).map((comment, i) => {
                 const path = [i];
                 const key = `${post.id}-${i}`;
+                const isEditing = editingCommentKey === key;
+
                 return (
                   <div key={i} className="bg-gray-50 p-2 rounded">
                     <p className="text-sm font-semibold text-gray-800">
@@ -396,10 +424,39 @@ export default function Home() {
                         <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
                       )}
                     </p>
-                    <p className="text-sm text-gray-700">{comment.text}</p>
+
+                    {isEditing ? (
+                      <>
+                        <input
+                          type="text"
+                          value={editMap[key] || ''}
+                          onChange={(e) => setEditMap({ ...editMap, [key]: e.target.value })}
+                          className="border p-1 w-full rounded text-sm mt-1"
+                        />
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            onClick={() => handleEdit(post.id, path)}
+                            className="text-xs text-green-600"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingCommentKey(null);
+                              setEditMap((prev) => ({ ...prev, [key]: '' }));
+                            }}
+                            className="text-xs text-gray-500"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-700">{comment.text}</p>
+                    )}
+
                     <p className="text-xs text-gray-500 mt-1">{safeFormatDate(comment.createdAt)}</p>
 
-                    {/* Reply input */}
                     <div className="mt-2 ml-4">
                       <input
                         type="text"
@@ -439,18 +496,14 @@ export default function Home() {
                         Delete
                       </button>
                       <button
-                        onClick={() => handleEdit(post.id, path)}
+                        onClick={() => {
+                          setEditingCommentKey(key);
+                          setEditMap((prev) => ({ ...prev, [key]: comment.text }));
+                        }}
                         className="text-xs text-blue-500 ml-2"
                       >
                         Edit
                       </button>
-                      <input
-                        type="text"
-                        placeholder="Edit comment..."
-                        value={editMap[key] || ''}
-                        onChange={(e) => setEditMap({ ...editMap, [key]: e.target.value })}
-                        className="border p-1 w-full rounded text-sm mt-1"
-                      />
                     </div>
 
                     {renderReplies(comment.replies || [], post.id, path)}
