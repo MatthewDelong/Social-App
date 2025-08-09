@@ -6,7 +6,8 @@ import {
   orderBy,
   updateDoc,
   deleteDoc,
-  doc
+  doc,
+  getDocs
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAppContext } from '../context/AppContext';
@@ -15,6 +16,7 @@ import EmojiPicker from 'emoji-picker-react';
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
+  const [usersMap, setUsersMap] = useState({});
   const [commentMap, setCommentMap] = useState({});
   const [editCommentMap, setEditCommentMap] = useState({});
   const [editingPostId, setEditingPostId] = useState(null);
@@ -23,14 +25,16 @@ export default function Home() {
   const [showReplyEmojiPicker, setShowReplyEmojiPicker] = useState({});
   const [editReplyMap, setEditReplyMap] = useState({});
   const [editingReplyIndexMap, setEditingReplyIndexMap] = useState({});
-  const { user } = useAppContext();
+  const { user, theme } = useAppContext();
 
-  // ✅ Safe date formatter to prevent crashes
+  // ✅ Safe date formatter
   const safeFormatDate = (dateValue) => {
     if (!dateValue) return '';
     try {
       let date;
-      if (dateValue?.seconds) {
+      if (typeof dateValue.toDate === 'function') {
+        date = dateValue.toDate();
+      } else if (dateValue?.seconds) {
         date = new Date(dateValue.seconds * 1000);
       } else {
         date = new Date(dateValue);
@@ -42,15 +46,25 @@ export default function Home() {
     }
   };
 
+  // 🔹 Fetch all users into a map
+  const fetchUsers = async () => {
+    const snap = await getDocs(collection(db, 'users'));
+    const map = {};
+    snap.forEach((doc) => {
+      map[doc.id] = doc.data();
+    });
+    setUsersMap(map);
+  };
+
+  // 🔹 Load posts live
   useEffect(() => {
+    fetchUsers();
     const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map((doc) => ({
         id: doc.id,
         likes: [],
         comments: [],
-        author: 'Unknown User',
-        role: 'user',
         ...doc.data()
       }));
       setPosts(docs);
@@ -172,149 +186,155 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-xl mx-auto mt-10">
-      {posts.map((post) => (
-        <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
-          <div className="flex justify-between">
-            <p className="font-bold text-gray-800">
-              {post.author || 'Unknown User'}
-              {post.role === 'admin' && (
-                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
+    <div
+      className="max-w-xl mx-auto mt-10"
+      style={{ backgroundColor: theme.backgroundColor, color: theme.textColor }}
+    >
+      {posts.map((post) => {
+        const postUser = usersMap[post.uid];
+        return (
+          <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
+            <div className="flex justify-between">
+              <p className="font-bold text-gray-800">
+                {postUser?.displayName || post.author || 'Unknown User'}
+                {post.role === 'admin' && (
+                  <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
+                )}
+                {post.role === 'moderator' && (
+                  <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Moderator</span>
+                )}
+              </p>
+              {(post.uid === user.uid || user.role === 'admin' || user.role === 'moderator') && (
+                <div className="space-x-2">
+                  <button
+                    onClick={() => {
+                      setEditingPostId(post.id);
+                      setEditedContent(post.content);
+                    }}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeletePost(post.id)}
+                    className="text-xs text-red-500 hover:underline"
+                  >
+                    Delete
+                  </button>
+                </div>
               )}
-              {post.role === 'moderator' && (
-                <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Moderator</span>
-              )}
-            </p>
-            {(post.uid === user.uid || user.role === 'admin' || user.role === 'moderator') && (
-              <div className="space-x-2">
+            </div>
+
+            {editingPostId === post.id ? (
+              <div className="mt-2">
+                <textarea
+                  className="w-full border rounded p-2 text-sm"
+                  value={editedContent}
+                  onChange={(e) => setEditedContent(e.target.value)}
+                />
                 <button
-                  onClick={() => {
-                    setEditingPostId(post.id);
-                    setEditedContent(post.content);
-                  }}
-                  className="text-xs text-blue-600 hover:underline"
+                  onClick={() => handleEditPost(post.id)}
+                  className="text-sm text-green-600 mt-1"
                 >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeletePost(post.id)}
-                  className="text-xs text-red-500 hover:underline"
-                >
-                  Delete
+                  Save
                 </button>
               </div>
+            ) : (
+              <>
+                <p className="text-gray-700 mb-2">{post.content}</p>
+                {post.createdAt && (
+                  <p className="text-xs text-gray-500 mb-2">{safeFormatDate(post.createdAt)}</p>
+                )}
+              </>
             )}
-          </div>
 
-          {editingPostId === post.id ? (
-            <div className="mt-2">
-              <textarea
-                className="w-full border rounded p-2 text-sm"
-                value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
+            <button
+              onClick={() => handleLike(post.id)}
+              className="text-blue-500 text-sm mb-2"
+            >
+              ❤️ Like ({post.likes?.length || 0})
+            </button>
+
+            {/* Comment Input */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Add a comment..."
+                value={commentMap[post.id] || ''}
+                onChange={(e) =>
+                  setCommentMap({ ...commentMap, [post.id]: e.target.value })
+                }
+                className="border p-1 w-full rounded"
               />
               <button
-                onClick={() => handleEditPost(post.id)}
-                className="text-sm text-green-600 mt-1"
+                onClick={() =>
+                  setShowEmojiPicker((prev) => ({
+                    ...prev,
+                    [post.id]: !prev[post.id]
+                  }))
+                }
+                className="text-sm text-yellow-500 mt-1"
               >
-                Save
+                😊
               </button>
-            </div>
-          ) : (
-            <>
-              <p className="text-gray-700 mb-2">{post.content}</p>
-              {post.createdAt && (
-                <p className="text-xs text-gray-500 mb-2">{safeFormatDate(post.createdAt)}</p>
+              {showEmojiPicker[post.id] && (
+                <div className="absolute z-10 mt-2">
+                  <EmojiPicker onEmojiClick={(e) => addEmoji(post.id, e)} />
+                </div>
               )}
-            </>
-          )}
-
-          <button
-            onClick={() => handleLike(post.id)}
-            className="text-blue-500 text-sm mb-2"
-          >
-            ❤️ Like ({post.likes?.length || 0})
-          </button>
-
-          {/* Comment Input */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Add a comment..."
-              value={commentMap[post.id] || ''}
-              onChange={(e) =>
-                setCommentMap({ ...commentMap, [post.id]: e.target.value })
-              }
-              className="border p-1 w-full rounded"
-            />
+            </div>
             <button
-              onClick={() =>
-                setShowEmojiPicker((prev) => ({
-                  ...prev,
-                  [post.id]: !prev[post.id]
-                }))
-              }
-              className="text-sm text-yellow-500 mt-1"
+              onClick={() => handleComment(post.id)}
+              className="text-sm text-green-600 mt-1"
             >
-              😊
+              Comment
             </button>
-            {showEmojiPicker[post.id] && (
-              <div className="absolute z-10 mt-2">
-                <EmojiPicker onEmojiClick={(e) => addEmoji(post.id, e)} />
-              </div>
-            )}
-          </div>
-          <button
-            onClick={() => handleComment(post.id)}
-            className="text-sm text-green-600 mt-1"
-          >
-            Comment
-          </button>
 
-          {/* Comments */}
-          <div className="mt-4 space-y-2 border-t pt-2">
-            {(post.comments || []).map((comment, i) => (
-              <div key={i} className="bg-gray-50 p-2 rounded">
-                <div className="flex justify-between items-start">
-                  <div className="w-full">
-                    <p className="text-sm font-semibold text-gray-800">
-                      {comment.author || 'Unknown User'}
-                      {comment.role === 'admin' && (
-                        <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
-                      )}
-                      {comment.role === 'moderator' && (
-                        <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
-                      )}
-                    </p>
-                    <p className="text-sm text-gray-700">{comment.text}</p>
-                    <p className="text-xs text-gray-500 mt-1">{safeFormatDate(comment.createdAt)}</p>
+            {/* Comments */}
+            <div className="mt-4 space-y-2 border-t pt-2">
+              {(post.comments || []).map((comment, i) => (
+                <div key={i} className="bg-gray-50 p-2 rounded">
+                  <div className="flex justify-between items-start">
+                    <div className="w-full">
+                      <p className="text-sm font-semibold text-gray-800">
+                        {comment.author || usersMap[comment.uid]?.displayName || 'Unknown User'}
+                        {comment.role === 'admin' && (
+                          <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
+                        )}
+                        {comment.role === 'moderator' && (
+                          <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
+                        )}
+                      </p>
+                      <p className="text-sm text-gray-700">{comment.text}</p>
+                      <p className="text-xs text-gray-500 mt-1">{safeFormatDate(comment.createdAt)}</p>
 
-                    {/* Replies */}
-                    {(comment.replies || []).map((reply, j) => {
-                      const key = `${post.id}-${i}-${j}`;
-                      return (
-                        <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
-                          <p className="text-sm font-semibold text-gray-800">
-                            {reply.author || 'Unknown User'}
-                            {reply.role === 'admin' && (
-                              <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
-                            )}
-                            {reply.role === 'moderator' && (
-                              <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
-                            )}
-                          </p>
-                          <p className="text-sm text-gray-700">{reply.text}</p>
-                          <p className="text-xs text-gray-500 mt-1">{safeFormatDate(reply.createdAt)}</p>
-                        </div>
-                      );
-                    })}
+                      {/* Replies */}
+                      {(comment.replies || []).map((reply, j) => {
+                        const key = `${post.id}-${i}-${j}`;
+                        return (
+                          <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
+                            <p className="text-sm font-semibold text-gray-800">
+                              {reply.author || usersMap[reply.uid]?.displayName || 'Unknown User'}
+                              {reply.role === 'admin' && (
+                                <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
+                              )}
+                              {reply.role === 'moderator' && (
+                                <span className="ml-2 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded">Moderator</span>
+                              )}
+                            </p>
+                            <p className="text-sm text-gray-700">{reply.text}</p>
+                            <p className="text-xs text-gray-500 mt-1">{safeFormatDate(reply.createdAt)}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
