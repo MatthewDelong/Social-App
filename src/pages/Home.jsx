@@ -12,7 +12,7 @@ import {
 import { db } from '../firebase';
 import { useAppContext } from '../context/AppContext';
 import { formatDistanceToNow } from 'date-fns';
-import EmojiPicker from 'emoji-picker-react';
+import EmojiPicker from 'emoji-picker-react'; 
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
@@ -24,7 +24,7 @@ export default function Home() {
   const [editedContent, setEditedContent] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState({});
   const [showReplyEmojiPicker, setShowReplyEmojiPicker] = useState({});
-  const { user } = useAppContext();
+  const { user } = useAppContext(); 
 
   // Helper: safely get timestamp in ms for many formats (Firestore Timestamp, Date, string)
   const getTime = (createdAt) => {
@@ -32,14 +32,14 @@ export default function Home() {
     if (createdAt.seconds && typeof createdAt.seconds === 'number') return createdAt.seconds * 1000;
     if (createdAt instanceof Date) return createdAt.getTime();
     return new Date(createdAt).getTime();
-  };
+  }; 
 
   // Listen to posts, order by createdAt (Firestore desc) and normalize local structure:
   // ensure posts.comments and replies are sorted newest -> oldest
   useEffect(() => {
     const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })); 
 
       // Normalize: sort comments & replies newest -> oldest (safe for mixed timestamp types)
       const normalized = docs.map((p) => {
@@ -49,48 +49,48 @@ export default function Home() {
           return { ...c, replies };
         });
         return { ...p, comments: commentsWithSortedReplies };
-      });
+      }); 
 
       // ensure posts themselves are sorted newest -> oldest as a fallback
-      normalized.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
+      normalized.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt)); 
 
       setPosts(normalized);
-    });
+    }); 
 
     return () => unsub();
-  }, []);
+  }, []); 
 
-  /* ---------- Post actions ---------- */
+  /* ---------- Post actions ---------- */ 
 
   const handleLike = async (id) => {
     const postRef = doc(db, 'posts', id);
     const post = posts.find((p) => p.id === id);
     const likes = new Set(post?.likes || []);
     likes.add(user.uid);
-    await updateDoc(postRef, { likes: Array.from(likes) });
+    await updateDoc(postRef, { likes: Array.from(likes) }); 
 
     // update local optimistically
     setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, likes: Array.from(likes) } : p)));
-  };
+  }; 
 
   const handleDeletePost = async (postId) => {
     await deleteDoc(doc(db, 'posts', postId));
     setPosts((prev) => prev.filter((p) => p.id !== postId));
-  };
+  }; 
 
   const handleEditPost = async (postId) => {
     await updateDoc(doc(db, 'posts', postId), { content: editedContent });
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, content: editedContent } : p)));
     setEditingPostId(null);
     setEditedContent('');
-  };
+  }; 
 
-  /* ---------- Comment actions ---------- */
+  /* ---------- Comment actions ---------- */ 
 
   // Add comment — prepend so stored order matches newest-first UI
   const handleComment = async (id) => {
     const commentText = commentMap[id];
-    if (!commentText?.trim()) return;
+    if (!commentText?.trim()) return; 
 
     const post = posts.find((p) => p.id === id);
     const postRef = doc(db, 'posts', id);
@@ -104,15 +104,15 @@ export default function Home() {
       replies: [],
       // store author's profile picture at time of comment creation
       authorPhotoURL: user.photoURL || ''
-    };
+    }; 
 
     const updatedComments = [newComment, ...(post.comments || [])]; // prepend
-    await updateDoc(postRef, { comments: updatedComments });
+    await updateDoc(postRef, { comments: updatedComments }); 
 
     // update local state
     setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, comments: updatedComments } : p)));
     setCommentMap((prev) => ({ ...prev, [id]: '' }));
-  };
+  }; 
 
   const handleDeleteComment = async (postId, index) => {
     const post = posts.find((p) => p.id === postId);
@@ -121,19 +121,19 @@ export default function Home() {
     updatedComments.splice(index, 1);
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-  };
+  }; 
 
   const handleEditComment = async (postId, index) => {
     const key = `${postId}-${index}`;
     const newText = editCommentMap[key];
-    if (!newText?.trim()) return;
+    if (!newText?.trim()) return; 
 
     const post = posts.find((p) => p.id === postId);
-    if (!post) return;
+    if (!post) return; 
 
     const updatedComments = (post.comments || []).map((c, i) => (i === index ? { ...c, text: newText } : c));
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))); 
 
     // remove edit key to exit edit mode
     setEditCommentMap((prev) => {
@@ -141,18 +141,18 @@ export default function Home() {
       delete copy[key];
       return copy;
     });
-  };
+  }; 
 
-  /* ---------- Reply actions ---------- */
+  /* ---------- Reply actions ---------- */ 
 
   // Add reply — prepend to keep newest-first
   const handleReply = async (postId, commentIndex) => {
     const replyKey = `${postId}-reply-${commentIndex}`;
     const replyText = commentMap[replyKey];
-    if (!replyText?.trim()) return;
+    if (!replyText?.trim()) return; 
 
     const post = posts.find((p) => p.id === postId);
-    if (!post) return;
+    if (!post) return; 
 
     const reply = {
       text: replyText,
@@ -163,50 +163,50 @@ export default function Home() {
       createdAt: new Date(),
       // store author's profile picture at time of reply creation
       authorPhotoURL: user.photoURL || ''
-    };
+    }; 
 
     const updatedComments = (post.comments || []).map((c, i) => {
       if (i !== commentIndex) return c;
       const newReplies = [reply, ...(c.replies || [])]; // prepend
       return { ...c, replies: newReplies };
-    });
+    }); 
 
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
     setCommentMap((prev) => ({ ...prev, [replyKey]: '' }));
-  };
+  }; 
 
   const handleDeleteReply = async (postId, commentIndex, replyIndex) => {
     const post = posts.find((p) => p.id === postId);
-    if (!post) return;
+    if (!post) return; 
 
     const updatedComments = (post.comments || []).map((c, i) => {
       if (i !== commentIndex) return c;
       const newReplies = (c.replies || []).slice();
       newReplies.splice(replyIndex, 1);
       return { ...c, replies: newReplies };
-    });
+    }); 
 
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
-  };
+  }; 
 
   const handleEditReply = async (postId, commentIndex, replyIndex) => {
     const key = `${postId}-${commentIndex}-${replyIndex}`;
     const newText = editReplyMap[key];
-    if (!newText?.trim()) return;
+    if (!newText?.trim()) return; 
 
     const post = posts.find((p) => p.id === postId);
-    if (!post) return;
+    if (!post) return; 
 
     const updatedComments = (post.comments || []).map((c, i) => {
       if (i !== commentIndex) return c;
       const replies = (c.replies || []).map((r, j) => (j === replyIndex ? { ...r, text: newText } : r));
       return { ...c, replies };
-    });
+    }); 
 
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))); 
 
     // clear editing state
     setEditReplyMap((prev) => {
@@ -219,23 +219,23 @@ export default function Home() {
       delete copy[key];
       return copy;
     });
-  };
+  }; 
 
-  /* ---------- Emoji helpers ---------- */
+  /* ---------- Emoji helpers ---------- */ 
 
   const addEmoji = (key, emoji) => {
     setCommentMap((prev) => ({ ...prev, [key]: (prev[key] || '') + emoji.emoji }));
     setShowEmojiPicker((prev) => ({ ...prev, [key]: false }));
-  };
+  }; 
 
   const addReplyEmoji = (key, emoji) => {
     setCommentMap((prev) => ({ ...prev, [key]: (prev[key] || '') + emoji.emoji }));
     setShowReplyEmojiPicker((prev) => ({ ...prev, [key]: false }));
-  };
+  }; 
 
-  /* ---------- Render ---------- */
+  /* ---------- Render ---------- */ 
 
-  const avatarFallback = 'https://via.placeholder.com/40';
+  const avatarFallback = 'https://via.placeholder.com/40'; 
 
   return (
     <div className="max-w-xl mx-auto mt-10">
@@ -265,7 +265,7 @@ export default function Home() {
                   </p>
                 )}
               </div>
-            </div>
+            </div> 
 
             {(post.uid === user.uid || user.isAdmin || user.isModerator) && (
               <div className="space-x-2">
@@ -286,7 +286,7 @@ export default function Home() {
                 </button>
               </div>
             )}
-          </div>
+          </div> 
 
           {editingPostId === post.id ? (
             <div className="mt-2">
@@ -300,14 +300,12 @@ export default function Home() {
               </button>
             </div>
           ) : (
-            <>
-              <p className="text-gray-700 mb-2 mt-3">{post.content}</p>
-            </>
-          )}
+            <p className="text-gray-700 mb-2 mt-3">{post.content}</p>
+          )} 
 
           <button onClick={() => handleLike(post.id)} className="text-blue-500 text-sm mb-2">
             ❤️ Like ({post.likes?.length || 0})
-          </button>
+          </button> 
 
           {/* Comment Input */}
           <div className="relative">
@@ -332,7 +330,7 @@ export default function Home() {
           </div>
           <button onClick={() => handleComment(post.id)} className="text-sm text-green-600 mt-1">
             Comment
-          </button>
+          </button> 
 
           {/* Comments */}
           <div className="mt-4 space-y-2 border-t pt-2">
@@ -358,7 +356,7 @@ export default function Home() {
                             {comment.isModerator && (
                               <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
                             )}
-                          </p>
+                          </p> 
 
                           {/* Comment edit mode */}
                           {editCommentMap[commentKey] !== undefined ? (
@@ -393,11 +391,11 @@ export default function Home() {
                             </>
                           ) : (
                             <p className="text-sm text-gray-700 mt-1">{comment.text}</p>
-                          )}
+                          )} 
 
                           <p className="text-xs text-gray-500 mt-1">
                             {formatDistanceToNow(new Date(getTime(comment.createdAt)), { addSuffix: true })}
-                          </p>
+                          </p> 
 
                           {/* Replies (already newest-first in state) */}
                           {(comment.replies || []).map((reply, j) => {
@@ -419,7 +417,7 @@ export default function Home() {
                                       {reply.isModerator && (
                                         <span className="ml-2 px-1 bg-blue-200 text-blue-800 text-xs rounded">Moderator</span>
                                       )}
-                                    </p>
+                                    </p> 
 
                                     {editingReplyIndexMap[replyKey] ? (
                                       <>
@@ -453,11 +451,11 @@ export default function Home() {
                                       </>
                                     ) : (
                                       <p className="text-sm text-gray-700">{reply.text}</p>
-                                    )}
+                                    )} 
 
                                     <p className="text-xs text-gray-500 mt-1">
                                       {formatDistanceToNow(new Date(getTime(reply.createdAt)), { addSuffix: true })}
-                                    </p>
+                                    </p> 
 
                                     {/* Reply edit/delete options for reply owner */}
                                     {reply.uid === user.uid && !editingReplyIndexMap[replyKey] && (
@@ -483,7 +481,7 @@ export default function Home() {
                                 </div>
                               </div>
                             );
-                          })}
+                          })} 
 
                           {/* Reply Input */}
                           <div className="relative mt-2">
@@ -517,7 +515,7 @@ export default function Home() {
                             Reply
                           </button>
                         </div>
-                      </div>
+                      </div> 
 
                     {/* Comment owner controls */}
                     {comment.uid === user.uid && editCommentMap[commentKey] === undefined && (
