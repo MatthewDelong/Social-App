@@ -72,6 +72,7 @@ export default function Home() {
     return () => unsub();
   }, []);
 
+  // ✅ Like a post
   const handleLike = async (id) => {
     const postRef = doc(db, 'posts', id);
     const post = posts.find((p) => p.id === id);
@@ -80,6 +81,7 @@ export default function Home() {
     await updateDoc(postRef, { likes: Array.from(likes) });
   };
 
+  // ✅ Add comment
   const handleComment = async (id) => {
     const comment = commentMap[id];
     if (!comment?.trim()) return;
@@ -99,6 +101,7 @@ export default function Home() {
     setCommentMap((prev) => ({ ...prev, [id]: '' }));
   };
 
+  // ✅ Add reply
   const handleReply = async (postId, commentIndex) => {
     const replyKey = `${postId}-reply-${commentIndex}`;
     const replyText = commentMap[replyKey];
@@ -120,6 +123,7 @@ export default function Home() {
     setCommentMap((prev) => ({ ...prev, [replyKey]: '' }));
   };
 
+  // ✅ Delete comment
   const handleDeleteComment = async (postId, index) => {
     const post = posts.find((p) => p.id === postId);
     if (!post?.comments) return;
@@ -128,6 +132,7 @@ export default function Home() {
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
   };
 
+  // ✅ Edit comment
   const handleEditComment = async (postId, index) => {
     const newText = editCommentMap[`${postId}-${index}`];
     if (!newText?.trim()) return;
@@ -138,10 +143,12 @@ export default function Home() {
     setEditCommentMap((prev) => ({ ...prev, [`${postId}-${index}`]: '' }));
   };
 
+  // ✅ Delete post
   const handleDeletePost = async (postId) => {
     await deleteDoc(doc(db, 'posts', postId));
   };
 
+  // ✅ Edit post
   const handleEditPost = async (postId) => {
     await updateDoc(doc(db, 'posts', postId), { content: editedContent });
     setPosts((prevPosts) =>
@@ -153,6 +160,7 @@ export default function Home() {
     setEditedContent('');
   };
 
+  // ✅ Emoji helpers
   const addEmoji = (key, emoji) => {
     setCommentMap((prev) => ({
       ...prev,
@@ -169,6 +177,7 @@ export default function Home() {
     setShowReplyEmojiPicker((prev) => ({ ...prev, [key]: false }));
   };
 
+  // ✅ Delete reply
   const handleDeleteReply = async (postId, commentIndex, replyIndex) => {
     const post = posts.find((p) => p.id === postId);
     const updatedComments = [...post.comments];
@@ -176,6 +185,7 @@ export default function Home() {
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
   };
 
+  // ✅ Edit reply
   const handleEditReply = async (postId, commentIndex, replyIndex) => {
     const key = `${postId}-${commentIndex}-${replyIndex}`;
     const post = posts.find((p) => p.id === postId);
@@ -307,6 +317,41 @@ export default function Home() {
                       </p>
                       <p className="text-sm text-gray-700">{comment.text}</p>
                       <p className="text-xs text-gray-500 mt-1">{safeFormatDate(comment.createdAt)}</p>
+
+                      {/* Reply input */}
+                      <div className="mt-2 ml-4">
+                        <input
+                          type="text"
+                          placeholder="Reply..."
+                          value={commentMap[`${post.id}-reply-${i}`] || ''}
+                          onChange={(e) =>
+                            setCommentMap({ ...commentMap, [`${post.id}-reply-${i}`]: e.target.value })
+                          }
+                          className="border p-1 w-full rounded text-sm"
+                        />
+                        <button
+                          onClick={() =>
+                            setShowReplyEmojiPicker((prev) => ({
+                              ...prev,
+                              [`${post.id}-reply-${i}`]: !prev[`${post.id}-reply-${i}`]
+                            }))
+                          }
+                          className="text-xs text-yellow-500 mt-1"
+                        >
+                          😊
+                        </button>
+                        {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
+                          <div className="absolute z-10 mt-2">
+                            <EmojiPicker onEmojiClick={(e) => addReplyEmoji(`${post.id}-reply-${i}`, e)} />
+                          </div>
+                        )}
+                        <button
+                          onClick={() => handleReply(post.id, i)}
+                          className="text-xs text-green-600 mt-1 ml-2"
+                        >
+                          Reply
+                        </button>
+                      </div>
 
                       {/* Replies */}
                       {(comment.replies || []).map((reply, j) => {
