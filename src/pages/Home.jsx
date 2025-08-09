@@ -30,7 +30,7 @@ export default function Home() {
     if (!dateValue) return '';
     try {
       let date;
-      if (dateValue.seconds) {
+      if (dateValue?.seconds) {
         date = new Date(dateValue.seconds * 1000);
       } else {
         date = new Date(dateValue);
@@ -47,6 +47,10 @@ export default function Home() {
     const unsub = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map((doc) => ({
         id: doc.id,
+        likes: [],
+        comments: [],
+        author: 'Unknown User',
+        role: 'user',
         ...doc.data()
       }));
       setPosts(docs);
@@ -64,12 +68,12 @@ export default function Home() {
 
   const handleComment = async (id) => {
     const comment = commentMap[id];
-    if (!comment.trim()) return;
+    if (!comment?.trim()) return;
     const post = posts.find((p) => p.id === id);
     const postRef = doc(db, 'posts', id);
     const newComment = {
       text: comment,
-      author: user.displayName || user.email,
+      author: user.displayName || user.email || 'Unknown User',
       uid: user.uid,
       role: user.role || 'user',
       createdAt: new Date().toISOString(),
@@ -84,12 +88,12 @@ export default function Home() {
   const handleReply = async (postId, commentIndex) => {
     const replyKey = `${postId}-reply-${commentIndex}`;
     const replyText = commentMap[replyKey];
-    if (!replyText.trim()) return;
+    if (!replyText?.trim()) return;
     const post = posts.find((p) => p.id === postId);
     const updatedComments = [...(post.comments || [])];
     const reply = {
       text: replyText,
-      author: user.displayName || user.email,
+      author: user.displayName || user.email || 'Unknown User',
       uid: user.uid,
       role: user.role || 'user',
       createdAt: new Date().toISOString()
@@ -112,7 +116,7 @@ export default function Home() {
 
   const handleEditComment = async (postId, index) => {
     const newText = editCommentMap[`${postId}-${index}`];
-    if (!newText.trim()) return;
+    if (!newText?.trim()) return;
     const post = posts.find((p) => p.id === postId);
     const updatedComments = [...post.comments];
     updatedComments[index].text = newText;
@@ -173,7 +177,7 @@ export default function Home() {
         <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
           <div className="flex justify-between">
             <p className="font-bold text-gray-800">
-              {post.author}
+              {post.author || 'Unknown User'}
               {post.role === 'admin' && (
                 <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
               )}
@@ -274,7 +278,7 @@ export default function Home() {
                 <div className="flex justify-between items-start">
                   <div className="w-full">
                     <p className="text-sm font-semibold text-gray-800">
-                      {comment.author}
+                      {comment.author || 'Unknown User'}
                       {comment.role === 'admin' && (
                         <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
                       )}
@@ -291,7 +295,7 @@ export default function Home() {
                       return (
                         <div key={j} className="ml-4 mt-2 p-2 bg-gray-100 rounded">
                           <p className="text-sm font-semibold text-gray-800">
-                            {reply.author}
+                            {reply.author || 'Unknown User'}
                             {reply.role === 'admin' && (
                               <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded">Admin</span>
                             )}
