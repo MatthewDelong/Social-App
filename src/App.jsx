@@ -18,15 +18,11 @@ import Navbar from './components/Navbar';
 import ProfileSettings from './pages/ProfileSettings';
 import AdminDashboard from './pages/AdminDashboard';
 
-/**
- * Handles routing and ensures no UI flashes while
- * authentication and theme data are still loading.
- */
 function AppRoutes() {
   const { user, loading, theme } = useAppContext();
   const location = useLocation();
 
-  // ⛔ Don't render anything until both user + theme are loaded
+  // Wait until both user and theme are loaded
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -35,7 +31,6 @@ function AppRoutes() {
     );
   }
 
-  // Minimal navbar shown on login/signup
   const AuthNavbar = () => (
     <div
       className="w-full p-4 flex justify-center items-center shadow"
@@ -53,7 +48,7 @@ function AppRoutes() {
       className="min-h-screen transition-colors duration-300"
       style={{ backgroundColor: theme?.backgroundColor }}
     >
-      {/* ✅ Only show Navbar if logged in */}
+      {/* ✅ Navbar is only shown if user exists */}
       {isAuthPage ? <AuthNavbar /> : user && <Navbar />}
 
       <Routes>
