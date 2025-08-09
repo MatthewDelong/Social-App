@@ -1,3 +1,5 @@
+// src/App.jsx
+import React from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -16,51 +18,81 @@ import Navbar from './components/Navbar';
 import ProfileSettings from './pages/ProfileSettings';
 import AdminDashboard from './pages/AdminDashboard';
 
+/**
+ * AppRoutes component
+ *
+ * Important behavior:
+ *  - We **do not** render any redirects until `loading` is false.
+ *    This prevents the navbar / UI flashing when auth/theme are still initializing.
+ *  - We render a single "Loading..." screen while loading.
+ *  - We use <Navigate replace /> for redirects to avoid polluting history.
+ */
 function AppRoutes() {
   const { user, loading, theme } = useAppContext();
   const location = useLocation();
 
-  // ✅ Show one loading state until *everything* is ready
+  // Block rendering/redirects until app finished loading user + theme
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen text-lg font-semibold">
-        Loading...
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-lg font-medium">Loading...</div>
       </div>
     );
   }
 
+  // Minimal navbar shown on auth pages
   const AuthNavbar = () => (
     <div
       className="w-full p-4 flex justify-center items-center shadow"
-      style={{ backgroundColor: theme.navbarColor }}
+      style={{ backgroundColor: theme?.navbarColor }}
     >
       <img src="/logo.png" alt="Logo" className="h-8" />
     </div>
   );
 
-  const isAuthPage =
-    location.pathname === '/login' || location.pathname === '/signup';
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
 
   return (
     <div
       className="min-h-screen transition-colors duration-300"
-      style={{ backgroundColor: theme.backgroundColor }}
+      style={{ backgroundColor: theme?.backgroundColor }}
     >
       {isAuthPage ? <AuthNavbar /> : <Navbar />}
+
       <Routes>
-        <Route path="/" element={user ? <Home /> : <Navigate to="/login" replace />} />
-        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
-        <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/" replace />} />
-        <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" replace />} />
-        <Route path="/new" element={user ? <NewPost /> : <Navigate to="/login" replace />} />
-        <Route path="/settings" element={user ? <ProfileSettings /> : <Navigate to="/login" replace />} />
+        <Route
+          path="/"
+          element={user ? <Home /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/login"
+          element={!user ? <Login /> : <Navigate to="/" replace />}
+        />
+
+        <Route
+          path="/signup"
+          element={!user ? <Signup /> : <Navigate to="/" replace />}
+        />
+
+        <Route
+          path="/profile"
+          element={user ? <Profile /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/new"
+          element={user ? <NewPost /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/settings"
+          element={user ? <ProfileSettings /> : <Navigate to="/login" replace />}
+        />
+
         <Route
           path="/admin"
-          element={
-            user?.isAdmin || user?.isModerator
-              ? <AdminDashboard />
-              : <Navigate to="/" replace />
-          }
+          element={(user?.isAdmin || user?.isModerator) ? <AdminDashboard /> : <Navigate to="/" replace />}
         />
       </Routes>
     </div>
