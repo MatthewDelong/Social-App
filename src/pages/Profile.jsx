@@ -35,12 +35,11 @@ export default function Profile() {
     photoURL: user.photoURL || ''
   });
 
-  // NEW STATES for preview & selected file
+  // Preview & selected file state
   const [newAvatarFile, setNewAvatarFile] = useState(null);
   const [newAvatarPreview, setNewAvatarPreview] = useState(null);
 
   useEffect(() => {
-    // Fetch default avatar from storage
     const loadDefaultAvatar = async () => {
       try {
         const defaultRef = ref(storage, 'default-avatar.png');
@@ -124,7 +123,7 @@ export default function Profile() {
     }
   };
 
-  // UPDATED: Now checks file size (1MB limit)
+  // File selection with 1MB limit
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
