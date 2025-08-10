@@ -8,6 +8,7 @@ import {
   query,
   where,
   onSnapshot,
+  getDocs,
   writeBatch
 } from 'firebase/firestore';
 import { db, auth, storage } from '../firebase';
@@ -114,13 +115,13 @@ export default function Profile() {
       await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(storageRef);
 
-      // Update Firebase Auth
+      // Update Firebase Auth profile
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
 
       // Update Firestore user profile
       await updateDoc(doc(db, 'users', user.uid), { photoURL: downloadURL });
 
-      // Update all posts/comments/replies by this user
+      // Update all posts/comments/replies
       await updateAllUserContent(downloadURL);
 
       setProfileData((prev) => ({ ...prev, photoURL: downloadURL }));
@@ -135,16 +136,19 @@ export default function Profile() {
   const updateAllUserContent = async (photoURL) => {
     const batch = writeBatch(db);
 
+    // Update posts
     const postsSnap = await getDocs(query(collection(db, 'posts'), where('uid', '==', user.uid)));
     postsSnap.forEach((docSnap) => {
       batch.update(docSnap.ref, { authorPhotoURL: photoURL });
     });
 
+    // Update comments
     const commentsSnap = await getDocs(query(collection(db, 'comments'), where('uid', '==', user.uid)));
     commentsSnap.forEach((docSnap) => {
       batch.update(docSnap.ref, { authorPhotoURL: photoURL });
     });
 
+    // Update replies
     const repliesSnap = await getDocs(query(collection(db, 'replies'), where('uid', '==', user.uid)));
     repliesSnap.forEach((docSnap) => {
       batch.update(docSnap.ref, { authorPhotoURL: photoURL });
@@ -207,6 +211,7 @@ export default function Profile() {
           accept="image/*"
           onChange={handleAvatarUpload}
           disabled={uploading}
+          className="mb-3"
         />
         {uploading && <p className="text-sm text-gray-500">Uploading...</p>}
         <p><span className="font-bold">Name:</span> {profileData.displayName}</p>
@@ -237,14 +242,7 @@ export default function Profile() {
         {posts.length === 0 && <p className="text-gray-600">No posts yet.</p>}
         {posts.map((post) => (
           <Card key={post.id}>
-            <div className="flex items-center gap-2">
-              <img
-                src={post.authorPhotoURL || DEFAULT_AVATAR}
-                alt=""
-                className="w-8 h-8 rounded-full object-cover"
-              />
-              <p className="font-bold">{post.author}</p>
-            </div>
+            <p className="font-bold">{post.author}</p>
             <p>{post.content}</p>
           </Card>
         ))}
