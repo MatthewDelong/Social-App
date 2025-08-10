@@ -4,7 +4,7 @@
       "http://localhost:5173",
       "https://social-app-8a28d.web.app"
     ],
-    "method": ["GET", "POST", "PUT", "DELETE"],
+    "method": ["GET", "POST", "PUT", "DELETE", "PATCH"],
     "maxAgeSeconds": 3600,
     "responseHeader": ["Content-Type", "Authorization", "x-goog-meta-*"]
   }
