@@ -35,7 +35,6 @@ export default function Profile() {
     photoURL: user.photoURL || ''
   });
 
-  // Preview & selected file state
   const [newAvatarFile, setNewAvatarFile] = useState(null);
   const [newAvatarPreview, setNewAvatarPreview] = useState(null);
 
@@ -123,18 +122,46 @@ export default function Profile() {
     }
   };
 
-  // File selection with 1MB limit
+  // ✅ File selection with resize to max 512x512px
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 1024 * 1024) {
-      setMessage('File is too large. Please select an image under 1MB.');
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage('File is too large. Please select an image under 5MB.');
       return;
     }
 
-    setNewAvatarFile(file);
-    setNewAvatarPreview(URL.createObjectURL(file));
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 512;
+      let { width, height } = img;
+
+      if (width > maxDim || height > maxDim) {
+        const scale = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          setMessage('Error processing image.');
+          return;
+        }
+        const resizedFile = new File([blob], file.name, { type: file.type });
+        setNewAvatarFile(resizedFile);
+        setNewAvatarPreview(URL.createObjectURL(resizedFile));
+      }, file.type);
+    };
+
+    img.src = URL.createObjectURL(file);
   };
 
   const handleCancelImage = () => {
@@ -221,7 +248,7 @@ export default function Profile() {
           Select Picture
           <input type="file" accept="image/*" hidden onChange={handleImageSelect} />
         </label>
-        <span className="text-xs text-gray-500">Max file size: 1MB</span>
+        <span className="text-xs text-gray-500">Max: 512×512px</span>
       </div>
 
       {newAvatarPreview && (
