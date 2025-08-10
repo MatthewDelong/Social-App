@@ -8,8 +8,7 @@ import {
   query,
   where,
   onSnapshot,
-  getDocs,
-  writeBatch
+  getDocs
 } from 'firebase/firestore';
 import { db, auth, storage } from '../firebase';
 import { useAppContext } from '../context/AppContext';
@@ -105,56 +104,46 @@ export default function Profile() {
     }
   };
 
-  const handleAvatarUpload = async (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setUploading(true);
     try {
-      const storageRef = ref(storage, `profilePictures/${user.uid}`);
+      const storageRef = ref(storage, `avatars/${user.uid}`);
       await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(storageRef);
 
-      // Update Firebase Auth profile
+      // Update auth
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
 
-      // Update Firestore user profile
+      // Update user doc
       await updateDoc(doc(db, 'users', user.uid), { photoURL: downloadURL });
 
-      // Update all posts/comments/replies
-      await updateAllUserContent(downloadURL);
+      // Update all posts by this user
+      const postsSnap = await getDocs(query(collection(db, 'posts'), where('uid', '==', user.uid)));
+      postsSnap.forEach(async (docSnap) => {
+        await updateDoc(doc(db, 'posts', docSnap.id), { authorPhotoURL: downloadURL });
+      });
+
+      // Update comments
+      const commentsSnap = await getDocs(query(collection(db, 'comments'), where('uid', '==', user.uid)));
+      commentsSnap.forEach(async (docSnap) => {
+        await updateDoc(doc(db, 'comments', docSnap.id), { authorPhotoURL: downloadURL });
+      });
+
+      // Update replies
+      const repliesSnap = await getDocs(query(collection(db, 'replies'), where('uid', '==', user.uid)));
+      repliesSnap.forEach(async (docSnap) => {
+        await updateDoc(doc(db, 'replies', docSnap.id), { authorPhotoURL: downloadURL });
+      });
 
       setProfileData((prev) => ({ ...prev, photoURL: downloadURL }));
       setMessage('Profile picture updated!');
     } catch (error) {
-      console.error('Error uploading avatar:', error);
-      setMessage('Failed to upload profile picture.');
+      console.error('Error uploading image:', error);
+      setMessage('Failed to upload image.');
     }
     setUploading(false);
-  };
-
-  const updateAllUserContent = async (photoURL) => {
-    const batch = writeBatch(db);
-
-    // Update posts
-    const postsSnap = await getDocs(query(collection(db, 'posts'), where('uid', '==', user.uid)));
-    postsSnap.forEach((docSnap) => {
-      batch.update(docSnap.ref, { authorPhotoURL: photoURL });
-    });
-
-    // Update comments
-    const commentsSnap = await getDocs(query(collection(db, 'comments'), where('uid', '==', user.uid)));
-    commentsSnap.forEach((docSnap) => {
-      batch.update(docSnap.ref, { authorPhotoURL: photoURL });
-    });
-
-    // Update replies
-    const repliesSnap = await getDocs(query(collection(db, 'replies'), where('uid', '==', user.uid)));
-    repliesSnap.forEach((docSnap) => {
-      batch.update(docSnap.ref, { authorPhotoURL: photoURL });
-    });
-
-    await batch.commit();
   };
 
   return (
@@ -189,6 +178,20 @@ export default function Profile() {
           onChange={(e) => setWebsite(e.target.value)}
           className="w-full border border-gray-300 p-2 rounded"
         />
+
+        {/* Upload Profile Picture */}
+        <div className="flex items-center space-x-4">
+          <img
+            src={profileData.photoURL || DEFAULT_AVATAR}
+            alt="Profile Avatar"
+            className="w-20 h-20 rounded-full object-cover"
+          />
+          <label className="cursor-pointer bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
+            {uploading ? 'Uploading...' : 'Upload Picture'}
+            <input type="file" accept="image/*" hidden onChange={handleImageUpload} />
+          </label>
+        </div>
+
         <button
           onClick={handleUpdate}
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
@@ -206,30 +209,13 @@ export default function Profile() {
           alt="Profile Avatar"
           className="w-24 h-24 rounded-full object-cover mb-4"
         />
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleAvatarUpload}
-          disabled={uploading}
-          className="mb-3"
-        />
-        {uploading && <p className="text-sm text-gray-500">Uploading...</p>}
         <p><span className="font-bold">Name:</span> {profileData.displayName}</p>
-        {profileData.bio && (
-          <p className="mt-1"><span className="font-bold">Bio:</span> {profileData.bio}</p>
-        )}
-        {profileData.location && (
-          <p className="mt-1"><span className="font-bold">Location:</span> {profileData.location}</p>
-        )}
+        {profileData.bio && <p className="mt-1"><span className="font-bold">Bio:</span> {profileData.bio}</p>}
+        {profileData.location && <p className="mt-1"><span className="font-bold">Location:</span> {profileData.location}</p>}
         {profileData.website && (
           <p className="mt-1">
             <span className="font-bold">Website:</span>{' '}
-            <a
-              href={profileData.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
-            >
+            <a href={profileData.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
               {profileData.website}
             </a>
           </p>
@@ -242,7 +228,10 @@ export default function Profile() {
         {posts.length === 0 && <p className="text-gray-600">No posts yet.</p>}
         {posts.map((post) => (
           <Card key={post.id}>
-            <p className="font-bold">{post.author}</p>
+            <div className="flex items-center space-x-2">
+              <img src={post.authorPhotoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 rounded-full" />
+              <p className="font-bold">{post.author}</p>
+            </div>
             <p>{post.content}</p>
           </Card>
         ))}
