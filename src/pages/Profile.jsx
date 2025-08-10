@@ -254,7 +254,7 @@ export default function Profile() {
           Select Picture
           <input type="file" accept="image/*" hidden onChange={handleImageSelect} />
         </label>
-        <span className="text-xs text-gray-500">Max: 512×512px</span>
+        <span className="text-xs text-gray-500">Max: 512×512px 1MB</span>
       </div>
 
       {newAvatarPreview && (
