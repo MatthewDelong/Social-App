@@ -25,17 +25,37 @@ export default function Profile() {
   const [website, setWebsite] = useState('');
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
-
-  const DEFAULT_AVATAR =
-    'https://firebasestorage.googleapis.com/v0/b/social-app-8a28d.firebasestorage.app/o/default-avatar.png?alt=media&token=78165d2b-f095-496c-9de2-5e143bfc41cc';
+  const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState('');
 
   const [profileData, setProfileData] = useState({
     displayName: user.displayName || '',
     bio: '',
     location: '',
     website: '',
-    photoURL: user.photoURL || DEFAULT_AVATAR
+    photoURL: user.photoURL || ''
   });
+
+  // NEW STATES for preview & selected file
+  const [newAvatarFile, setNewAvatarFile] = useState(null);
+  const [newAvatarPreview, setNewAvatarPreview] = useState(null);
+
+  useEffect(() => {
+    // Fetch default avatar from storage
+    const loadDefaultAvatar = async () => {
+      try {
+        const defaultRef = ref(storage, 'default-avatar.png');
+        const url = await getDownloadURL(defaultRef);
+        setDEFAULT_AVATAR(url);
+        setProfileData((prev) => ({
+          ...prev,
+          photoURL: prev.photoURL || url
+        }));
+      } catch (error) {
+        console.error('Error loading default avatar:', error);
+      }
+    };
+    loadDefaultAvatar();
+  }, []);
 
   useEffect(() => {
     const loadUserProfile = async () => {
@@ -65,7 +85,7 @@ export default function Profile() {
     };
 
     if (user) loadUserProfile();
-  }, [user]);
+  }, [user, DEFAULT_AVATAR]);
 
   useEffect(() => {
     const q = query(collection(db, 'posts'), where('uid', '==', user.uid));
@@ -104,34 +124,39 @@ export default function Profile() {
     }
   };
 
-  const handleImageUpload = async (e) => {
+  const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setNewAvatarFile(file);
+    setNewAvatarPreview(URL.createObjectURL(file));
+  };
+
+  const handleCancelImage = () => {
+    setNewAvatarFile(null);
+    setNewAvatarPreview(null);
+  };
+
+  const handleImageSave = async () => {
+    if (!newAvatarFile) return;
     setUploading(true);
     try {
       const storageRef = ref(storage, `avatars/${user.uid}`);
-      await uploadBytes(storageRef, file);
+      await uploadBytes(storageRef, newAvatarFile);
       const downloadURL = await getDownloadURL(storageRef);
 
-      // Update auth
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
-
-      // Update user doc
       await updateDoc(doc(db, 'users', user.uid), { photoURL: downloadURL });
 
-      // Update all posts by this user
       const postsSnap = await getDocs(query(collection(db, 'posts'), where('uid', '==', user.uid)));
       postsSnap.forEach(async (docSnap) => {
         await updateDoc(doc(db, 'posts', docSnap.id), { authorPhotoURL: downloadURL });
       });
 
-      // Update comments
       const commentsSnap = await getDocs(query(collection(db, 'comments'), where('uid', '==', user.uid)));
       commentsSnap.forEach(async (docSnap) => {
         await updateDoc(doc(db, 'comments', docSnap.id), { authorPhotoURL: downloadURL });
       });
 
-      // Update replies
       const repliesSnap = await getDocs(query(collection(db, 'replies'), where('uid', '==', user.uid)));
       repliesSnap.forEach(async (docSnap) => {
         await updateDoc(doc(db, 'replies', docSnap.id), { authorPhotoURL: downloadURL });
@@ -139,6 +164,8 @@ export default function Profile() {
 
       setProfileData((prev) => ({ ...prev, photoURL: downloadURL }));
       setMessage('Profile picture updated!');
+      setNewAvatarFile(null);
+      setNewAvatarPreview(null);
     } catch (error) {
       console.error('Error uploading image:', error);
       setMessage('Failed to upload image.');
@@ -150,59 +177,74 @@ export default function Profile() {
     <div className="max-w-2xl mx-auto mt-10 px-4 space-y-10">
       <h2 className="text-2xl font-bold">Edit Profile</h2>
 
-      <div className="space-y-3">
-        <input
-          type="text"
-          placeholder="Display Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full border border-gray-300 p-2 rounded"
-        />
-        <textarea
-          placeholder="Bio"
-          value={bio}
-          onChange={(e) => setBio(e.target.value)}
-          className="w-full border border-gray-300 p-2 rounded h-20"
-        />
-        <input
-          type="text"
-          placeholder="Location"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className="w-full border border-gray-300 p-2 rounded"
-        />
-        <input
-          type="text"
-          placeholder="Website"
-          value={website}
-          onChange={(e) => setWebsite(e.target.value)}
-          className="w-full border border-gray-300 p-2 rounded"
-        />
+      <input
+        type="text"
+        placeholder="Display Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="w-full border border-gray-300 p-2 rounded"
+      />
+      <textarea
+        placeholder="Bio"
+        value={bio}
+        onChange={(e) => setBio(e.target.value)}
+        className="w-full border border-gray-300 p-2 rounded h-20"
+      />
+      <input
+        type="text"
+        placeholder="Location"
+        value={location}
+        onChange={(e) => setLocation(e.target.value)}
+        className="w-full border border-gray-300 p-2 rounded"
+      />
+      <input
+        type="text"
+        placeholder="Website"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+        className="w-full border border-gray-300 p-2 rounded"
+      />
 
-        {/* Upload Profile Picture */}
-        <div className="flex items-center space-x-4">
-          <img
-            src={profileData.photoURL || DEFAULT_AVATAR}
-            alt="Profile Avatar"
-            className="w-20 h-20 rounded-full object-cover"
-          />
-          <label className="cursor-pointer bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
-            {uploading ? 'Uploading...' : 'Upload Picture'}
-            <input type="file" accept="image/*" hidden onChange={handleImageUpload} />
-          </label>
-        </div>
-
-        <button
-          onClick={handleUpdate}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Save Changes
-        </button>
-        {message && <p className="text-green-600 text-sm">{message}</p>}
+      <div className="flex items-center space-x-4">
+        <img
+          src={newAvatarPreview || profileData.photoURL || DEFAULT_AVATAR}
+          alt="Profile Avatar"
+          className="w-20 h-20 rounded-full object-cover"
+        />
+        <label className="cursor-pointer bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
+          Select Picture
+          <input type="file" accept="image/*" hidden onChange={handleImageSelect} />
+        </label>
       </div>
 
-      {/* Profile Preview */}
-      <div className="bg-white border rounded p-4 shadow">
+      {newAvatarPreview && (
+        <div className="flex space-x-2 mt-2">
+          <button
+            onClick={handleImageSave}
+            disabled={uploading}
+            className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600"
+          >
+            {uploading ? 'Saving...' : 'Save Changes'}
+          </button>
+          <button
+            onClick={handleCancelImage}
+            className="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      <button
+        onClick={handleUpdate}
+        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4"
+      >
+        Save Profile Details
+      </button>
+
+      {message && <p className="text-green-600 text-sm">{message}</p>}
+
+      <div className="bg-white border rounded p-4 shadow mt-6">
         <h2 className="text-xl font-semibold mb-4">Profile Preview</h2>
         <img
           src={profileData.photoURL || DEFAULT_AVATAR}
@@ -222,7 +264,6 @@ export default function Profile() {
         )}
       </div>
 
-      {/* User's posts */}
       <div>
         <h2 className="text-xl font-bold mb-4">Your Posts</h2>
         {posts.length === 0 && <p className="text-gray-600">No posts yet.</p>}
