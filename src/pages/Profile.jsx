@@ -124,9 +124,16 @@ export default function Profile() {
     }
   };
 
+  // UPDATED: Now checks file size (1MB limit)
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (file.size > 1024 * 1024) {
+      setMessage('File is too large. Please select an image under 1MB.');
+      return;
+    }
+
     setNewAvatarFile(file);
     setNewAvatarPreview(URL.createObjectURL(file));
   };
@@ -215,6 +222,7 @@ export default function Profile() {
           Select Picture
           <input type="file" accept="image/*" hidden onChange={handleImageSelect} />
         </label>
+        <span className="text-xs text-gray-500">Max file size: 1MB</span>
       </div>
 
       {newAvatarPreview && (
