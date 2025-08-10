@@ -1,3 +1,4 @@
+// Profile.jsx
 import { useEffect, useState } from 'react';
 import {
   collection,
@@ -122,7 +123,7 @@ export default function Profile() {
     }
   };
 
-  // ✅ File selection with resize to max 512x512px
+  // ✅ File selection with resize + compression
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -150,15 +151,20 @@ export default function Profile() {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
 
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          setMessage('Error processing image.');
-          return;
-        }
-        const resizedFile = new File([blob], file.name, { type: file.type });
-        setNewAvatarFile(resizedFile);
-        setNewAvatarPreview(URL.createObjectURL(resizedFile));
-      }, file.type);
+      // Convert to JPEG @ 80% quality for compression
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            setMessage('Error processing image.');
+            return;
+          }
+          const resizedFile = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+          setNewAvatarFile(resizedFile);
+          setNewAvatarPreview(URL.createObjectURL(resizedFile));
+        },
+        'image/jpeg',
+        0.8 // compression quality
+      );
     };
 
     img.src = URL.createObjectURL(file);
