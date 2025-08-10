@@ -205,10 +205,10 @@ export default function Home() {
                 <p className="font-bold text-gray-800">
                   {postUser?.displayName || post.author || 'Unknown User'}
                   {usersMap[post.uid]?.isAdmin && (
-                    <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
+                    <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Admin</span>
                   )}
                   {usersMap[post.uid]?.isModerator && (
-                    <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Moderator</span>
+                    <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">Moderator</span>
                   )}
                 </p>
               </div>
@@ -282,10 +282,10 @@ export default function Home() {
                           <p className="font-semibold text-gray-800">
                             {commentUser?.displayName || comment.author}
                             {commentUser?.isAdmin && (
-                              <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
+                              <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Admin</span>
                             )}
                             {commentUser?.isModerator && (
-                              <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Moderator</span>
+                              <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">Moderator</span>
                             )}
                           </p>
                           <span className="text-xs text-gray-500">
@@ -360,10 +360,10 @@ export default function Home() {
                                     <p className="font-semibold text-gray-800">
                                       {replyUser?.displayName || reply.author}
                                       {replyUser?.isAdmin && (
-                                        <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded">Admin</span>
+                                        <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Admin</span>
                                       )}
                                       {replyUser?.isModerator && (
-                                        <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">Moderator</span>
+                                        <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">Moderator</span>
                                       )}
                                     </p>
                                     <span className="text-xs text-gray-500">
@@ -444,7 +444,7 @@ export default function Home() {
                             />
                             <button
                               onClick={() => handleReply(post.id, i)}
-                              className="text-xs bg-green-500 text-white px-2 py-0.5 rounded"
+                              className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded"
                             >
                               Reply
                             </button>
@@ -490,7 +490,7 @@ export default function Home() {
                 />
                 <button
                   onClick={() => handleComment(post.id)}
-                  className="text-xs bg-green-500 text-white px-2 py-0.5 rounded"
+                  className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded"
                 >
                   Comment
                 </button>
