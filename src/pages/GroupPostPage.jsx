@@ -13,6 +13,7 @@ export default function GroupPostPage() {
   const [loading, setLoading] = useState(true);
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
 
+  // Load the default avatar once
   useEffect(() => {
     const loadDefaultAvatar = async () => {
       try {
@@ -26,26 +27,38 @@ export default function GroupPostPage() {
     loadDefaultAvatar();
   }, []);
 
+  // Fetch the post and ensure avatar fallback
   useEffect(() => {
+    if (!DEFAULT_AVATAR) return; // wait until default avatar is ready
+
     const fetchPost = async () => {
       const postDoc = await getDoc(doc(db, "groupPosts", postId));
       if (postDoc.exists()) {
         let data = { id: postDoc.id, ...postDoc.data() };
 
-        // 🔹 If no avatar stored, try fetching from users/{uid}
-        if (!data.authorPhotoURL && data.uid) {
+        // If no avatar stored, try fetching from users/{uid}
+        if ((!data.authorPhotoURL || data.authorPhotoURL.trim() === "") && data.uid) {
           const userDoc = await getDoc(doc(db, "users", data.uid));
           if (userDoc.exists()) {
-            data.authorPhotoURL = userDoc.data().photoURL || "";
+            const userData = userDoc.data();
+            if (userData.photoURL && userData.photoURL.trim() !== "") {
+              data.authorPhotoURL = userData.photoURL;
+            }
           }
+        }
+
+        // Final fallback to default avatar
+        if (!data.authorPhotoURL || data.authorPhotoURL.trim() === "") {
+          data.authorPhotoURL = DEFAULT_AVATAR;
         }
 
         setPost(data);
       }
       setLoading(false);
     };
+
     fetchPost();
-  }, [postId]);
+  }, [postId, DEFAULT_AVATAR]);
 
   if (loading) return <p className="p-4">Loading post...</p>;
   if (!post) return <p className="p-4">Post not found</p>;
@@ -54,7 +67,7 @@ export default function GroupPostPage() {
     <div className="p-4 max-w-2xl mx-auto">
       <div className="flex items-center space-x-3 mb-4">
         <img
-          src={post.authorPhotoURL || DEFAULT_AVATAR}
+          src={post.authorPhotoURL}
           alt={post.author}
           className="w-10 h-10 rounded-full object-cover"
         />
