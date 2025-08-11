@@ -1,5 +1,5 @@
 // src/pages/UserProfile.jsx
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db, storage } from "../firebase";
@@ -10,6 +10,7 @@ export default function UserProfile() {
   const { uid } = useParams();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [groups, setGroups] = useState([]); // ✅ groups state
   const [loading, setLoading] = useState(true);
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
 
@@ -29,19 +30,26 @@ export default function UserProfile() {
   useEffect(() => {
     const loadUserProfile = async () => {
       try {
+        // Load user profile
         const userRef = doc(db, "users", uid);
         const snap = await getDoc(userRef);
-
         if (snap.exists()) {
           setProfile(snap.data());
         } else {
           setProfile(null);
         }
 
+        // Load user posts
         const postsRef = collection(db, "posts");
-        const q = query(postsRef, where("uid", "==", uid));
-        const postSnap = await getDocs(q);
+        const qPosts = query(postsRef, where("uid", "==", uid));
+        const postSnap = await getDocs(qPosts);
         setPosts(postSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+
+        // ✅ Load groups the user belongs to
+        const groupsRef = collection(db, "groups");
+        const qGroups = query(groupsRef, where("members", "array-contains", uid));
+        const groupsSnap = await getDocs(qGroups);
+        setGroups(groupsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       } catch (err) {
         console.error("Error loading user profile:", err);
       }
@@ -56,6 +64,7 @@ export default function UserProfile() {
 
   return (
     <div className="max-w-2xl mx-auto mt-10 px-4 space-y-8">
+      {/* Profile Header */}
       <div className="flex items-center space-x-4">
         <img
           src={profile.photoURL || DEFAULT_AVATAR}
@@ -79,6 +88,31 @@ export default function UserProfile() {
         </div>
       </div>
 
+      {/* ✅ Groups Section */}
+      <div>
+        <h3 className="text-xl font-bold mb-4">
+          Groups {profile.displayName} is part of
+        </h3>
+        {groups.length === 0 && <p className="text-gray-500">No groups yet.</p>}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {groups.map((group) => (
+            <Card key={group.id}>
+              <h4 className="font-bold text-lg">{group.name}</h4>
+              {group.description && (
+                <p className="text-gray-600 text-sm">{group.description}</p>
+              )}
+              <Link
+                to={`/groups/${group.id}`}
+                className="text-blue-500 hover:underline mt-2 block"
+              >
+                View Group
+              </Link>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Posts Section */}
       <div>
         <h3 className="text-xl font-bold mb-4">Posts by {profile.displayName}</h3>
         {posts.length === 0 && <p className="text-gray-500">No posts yet.</p>}

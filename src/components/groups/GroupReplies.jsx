@@ -1,12 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  serverTimestamp
-} from "firebase/firestore";
+import { collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebase";
 
 export default function GroupReplies({ commentId, currentUser }) {
@@ -14,20 +7,16 @@ export default function GroupReplies({ commentId, currentUser }) {
   const [content, setContent] = useState("");
 
   useEffect(() => {
+    if (!commentId) return;
     const q = query(
       collection(db, "groupReplies"),
+      where("commentId", "==", commentId),
       orderBy("createdAt", "asc")
     );
-
-    const unsub = onSnapshot(q, (snap) => {
-      setReplies(
-        snap.docs
-          .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .filter((r) => r.commentId === commentId)
-      );
+    const unsub = onSnapshot(q, (snapshot) => {
+      setReplies(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
-
-    return unsub;
+    return () => unsub();
   }, [commentId]);
 
   const handleAddReply = async (e) => {
@@ -40,26 +29,29 @@ export default function GroupReplies({ commentId, currentUser }) {
       author: currentUser.displayName,
       authorPhotoURL: currentUser.photoURL || "",
       content: content.trim(),
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
     });
 
     setContent("");
   };
 
   return (
-    <div style={{ marginLeft: 20, marginTop: 8 }}>
-      <form onSubmit={handleAddReply}>
+    <div className="mt-2 ml-6">
+      <form onSubmit={handleAddReply} className="flex gap-2">
         <input
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Write a reply..."
+          className="flex-1 p-1 border rounded text-sm"
         />
-        <button type="submit">Reply</button>
+        <button type="submit" className="px-2 py-1 bg-gray-500 text-white rounded text-sm">
+          Reply
+        </button>
       </form>
 
-      <div style={{ marginTop: 4 }}>
+      <div className="mt-2 space-y-1">
         {replies.map((reply) => (
-          <div key={reply.id}>
+          <div key={reply.id} className="border p-1 rounded text-sm">
             <strong>{reply.author}</strong>: {reply.content}
           </div>
         ))}

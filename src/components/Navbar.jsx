@@ -58,6 +58,7 @@ export default function Navbar() {
           <div className={`hidden sm:flex items-center gap-4 ${textColorClass}`}>
             <Link to="/profile" className="text-sm hover:underline">Profile</Link>
             <Link to="/new" className="text-sm hover:underline">New Post</Link>
+            <Link to="/groups" className="text-sm hover:underline">Groups</Link>
             <Link to="/settings" className="text-sm hover:underline">Settings</Link>
             {user.isAdmin && (
               <Link to="/admin" className="text-sm hover:underline">Admin Dashboard</Link>
@@ -73,6 +74,7 @@ export default function Navbar() {
         <div className={`sm:hidden mt-4 flex flex-col gap-2 ${textColorClass}`}>
           <Link to="/profile" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Profile</Link>
           <Link to="/new" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>New Post</Link>
+          <Link to="/groups" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Groups</Link>
           <Link to="/settings" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Settings</Link>
           {user.isAdmin && (
             <Link to="/admin" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>

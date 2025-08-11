@@ -1,12 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  serverTimestamp
-} from "firebase/firestore";
+import { collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebase";
 import GroupReplies from "./GroupReplies";
 
@@ -15,20 +8,16 @@ export default function GroupComments({ postId, currentUser }) {
   const [content, setContent] = useState("");
 
   useEffect(() => {
+    if (!postId) return;
     const q = query(
       collection(db, "groupComments"),
+      where("postId", "==", postId),
       orderBy("createdAt", "asc")
     );
-
-    const unsub = onSnapshot(q, (snap) => {
-      setComments(
-        snap.docs
-          .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .filter((c) => c.postId === postId)
-      );
+    const unsub = onSnapshot(q, (snapshot) => {
+      setComments(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
-
-    return unsub;
+    return () => unsub();
   }, [postId]);
 
   const handleAddComment = async (e) => {
@@ -41,26 +30,29 @@ export default function GroupComments({ postId, currentUser }) {
       author: currentUser.displayName,
       authorPhotoURL: currentUser.photoURL || "",
       content: content.trim(),
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
     });
 
     setContent("");
   };
 
   return (
-    <div style={{ marginTop: 16 }}>
-      <form onSubmit={handleAddComment}>
+    <div className="mt-4">
+      <form onSubmit={handleAddComment} className="flex gap-2">
         <input
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Write a comment..."
+          className="flex-1 p-2 border rounded"
         />
-        <button type="submit">Post</button>
+        <button type="submit" className="px-3 py-1 bg-blue-500 text-white rounded">
+          Post
+        </button>
       </form>
 
-      <div style={{ marginTop: 8 }}>
+      <div className="mt-4 space-y-3">
         {comments.map((comment) => (
-          <div key={comment.id} style={{ marginBottom: 8 }}>
+          <div key={comment.id} className="border p-2 rounded">
             <strong>{comment.author}</strong>: {comment.content}
             <GroupReplies commentId={comment.id} currentUser={currentUser} />
           </div>
