@@ -13,6 +13,7 @@ import { db } from '../firebase';
 import { useAppContext } from '../context/AppContext';
 import { formatDistanceToNow } from 'date-fns';
 import EmojiPicker from 'emoji-picker-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
@@ -26,6 +27,7 @@ export default function Home() {
   const [editReplyMap, setEditReplyMap] = useState({});
   const [editingReplyIndexMap, setEditingReplyIndexMap] = useState({});
   const { user, theme } = useAppContext();
+  const navigate = useNavigate();
 
   const DEFAULT_AVATAR =
     'https://firebasestorage.googleapis.com/v0/b/social-app-8a28d.firebasestorage.app/o/default-avatar.png?alt=media&token=78165d2b-f095-496c-9de2-5e143bfc41cc';
@@ -51,8 +53,8 @@ export default function Home() {
   const fetchUsers = async () => {
     const snap = await getDocs(collection(db, 'users'));
     const map = {};
-    snap.forEach((doc) => {
-      map[doc.id] = doc.data();
+    snap.forEach((d) => {
+      map[d.id] = d.data();
     });
     setUsersMap(map);
   };
@@ -61,11 +63,11 @@ export default function Home() {
     fetchUsers();
     const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map((doc) => ({
-        id: doc.id,
+      const docs = snapshot.docs.map((d) => ({
+        id: d.id,
         likes: [],
         comments: [],
-        ...doc.data()
+        ...d.data()
       }));
       setPosts(docs);
     });
@@ -185,6 +187,12 @@ export default function Home() {
     setEditingReplyIndexMap((prev) => ({ ...prev, [key]: false }));
   };
 
+  // Navigate to a user's profile (assumes route /profile/:uid exists)
+  const goToProfile = (uid) => {
+    if (!uid) return;
+    navigate(`/profile/${uid}`);
+  };
+
   return (
     <div
       className="max-w-xl mx-auto mt-10"
@@ -200,9 +208,13 @@ export default function Home() {
                 <img
                   src={postAvatar}
                   alt="avatar"
-                  className="w-8 h-8 rounded-full object-cover"
+                  className="w-8 h-8 rounded-full object-cover cursor-pointer"
+                  onClick={() => goToProfile(post.uid)}
                 />
-                <p className="font-bold text-gray-800">
+                <p
+                  className="font-bold text-gray-800 cursor-pointer"
+                  onClick={() => goToProfile(post.uid)}
+                >
                   {postUser?.displayName || post.author || 'Unknown User'}
                   {usersMap[post.uid]?.isAdmin && (
                     <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Admin</span>
@@ -232,7 +244,8 @@ export default function Home() {
                 </div>
               )}
             </div>
-<div className="mt-2 text-gray-900">
+
+            <div className="mt-2 text-gray-900">
               {editingPostId === post.id ? (
                 <div>
                   <textarea
@@ -275,11 +288,15 @@ export default function Home() {
                       <img
                         src={commentAvatar}
                         alt="avatar"
-                        className="w-6 h-6 rounded-full object-cover"
+                        className="w-6 h-6 rounded-full object-cover cursor-pointer"
+                        onClick={() => goToProfile(comment.uid)}
                       />
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
-                          <p className="font-semibold text-gray-800">
+                          <p
+                            className="font-semibold text-gray-800 cursor-pointer"
+                            onClick={() => goToProfile(comment.uid)}
+                          >
                             {commentUser?.displayName || comment.author}
                             {commentUser?.isAdmin && (
                               <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Admin</span>
@@ -353,11 +370,15 @@ export default function Home() {
                                 <img
                                   src={replyAvatar}
                                   alt="avatar"
-                                  className="w-5 h-5 rounded-full object-cover"
+                                  className="w-5 h-5 rounded-full object-cover cursor-pointer"
+                                  onClick={() => goToProfile(reply.uid)}
                                 />
                                 <div className="flex-1">
                                   <div className="flex items-center space-x-2">
-                                    <p className="font-semibold text-gray-800">
+                                    <p
+                                      className="font-semibold text-gray-800 cursor-pointer"
+                                      onClick={() => goToProfile(reply.uid)}
+                                    >
                                       {replyUser?.displayName || reply.author}
                                       {replyUser?.isAdmin && (
                                         <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Admin</span>

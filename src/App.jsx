@@ -17,6 +17,7 @@ import NewPost from './pages/NewPost';
 import Navbar from './components/Navbar';
 import ProfileSettings from './pages/ProfileSettings';
 import AdminDashboard from './pages/AdminDashboard';
+import UserProfile from './pages/UserProfile'; // ✅ added
 
 function AppRoutes() {
   const { user, loading, theme } = useAppContext();
@@ -67,6 +68,11 @@ function AppRoutes() {
         <Route
           path="/profile"
           element={user ? <Profile /> : <Navigate to="/login" replace />}
+        />
+        {/* ✅ Public profile viewer */}
+        <Route
+          path="/profile/:uid"
+          element={<UserProfile />}
         />
         <Route
           path="/new"
