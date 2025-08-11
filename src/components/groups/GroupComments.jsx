@@ -7,6 +7,8 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  doc,
+  getDoc
 } from "firebase/firestore";
 import { db, storage } from "../../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
@@ -17,7 +19,6 @@ export default function GroupComments({ postId, currentUser }) {
   const [content, setContent] = useState("");
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
 
-  // ✅ Load default avatar from storage
   useEffect(() => {
     const loadDefaultAvatar = async () => {
       try {
@@ -31,7 +32,6 @@ export default function GroupComments({ postId, currentUser }) {
     loadDefaultAvatar();
   }, []);
 
-  // ✅ Load comments
   useEffect(() => {
     if (!postId) return;
     const q = query(
@@ -39,13 +39,30 @@ export default function GroupComments({ postId, currentUser }) {
       where("postId", "==", postId),
       orderBy("createdAt", "asc")
     );
-    const unsub = onSnapshot(q, (snapshot) => {
-      setComments(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    const unsub = onSnapshot(q, async (snapshot) => {
+      const docs = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+
+      // 🔹 Fetch missing avatars from users/{uid}
+      const updated = await Promise.all(
+        docs.map(async (c) => {
+          if (!c.authorPhotoURL && c.uid) {
+            const userDoc = await getDoc(doc(db, "users", c.uid));
+            if (userDoc.exists()) {
+              return { ...c, authorPhotoURL: userDoc.data().photoURL || "" };
+            }
+          }
+          return c;
+        })
+      );
+
+      setComments(updated);
     });
     return () => unsub();
   }, [postId]);
 
-  // ✅ Add comment with avatar
   const handleAddComment = async (e) => {
     e.preventDefault();
     if (!content.trim()) return;
