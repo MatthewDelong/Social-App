@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import GroupComments from "../components/groups/GroupComments";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
 
@@ -13,7 +13,7 @@ export default function GroupPostPage() {
   const [loading, setLoading] = useState(true);
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
 
-  // Load the default avatar once
+  // Load default avatar
   useEffect(() => {
     const loadDefaultAvatar = async () => {
       try {
@@ -27,16 +27,16 @@ export default function GroupPostPage() {
     loadDefaultAvatar();
   }, []);
 
-  // Fetch the post and ensure avatar fallback
+  // Live fetch post + ensure avatar fallback
   useEffect(() => {
-    if (!DEFAULT_AVATAR) return; // wait until default avatar is ready
+    if (!DEFAULT_AVATAR) return;
 
-    const fetchPost = async () => {
-      const postDoc = await getDoc(doc(db, "groupPosts", postId));
-      if (postDoc.exists()) {
-        let data = { id: postDoc.id, ...postDoc.data() };
+    const postRef = doc(db, "groupPosts", postId);
+    const unsubscribe = onSnapshot(postRef, async (postSnap) => {
+      if (postSnap.exists()) {
+        let data = { id: postSnap.id, ...postSnap.data() };
 
-        // If no avatar stored, try fetching from users/{uid}
+        // If missing avatar, try from users/{uid}
         if ((!data.authorPhotoURL || data.authorPhotoURL.trim() === "") && data.uid) {
           const userDoc = await getDoc(doc(db, "users", data.uid));
           if (userDoc.exists()) {
@@ -47,17 +47,19 @@ export default function GroupPostPage() {
           }
         }
 
-        // Final fallback to default avatar
+        // Final fallback to default
         if (!data.authorPhotoURL || data.authorPhotoURL.trim() === "") {
           data.authorPhotoURL = DEFAULT_AVATAR;
         }
 
         setPost(data);
+      } else {
+        setPost(null);
       }
       setLoading(false);
-    };
+    });
 
-    fetchPost();
+    return () => unsubscribe();
   }, [postId, DEFAULT_AVATAR]);
 
   if (loading) return <p className="p-4">Loading post...</p>;
