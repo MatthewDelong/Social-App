@@ -12,7 +12,7 @@ export default function GroupNewPost({ groupId, currentUser }) {
     await addDoc(collection(db, "groupPosts"), {
       groupId,
       author: currentUser.displayName,
-      authorPhotoURL: currentUser.photoURL || "",
+      authorPhotoURL: currentUser.photoURL || "", // ✅ ensure avatar is saved
       uid: currentUser.uid,
       content: content.trim(),
       createdAt: serverTimestamp(),
@@ -29,7 +29,10 @@ export default function GroupNewPost({ groupId, currentUser }) {
         placeholder="Write something..."
         className="w-full p-2 border rounded"
       />
-      <button type="submit" className="px-4 py-2 bg-green-500 text-white rounded">
+      <button
+        type="submit"
+        className="px-4 py-2 bg-green-500 text-white rounded"
+      >
         Post
       </button>
     </form>
