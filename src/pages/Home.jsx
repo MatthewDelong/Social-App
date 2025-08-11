@@ -68,6 +68,7 @@ export default function Home() {
         id: d.id,
         likes: [],
         comments: [],
+        reply: [],
         ...d.data()
       }));
       setPosts(docs);
