@@ -78,16 +78,25 @@
     ├── context/
     │   └── AppContext.jsx
     ├── components/
+    │   ├── groups/
+    │   │   ├── GroupComments.jsx
+    │   │   ├── GroupNewPost.jsx
+    │   │   └── GroupReplies.jsx
     │   ├── ui/
     │   │   ├── button.jsx
     │   │   ├── input.jsx
     │   │   ├── textarea.jsx
     │   │   └── card.jsx
+    │   ├──MembersList
     │   └─ Navbar.jsx
     └── pages/
         ├── AdminDashboard.jsx
         ├── Login.jsx
         ├── Signup.jsx
+        ├── CreateGroup.jsx
+        ├── GroupList.jsx
+        ├── GroupPage.jsx
+        ├── GroupPostPage.jsx
         ├── Home.jsx
         ├── Profile.jsx
         ├── NewPost.jsx
