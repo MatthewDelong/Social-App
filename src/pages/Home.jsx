@@ -1,3 +1,4 @@
+// src/pages/Home.jsx
 import { useEffect, useState } from 'react';
 import {
   collection,
@@ -95,9 +96,13 @@ export default function Home() {
       createdAt: new Date().toISOString(),
       replies: []
     };
-    await updateDoc(postRef, {
-      comments: [...(post.comments || []), newComment]
-    });
+    const updatedComments = [...(post.comments || []), newComment];
+    // update DB
+    await updateDoc(postRef, { comments: updatedComments });
+    // update UI immediately
+    setPosts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, comments: updatedComments } : p))
+    );
     setCommentMap((prev) => ({ ...prev, [id]: '' }));
   };
 
@@ -119,6 +124,10 @@ export default function Home() {
       reply
     ];
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+    // update UI immediately
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
+    );
     setCommentMap((prev) => ({ ...prev, [replyKey]: '' }));
   };
 
@@ -128,8 +137,13 @@ export default function Home() {
     const updatedComments = [...post.comments];
     updatedComments.splice(index, 1);
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+    // update UI immediately
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
+    );
   };
 
+  // ✅ Updated: edit comment updates DB and local posts state immediately
   const handleEditComment = async (postId, index) => {
     const newText = editCommentMap[`${postId}-${index}`];
     if (!newText?.trim()) return;
@@ -137,6 +151,10 @@ export default function Home() {
     const updatedComments = [...post.comments];
     updatedComments[index].text = newText;
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+    // update local state so UI reflects change instantly
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
+    );
     setEditCommentMap((prev) => ({ ...prev, [`${postId}-${index}`]: '' }));
   };
 
@@ -176,15 +194,25 @@ export default function Home() {
     const updatedComments = [...post.comments];
     updatedComments[commentIndex].replies.splice(replyIndex, 1);
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+    // update UI immediately
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
+    );
   };
 
+  // ✅ Also update local posts for edited replies
   const handleEditReply = async (postId, commentIndex, replyIndex) => {
     const key = `${postId}-${commentIndex}-${replyIndex}`;
     const post = posts.find((p) => p.id === postId);
     const updatedComments = [...post.comments];
     updatedComments[commentIndex].replies[replyIndex].text = editReplyMap[key];
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
+    // update UI immediately
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
+    );
     setEditingReplyIndexMap((prev) => ({ ...prev, [key]: false }));
+    setEditReplyMap((prev) => ({ ...prev, [key]: '' }));
   };
 
   // Navigate to a user's profile (assumes route /profile/:uid exists)
@@ -244,8 +272,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-
-            <div className="mt-2 text-gray-900">
+<div className="mt-2 text-gray-900">
               {editingPostId === post.id ? (
                 <div>
                   <textarea
