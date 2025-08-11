@@ -98,9 +98,7 @@ export default function Home() {
       replies: []
     };
     const updatedComments = [...(post.comments || []), newComment];
-    // update DB
     await updateDoc(postRef, { comments: updatedComments });
-    // update UI immediately
     setPosts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, comments: updatedComments } : p))
     );
@@ -125,7 +123,6 @@ export default function Home() {
       reply
     ];
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    // update UI immediately
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
     );
@@ -138,7 +135,6 @@ export default function Home() {
     const updatedComments = [...post.comments];
     updatedComments.splice(index, 1);
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    // update UI immediately
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
     );
@@ -151,7 +147,6 @@ export default function Home() {
     const updatedComments = [...post.comments];
     updatedComments[index].text = newText;
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    // update local state so UI reflects change instantly
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
     );
@@ -194,7 +189,6 @@ export default function Home() {
     const updatedComments = [...post.comments];
     updatedComments[commentIndex].replies.splice(replyIndex, 1);
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    // update UI immediately
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
     );
@@ -206,7 +200,6 @@ export default function Home() {
     const updatedComments = [...post.comments];
     updatedComments[commentIndex].replies[replyIndex].text = editReplyMap[key];
     await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    // update UI immediately
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
     );
@@ -358,7 +351,6 @@ export default function Home() {
                           <p className="text-gray-900">{comment.text}</p>
                         )}
 
-                        {/* Comment owner controls */}
                         {comment.uid === user.uid &&
                           editCommentMap[`${post.id}-${i}`] === undefined && (
                             <div className="space-x-2 mt-1">
@@ -508,22 +500,25 @@ export default function Home() {
                             </button>
                           </div>
                           {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
-                            <div className="relative">
-                              <button
-                                onClick={() => setShowReplyEmojiPicker(prev => ({
-                                  ...prev,
-                                  [`${post.id}-reply-${i}`]: false
-                                }))}
-                                className="absolute top-0 right-0 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
-                                style={{ transform: 'translate(10px, -10px)' }}
-                              >
-                                X
-                              </button>
-                              <EmojiPicker
-                                onEmojiClick={(emoji) =>
-                                  addReplyEmoji(`${post.id}-reply-${i}`, emoji)
-                                }
-                              />
+                            <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
+                              <div className="relative max-w-[350px] mx-auto md:mx-0">
+                                <button
+                                  onClick={() => setShowReplyEmojiPicker(prev => ({
+                                    ...prev,
+                                    [`${post.id}-reply-${i}`]: false
+                                  }))}
+                                  className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                                >
+                                  X
+                                </button>
+                                <EmojiPicker
+                                  width="100%"
+                                  height={350}
+                                  onEmojiClick={(emoji) =>
+                                    addReplyEmoji(`${post.id}-reply-${i}`, emoji)
+                                  }
+                                />
+                              </div>
                             </div>
                           )}
                         </div>
@@ -565,17 +560,20 @@ export default function Home() {
                 </button>
               </div>
               {showEmojiPicker[post.id] && (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowEmojiPicker(prev => ({...prev, [post.id]: false}))}
-                    className="absolute top-0 right-0 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
-                    style={{ transform: 'translate(10px, -10px)' }}
-                  >
-                    X
-                  </button>
-                  <EmojiPicker
-                    onEmojiClick={(emoji) => addEmoji(post.id, emoji)}
-                  />
+                <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
+                  <div className="relative max-w-[350px] mx-auto md:mx-0">
+                    <button
+                      onClick={() => setShowEmojiPicker(prev => ({...prev, [post.id]: false}))}
+                      className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      X
+                    </button>
+                    <EmojiPicker
+                      width="100%"
+                      height={350}
+                      onEmojiClick={(emoji) => addEmoji(post.id, emoji)}
+                    />
+                  </div>
                 </div>
               )}
             </div>
