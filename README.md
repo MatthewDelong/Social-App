@@ -20,6 +20,13 @@
 - npm install emoji-picker-react
 - npx tailwindcss init -p
 
+# Setup for CORS policy (No Errors) Google Cloud SDK
+
+- https://cloud.google.com/sdk/docs/install
+- Change to directory the cors.json is in the root of project.
+- gcloud config set project social-app-8a28d
+- gcloud storage buckets update gs://social-app-8a28d.firebasestorage.app --cors-file=cors.json
+
 # Firebase login/Deploy
 - firebase login
 - firebase init hosting (If you ever need to reset or reconfigure)
