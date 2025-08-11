@@ -195,38 +195,45 @@ export default function Home() {
   };
 
   const handleEditReply = async (postId, commentIndex, replyIndex) => {
-    const key = `${postId}-${commentIndex}-${replyIndex}`;
-    const newText = editReplyMap[key];
-    if (!newText?.trim()) return;
+  const key = `${postId}-${commentIndex}-${replyIndex}`;
 
-    const updatedPosts = posts.map(post => {
-      if (post.id === postId) {
-        const updatedComments = [...post.comments];
-        const updatedReplies = [...updatedComments[commentIndex].replies];
-        updatedReplies[replyIndex] = {
-          ...updatedReplies[replyIndex],
-          text: newText
-        };
-        updatedComments[commentIndex] = {
-          ...updatedComments[commentIndex],
-          replies: updatedReplies
-        };
-        return {
-          ...post,
-          comments: updatedComments
-        };
-      }
-      return post;
-    });
+  setPosts((prevPosts) =>
+    prevPosts.map((p) => {
+      if (p.id !== postId) return p;
 
-    await updateDoc(doc(db, 'posts', postId), { 
-      comments: updatedPosts.find(p => p.id === postId).comments 
-    });
+      const updatedComments = p.comments.map((comment, ci) => {
+        if (ci !== commentIndex) return comment;
 
-    setPosts(updatedPosts);
-    setEditingReplyIndexMap(prev => ({ ...prev, [key]: false }));
-    setEditReplyMap(prev => ({ ...prev, [key]: '' }));
-  };
+        const updatedReplies = comment.replies.map((reply, ri) => {
+          if (ri !== replyIndex) return reply;
+          return { ...reply, text: editReplyMap[key] }; // clone reply
+        });
+
+        return { ...comment, replies: updatedReplies }; // clone comment
+      });
+
+      return { ...p, comments: updatedComments }; // clone post
+    })
+  );
+
+  await updateDoc(doc(db, "posts", postId), {
+    comments: posts.find((p) => p.id === postId)?.comments.map((comment, ci) =>
+      ci === commentIndex
+        ? {
+            ...comment,
+            replies: comment.replies.map((reply, ri) =>
+              ri === replyIndex
+                ? { ...reply, text: editReplyMap[key] }
+                : reply
+            ),
+          }
+        : comment
+    ),
+  });
+
+  setEditingReplyIndexMap((prev) => ({ ...prev, [key]: false }));
+  setEditReplyMap((prev) => ({ ...prev, [key]: "" }));
+};
 
   const goToProfile = (uid) => {
     if (!uid) return;
@@ -433,7 +440,7 @@ export default function Home() {
                                   {editingReplyIndexMap[replyKey] ? (
                                     <div>
                                       <textarea
-                                        value={editReplyMap[replyKey] || ''}
+                                        value={editReplyMap[replyKey]}
                                         onChange={(e) =>
                                           setEditReplyMap((prev) => ({
                                             ...prev,
