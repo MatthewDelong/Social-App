@@ -144,7 +144,6 @@ export default function Home() {
     );
   };
 
-  // ✅ Updated: edit comment updates DB and local posts state immediately
   const handleEditComment = async (postId, index) => {
     const newText = editCommentMap[`${postId}-${index}`];
     if (!newText?.trim()) return;
@@ -201,7 +200,6 @@ export default function Home() {
     );
   };
 
-  // ✅ Also update local posts for edited replies
   const handleEditReply = async (postId, commentIndex, replyIndex) => {
     const key = `${postId}-${commentIndex}-${replyIndex}`;
     const post = posts.find((p) => p.id === postId);
@@ -216,7 +214,6 @@ export default function Home() {
     setEditReplyMap((prev) => ({ ...prev, [key]: '' }));
   };
 
-  // Navigate to a user's profile (assumes route /profile/:uid exists)
   const goToProfile = (uid) => {
     if (!uid) return;
     navigate(`/profile/${uid}`);
@@ -273,7 +270,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-<div className="mt-2 text-gray-900">
+            <div className="mt-2 text-gray-900">
               {editingPostId === post.id ? (
                 <div>
                   <textarea
@@ -511,11 +508,23 @@ export default function Home() {
                             </button>
                           </div>
                           {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
-                            <EmojiPicker
-                              onEmojiClick={(emoji) =>
-                                addReplyEmoji(`${post.id}-reply-${i}`, emoji)
-                              }
-                            />
+                            <div className="relative">
+                              <button
+                                onClick={() => setShowReplyEmojiPicker(prev => ({
+                                  ...prev,
+                                  [`${post.id}-reply-${i}`]: false
+                                }))}
+                                className="absolute top-0 right-0 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                                style={{ transform: 'translate(10px, -10px)' }}
+                              >
+                                X
+                              </button>
+                              <EmojiPicker
+                                onEmojiClick={(emoji) =>
+                                  addReplyEmoji(`${post.id}-reply-${i}`, emoji)
+                                }
+                              />
+                            </div>
                           )}
                         </div>
                       </div>
@@ -556,9 +565,18 @@ export default function Home() {
                 </button>
               </div>
               {showEmojiPicker[post.id] && (
-                <EmojiPicker
-                  onEmojiClick={(emoji) => addEmoji(post.id, emoji)}
-                />
+                <div className="relative">
+                  <button
+                    onClick={() => setShowEmojiPicker(prev => ({...prev, [post.id]: false}))}
+                    className="absolute top-0 right-0 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                    style={{ transform: 'translate(10px, -10px)' }}
+                  >
+                    X
+                  </button>
+                  <EmojiPicker
+                    onEmojiClick={(emoji) => addEmoji(post.id, emoji)}
+                  />
+                </div>
               )}
             </div>
           </div>
