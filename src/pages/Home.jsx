@@ -196,15 +196,36 @@ export default function Home() {
 
   const handleEditReply = async (postId, commentIndex, replyIndex) => {
     const key = `${postId}-${commentIndex}-${replyIndex}`;
-    const post = posts.find((p) => p.id === postId);
-    const updatedComments = [...post.comments];
-    updatedComments[commentIndex].replies[replyIndex].text = editReplyMap[key];
-    await updateDoc(doc(db, 'posts', postId), { comments: updatedComments });
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
-    );
-    setEditingReplyIndexMap((prev) => ({ ...prev, [key]: false }));
-    setEditReplyMap((prev) => ({ ...prev, [key]: '' }));
+    const newText = editReplyMap[key];
+    if (!newText?.trim()) return;
+
+    const updatedPosts = posts.map(post => {
+      if (post.id === postId) {
+        const updatedComments = [...post.comments];
+        const updatedReplies = [...updatedComments[commentIndex].replies];
+        updatedReplies[replyIndex] = {
+          ...updatedReplies[replyIndex],
+          text: newText
+        };
+        updatedComments[commentIndex] = {
+          ...updatedComments[commentIndex],
+          replies: updatedReplies
+        };
+        return {
+          ...post,
+          comments: updatedComments
+        };
+      }
+      return post;
+    });
+
+    await updateDoc(doc(db, 'posts', postId), { 
+      comments: updatedPosts.find(p => p.id === postId).comments 
+    });
+
+    setPosts(updatedPosts);
+    setEditingReplyIndexMap(prev => ({ ...prev, [key]: false }));
+    setEditReplyMap(prev => ({ ...prev, [key]: '' }));
   };
 
   const goToProfile = (uid) => {
@@ -412,7 +433,7 @@ export default function Home() {
                                   {editingReplyIndexMap[replyKey] ? (
                                     <div>
                                       <textarea
-                                        value={editReplyMap[replyKey]}
+                                        value={editReplyMap[replyKey] || ''}
                                         onChange={(e) =>
                                           setEditReplyMap((prev) => ({
                                             ...prev,
