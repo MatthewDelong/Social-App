@@ -11,8 +11,7 @@ export default function GroupPostPage() {
   const { user } = useAppContext();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
-  const DEFAULT_AVATAR =
-    'https://firebasestorage.googleapis.com/v0/b/social-app-8a28d.firebasestorage.app/o/default-avatar.png?alt=media&token=78165d2b-f095-496c-9de2-5e143bfc41cc';
+  const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
