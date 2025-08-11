@@ -1,9 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../firebase";
+import { db, storage } from "../../firebase";
+import { getDownloadURL, ref } from "firebase/storage";
 
 export default function GroupNewPost({ groupId, currentUser }) {
   const [content, setContent] = useState("");
+  const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
+
+  // Load default avatar from storage once
+  useEffect(() => {
+    const loadDefaultAvatar = async () => {
+      try {
+        const defaultRef = ref(storage, "default-avatar.png");
+        const url = await getDownloadURL(defaultRef);
+        setDEFAULT_AVATAR(url);
+      } catch (err) {
+        console.error("Error loading default avatar:", err);
+      }
+    };
+    loadDefaultAvatar();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -12,7 +28,7 @@ export default function GroupNewPost({ groupId, currentUser }) {
     await addDoc(collection(db, "groupPosts"), {
       groupId,
       author: currentUser.displayName,
-      authorPhotoURL: currentUser.photoURL || "", // ✅ ensure avatar is saved
+      authorPhotoURL: currentUser.photoURL || DEFAULT_AVATAR,
       uid: currentUser.uid,
       content: content.trim(),
       createdAt: serverTimestamp(),
