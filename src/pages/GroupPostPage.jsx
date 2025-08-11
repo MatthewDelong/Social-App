@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import GroupComments from "../components/groups/GroupComments";
 import { useEffect, useState } from "react";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
 
@@ -11,9 +11,9 @@ export default function GroupPostPage() {
   const { user } = useAppContext();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
+  const DEFAULT_AVATAR =
+    'https://firebasestorage.googleapis.com/v0/b/social-app-8a28d.firebasestorage.app/o/default-avatar.png?alt=media&token=78165d2b-f095-496c-9de2-5e143bfc41cc';
 
-  // Load default avatar
   useEffect(() => {
     const loadDefaultAvatar = async () => {
       try {
@@ -27,40 +27,26 @@ export default function GroupPostPage() {
     loadDefaultAvatar();
   }, []);
 
-  // Live fetch post + ensure avatar fallback
   useEffect(() => {
-    if (!DEFAULT_AVATAR) return;
+    const fetchPost = async () => {
+      const postDoc = await getDoc(doc(db, "groupPosts", postId));
+      if (postDoc.exists()) {
+        let data = { id: postDoc.id, ...postDoc.data() };
 
-    const postRef = doc(db, "groupPosts", postId);
-    const unsubscribe = onSnapshot(postRef, async (postSnap) => {
-      if (postSnap.exists()) {
-        let data = { id: postSnap.id, ...postSnap.data() };
-
-        // If missing avatar, try from users/{uid}
-        if ((!data.authorPhotoURL || data.authorPhotoURL.trim() === "") && data.uid) {
+        // 🔹 If no avatar stored, try fetching from users/{uid}
+        if (!data.authorPhotoURL && data.uid) {
           const userDoc = await getDoc(doc(db, "users", data.uid));
           if (userDoc.exists()) {
-            const userData = userDoc.data();
-            if (userData.photoURL && userData.photoURL.trim() !== "") {
-              data.authorPhotoURL = userData.photoURL;
-            }
+            data.authorPhotoURL = userDoc.data().photoURL || "";
           }
         }
 
-        // Final fallback to default
-        if (!data.authorPhotoURL || data.authorPhotoURL.trim() === "") {
-          data.authorPhotoURL = DEFAULT_AVATAR;
-        }
-
         setPost(data);
-      } else {
-        setPost(null);
       }
       setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [postId, DEFAULT_AVATAR]);
+    };
+    fetchPost();
+  }, [postId]);
 
   if (loading) return <p className="p-4">Loading post...</p>;
   if (!post) return <p className="p-4">Post not found</p>;
@@ -69,7 +55,7 @@ export default function GroupPostPage() {
     <div className="p-4 max-w-2xl mx-auto">
       <div className="flex items-center space-x-3 mb-4">
         <img
-          src={post.authorPhotoURL}
+          src={post.authorPhotoURL || DEFAULT_AVATAR}
           alt={post.author}
           className="w-10 h-10 rounded-full object-cover"
         />
