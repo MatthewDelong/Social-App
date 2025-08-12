@@ -10,18 +10,21 @@ import {
   doc,
   getDoc,
   deleteDoc,
-  updateDoc,
+  updateDoc
 } from "firebase/firestore";
 import { db, storage } from "../../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
 import GroupReplies from "./GroupReplies";
 
-export default function GroupComments({ postId, currentUser, isAdmin, isModerator }) {
+export default function GroupComments({
+  postId,
+  currentUser,
+  isAdmin,
+  isModerator,
+}) {
   const [comments, setComments] = useState([]);
   const [content, setContent] = useState("");
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
-  const [editingCommentId, setEditingCommentId] = useState(null);
-  const [editingContent, setEditingContent] = useState("");
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
@@ -88,29 +91,11 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
     await deleteDoc(doc(db, "groupComments", commentId));
   };
 
-  const startEditing = (comment) => {
-    setEditingCommentId(comment.id);
-    setEditingContent(comment.content);
-  };
-
-  const cancelEditing = () => {
-    setEditingCommentId(null);
-    setEditingContent("");
-  };
-
-  const saveEdit = async () => {
-    if (!editingContent.trim()) return;
-    const commentRef = doc(db, "groupComments", editingCommentId);
-    await updateDoc(commentRef, { content: editingContent.trim() });
-    setEditingCommentId(null);
-    setEditingContent("");
-  };
-
-  const canEditOrDelete = (comment) => {
-    return (
-      currentUser &&
-      (isAdmin || isModerator || currentUser.uid === comment.uid)
-    );
+  const handleEditComment = async (commentId, newContent) => {
+    if (!newContent.trim()) return;
+    await updateDoc(doc(db, "groupComments", commentId), {
+      content: newContent.trim(),
+    });
   };
 
   return (
@@ -122,70 +107,55 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
           placeholder="Write a comment..."
           className="flex-1 p-2 border rounded"
         />
-        <button type="submit" className="px-3 py-1 bg-blue-500 text-white rounded">
+        <button
+          type="submit"
+          className="px-3 py-1 bg-blue-500 text-white rounded"
+        >
           Post
         </button>
       </form>
 
       <div className="mt-4 space-y-3">
         {comments.map((comment) => (
-          <div key={comment.id} className="border p-2 rounded flex items-start gap-2">
+          <div
+            key={comment.id}
+            className="border p-2 rounded flex items-start gap-2"
+          >
             <img
               src={comment.authorPhotoURL || DEFAULT_AVATAR}
               alt={comment.author}
               className="w-8 h-8 rounded-full object-cover"
             />
             <div className="flex-1">
-              <strong>{comment.author}</strong>:
+              <strong>{comment.author}</strong>: {comment.content}
 
-              {editingCommentId === comment.id ? (
-                <>
-                  <textarea
-                    className="w-full p-1 border rounded mt-1"
-                    value={editingContent}
-                    onChange={(e) => setEditingContent(e.target.value)}
-                  />
-                  <div className="mt-1 space-x-2">
-                    <button
-                      onClick={saveEdit}
-                      className="px-2 py-1 bg-green-500 text-white rounded text-sm"
-                      type="button"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={cancelEditing}
-                      className="px-2 py-1 bg-gray-300 rounded text-sm"
-                      type="button"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <span className="ml-1">{comment.content}</span>
-              )}
-
-              {canEditOrDelete(comment) && editingCommentId !== comment.id && (
-                <div className="mt-1 space-x-2 text-xs">
+              {/* Show Edit/Delete if current user is admin/moderator or comment owner */}
+              {(isAdmin || isModerator || currentUser.uid === comment.uid) && (
+                <div className="mt-1 space-x-2 text-xs text-gray-600">
                   <button
-                    onClick={() => startEditing(comment)}
-                    className="text-blue-600 hover:underline"
-                    type="button"
+                    onClick={() => {
+                      const newContent = prompt(
+                        "Edit your comment:",
+                        comment.content
+                      );
+                      if (newContent !== null) {
+                        handleEditComment(comment.id, newContent);
+                      }
+                    }}
+                    className="text-blue-500 hover:underline"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeleteComment(comment.id)}
-                    className="text-red-600 hover:underline"
-                    type="button"
+                    className="text-red-500 hover:underline"
                   >
                     Delete
                   </button>
                 </div>
               )}
 
-              {/* Replies */}
+              {/* Pass roles down to GroupReplies */}
               <GroupReplies
                 commentId={comment.id}
                 currentUser={currentUser}

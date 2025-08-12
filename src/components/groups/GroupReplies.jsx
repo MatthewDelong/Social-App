@@ -8,8 +8,8 @@ import {
   onSnapshot,
   serverTimestamp,
   deleteDoc,
-  updateDoc,
   doc,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
@@ -21,8 +21,6 @@ export default function GroupReplies({
 }) {
   const [replies, setReplies] = useState([]);
   const [content, setContent] = useState("");
-  const [editingReplyId, setEditingReplyId] = useState(null);
-  const [editingContent, setEditingContent] = useState("");
 
   useEffect(() => {
     if (!commentId) return;
@@ -58,29 +56,11 @@ export default function GroupReplies({
     await deleteDoc(doc(db, "groupReplies", replyId));
   };
 
-  const startEditing = (reply) => {
-    setEditingReplyId(reply.id);
-    setEditingContent(reply.content);
-  };
-
-  const cancelEditing = () => {
-    setEditingReplyId(null);
-    setEditingContent("");
-  };
-
-  const saveEdit = async () => {
-    if (!editingContent.trim()) return;
-    const replyRef = doc(db, "groupReplies", editingReplyId);
-    await updateDoc(replyRef, { content: editingContent.trim() });
-    setEditingReplyId(null);
-    setEditingContent("");
-  };
-
-  const canEditOrDelete = (reply) => {
-    return (
-      currentUser &&
-      (isAdmin || isModerator || currentUser.uid === reply.uid)
-    );
+  const handleEditReply = async (replyId, newContent) => {
+    if (!newContent.trim()) return;
+    await updateDoc(doc(db, "groupReplies", replyId), {
+      content: newContent.trim(),
+    });
   };
 
   return (
@@ -106,49 +86,24 @@ export default function GroupReplies({
             key={reply.id}
             className="border p-1 rounded text-sm flex items-center gap-2"
           >
-            <strong>{reply.author}</strong>:
+            <strong>{reply.author}</strong>: {reply.content}
 
-            {editingReplyId === reply.id ? (
-              <>
-                <input
-                  className="flex-1 p-1 border rounded text-sm"
-                  value={editingContent}
-                  onChange={(e) => setEditingContent(e.target.value)}
-                />
-                <div className="space-x-1">
-                  <button
-                    onClick={saveEdit}
-                    className="px-2 py-1 bg-green-500 text-white rounded text-xs"
-                    type="button"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={cancelEditing}
-                    className="px-2 py-1 bg-gray-300 rounded text-xs"
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </>
-            ) : (
-              <span className="flex-1 ml-1">{reply.content}</span>
-            )}
-
-            {canEditOrDelete(reply) && editingReplyId !== reply.id && (
-              <div className="space-x-2 text-xs flex-shrink-0">
+            {(isAdmin || isModerator || currentUser.uid === reply.uid) && (
+              <div className="ml-auto space-x-2 text-xs text-gray-600">
                 <button
-                  onClick={() => startEditing(reply)}
-                  className="text-blue-600 hover:underline"
-                  type="button"
+                  onClick={() => {
+                    const newContent = prompt("Edit your reply:", reply.content);
+                    if (newContent !== null) {
+                      handleEditReply(reply.id, newContent);
+                    }
+                  }}
+                  className="text-blue-500 hover:underline"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDeleteReply(reply.id)}
-                  className="text-red-600 hover:underline"
-                  type="button"
+                  className="text-red-500 hover:underline"
                 >
                   Delete
                 </button>
