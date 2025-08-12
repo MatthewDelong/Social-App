@@ -70,7 +70,10 @@ export default function GroupPage() {
             try {
               const userDoc = await getDoc(doc(db, "users", post.uid));
               if (userDoc.exists()) {
-                return { ...post, authorPhotoURL: userDoc.data().photoURL || "" };
+                return {
+                  ...post,
+                  authorPhotoURL: userDoc.data().photoURL || "",
+                };
               }
             } catch (err) {
               console.error("Error fetching user photoURL:", err);
@@ -115,29 +118,35 @@ export default function GroupPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Banner Section */}
-      <div className="relative w-full h-40 sm:h-56 md:h-64 overflow-hidden rounded-b-lg cursor-pointer">
-        <img
-          src={group.bannerURL || DEFAULT_BANNER}
-          alt={`${group.name} banner`}
-          className="w-full h-full object-cover"
-          onClick={() => isAdminOrMod && handleImageUpload("bannerURL")}
-        />
-        {/* Logo */}
+      {/* Banner & Logo Section */}
+      <div className="relative">
+        {/* Banner */}
+        <div className="w-full h-40 sm:h-56 md:h-64 overflow-hidden cursor-pointer">
+          <img
+            src={group.bannerURL || DEFAULT_BANNER}
+            alt={`${group.name} banner`}
+            className="w-full h-full object-cover"
+            onClick={() => isAdminOrMod && handleImageUpload("bannerURL")}
+          />
+        </div>
+
+        {/* Logo Overhang */}
         <div
-          className="absolute -bottom-10 left-4 w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden cursor-pointer"
+          className="absolute -bottom-12 left-4 cursor-pointer"
           onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
         >
-          <img
-            src={group.logoURL || DEFAULT_LOGO}
-            alt={`${group.name} logo`}
-            className="w-full h-full object-cover"
-          />
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden shadow-lg">
+            <img
+              src={group.logoURL || DEFAULT_LOGO}
+              alt={`${group.name} logo`}
+              className="w-full h-full object-cover"
+            />
+          </div>
         </div>
       </div>
 
       {/* Group Name and Description */}
-      <div className="mt-12 p-4">
+      <div className="mt-16 p-4">
         <h1 className="text-2xl font-bold">{group.name}</h1>
         <p className="mb-4">{group.description}</p>
       </div>
