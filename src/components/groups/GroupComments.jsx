@@ -83,6 +83,11 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
     setContent("");
   };
 
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm("Are you sure you want to delete this comment?")) return;
+    await deleteDoc(doc(db, "groupComments", commentId));
+  };
+
   const startEditing = (comment) => {
     setEditingCommentId(comment.id);
     setEditingContent(comment.content);
@@ -93,26 +98,18 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
     setEditingContent("");
   };
 
-  const saveEdit = async (commentId) => {
+  const saveEdit = async () => {
     if (!editingContent.trim()) return;
-    const commentRef = doc(db, "groupComments", commentId);
+    const commentRef = doc(db, "groupComments", editingCommentId);
     await updateDoc(commentRef, { content: editingContent.trim() });
     setEditingCommentId(null);
     setEditingContent("");
   };
 
-  const deleteComment = async (commentId) => {
-    const commentRef = doc(db, "groupComments", commentId);
-    await deleteDoc(commentRef);
-    // Optionally, delete related replies here
-  };
-
-  // Helper: check if current user can edit/delete this comment
-  const canModify = (comment) => {
+  const canEditOrDelete = (comment) => {
     return (
-      isAdmin ||
-      isModerator ||
-      (currentUser && currentUser.uid === comment.uid)
+      currentUser &&
+      (isAdmin || isModerator || currentUser.uid === comment.uid)
     );
   };
 
@@ -140,16 +137,17 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
             />
             <div className="flex-1">
               <strong>{comment.author}</strong>:
+
               {editingCommentId === comment.id ? (
                 <>
                   <textarea
-                    className="w-full border rounded p-1 mt-1 text-sm"
+                    className="w-full p-1 border rounded mt-1"
                     value={editingContent}
                     onChange={(e) => setEditingContent(e.target.value)}
                   />
-                  <div className="flex gap-2 mt-1">
+                  <div className="mt-1 space-x-2">
                     <button
-                      onClick={() => saveEdit(comment.id)}
+                      onClick={saveEdit}
                       className="px-2 py-1 bg-green-500 text-white rounded text-sm"
                       type="button"
                     >
@@ -168,18 +166,18 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
                 <span className="ml-1">{comment.content}</span>
               )}
 
-              {canModify(comment) && editingCommentId !== comment.id && (
-                <div className="mt-1 space-x-2 text-xs text-gray-600">
+              {canEditOrDelete(comment) && editingCommentId !== comment.id && (
+                <div className="mt-1 space-x-2 text-xs">
                   <button
                     onClick={() => startEditing(comment)}
-                    className="underline hover:text-blue-600"
+                    className="text-blue-600 hover:underline"
                     type="button"
                   >
                     Edit
                   </button>
                   <button
-                    onClick={() => deleteComment(comment.id)}
-                    className="underline hover:text-red-600"
+                    onClick={() => handleDeleteComment(comment.id)}
+                    className="text-red-600 hover:underline"
                     type="button"
                   >
                     Delete
@@ -187,6 +185,7 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
                 </div>
               )}
 
+              {/* Replies */}
               <GroupReplies
                 commentId={comment.id}
                 currentUser={currentUser}
