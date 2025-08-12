@@ -133,13 +133,13 @@ export default function GroupPostPage() {
         <div className="mb-4 flex gap-2">
           <button
             onClick={startEdit}
-            className="px-4 py-2 bg-yellow-500 text-white rounded"
+            className="text-xs bg-yellow-500 text-black-800 px-2 py-0.5 rounded"
           >
             Edit
           </button>
           <button
             onClick={deletePost}
-            className="px-4 py-2 bg-red-600 text-white rounded"
+            className="text-xs bg-red-500 text-black-800 px-2 py-0.5 rounded"
           >
             Delete
           </button>
