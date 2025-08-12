@@ -38,33 +38,41 @@ export default function GroupComments({ postId, currentUser }) {
 
   useEffect(() => {
     if (!postId) return;
+
     const q = query(
       collection(db, "groupComments"),
       where("postId", "==", postId),
       orderBy("createdAt", "asc")
     );
+
     const unsub = onSnapshot(q, async (snapshot) => {
       const docs = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
         ...docSnap.data(),
       }));
 
+      // Always ensure we have an avatar from users collection
       const updated = await Promise.all(
         docs.map(async (c) => {
-          if (!c.authorPhotoURL && c.uid) {
+          if (c.uid) {
             const userDoc = await getDoc(doc(db, "users", c.uid));
             if (userDoc.exists()) {
-              return { ...c, authorPhotoURL: userDoc.data().photoURL || "" };
+              return {
+                ...c,
+                authorPhotoURL:
+                  userDoc.data().photoURL || DEFAULT_AVATAR,
+              };
             }
           }
-          return c;
+          return { ...c, authorPhotoURL: DEFAULT_AVATAR };
         })
       );
 
       setComments(updated);
     });
+
     return () => unsub();
-  }, [postId]);
+  }, [postId, DEFAULT_AVATAR]);
 
   const canEditOrDeleteComment = (comment) => {
     if (!currentUser) return false;
@@ -75,32 +83,20 @@ export default function GroupComments({ postId, currentUser }) {
   const handleAddComment = async (e) => {
     e.preventDefault();
     if (!content.trim()) return;
-
     await addDoc(collection(db, "groupComments"), {
       postId,
       uid: currentUser.uid,
       author: currentUser.displayName,
-      authorPhotoURL: currentUser.photoURL || "",
+      authorPhotoURL: currentUser.photoURL || DEFAULT_AVATAR,
       content: content.trim(),
       createdAt: serverTimestamp(),
     });
-
     setContent("");
   };
 
   const handleDeleteComment = async (commentId) => {
     if (!window.confirm("Are you sure you want to delete this comment?")) return;
     await deleteDoc(doc(db, "groupComments", commentId));
-  };
-
-  const startEditingComment = (comment) => {
-    setEditingCommentId(comment.id);
-    setEditContent(comment.content);
-  };
-
-  const cancelEditing = () => {
-    setEditingCommentId(null);
-    setEditContent("");
   };
 
   const saveEditedComment = async () => {
@@ -114,13 +110,17 @@ export default function GroupComments({ postId, currentUser }) {
   };
 
   return (
-    <div className="mt-4 ml-6 max-w-full overflow-x-hidden">
-      <form onSubmit={handleAddComment} className="flex gap-2 mb-4">
+    <div className="mt-4">
+      {/* Add Comment Form */}
+      <form
+        onSubmit={handleAddComment}
+        className="flex flex-wrap gap-2 mb-4"
+      >
         <input
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Write a comment..."
-          className="flex-1 p-2 border rounded min-w-0"
+          className="flex-1 min-w-[200px] p-2 border rounded"
         />
         <button
           type="submit"
@@ -130,23 +130,24 @@ export default function GroupComments({ postId, currentUser }) {
         </button>
       </form>
 
+      {/* Comments List */}
       <div className="space-y-3">
         {comments.map((comment) => (
           <div
             key={comment.id}
-            className="border p-2 rounded flex items-start gap-2 w-full max-w-full overflow-x-hidden"
+            className="border p-2 rounded flex flex-wrap sm:flex-nowrap items-start gap-2"
           >
             <img
               src={comment.authorPhotoURL || DEFAULT_AVATAR}
               alt={comment.author}
               className="w-8 h-8 rounded-full object-cover flex-shrink-0"
             />
-            <div className="flex-1 min-w-0 break-words">
-              <strong className="block break-words">{comment.author}</strong>
+            <div className="flex-1 break-words">
+              <strong>{comment.author}</strong>
               {editingCommentId === comment.id ? (
                 <>
                   <textarea
-                    className="w-full p-2 border rounded my-1 break-words"
+                    className="w-full p-2 border rounded my-1"
                     rows={3}
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
@@ -159,7 +160,10 @@ export default function GroupComments({ postId, currentUser }) {
                       Save
                     </button>
                     <button
-                      onClick={cancelEditing}
+                      onClick={() => {
+                        setEditingCommentId(null);
+                        setEditContent("");
+                      }}
                       className="text-red-600 hover:underline"
                     >
                       Cancel
@@ -167,14 +171,17 @@ export default function GroupComments({ postId, currentUser }) {
                   </div>
                 </>
               ) : (
-                <p className="break-words">{comment.content}</p>
+                <p>{comment.content}</p>
               )}
 
-              {(currentUser && canEditOrDeleteComment(comment)) &&
+              {canEditOrDeleteComment(comment) &&
                 editingCommentId !== comment.id && (
-                  <div className="space-x-2 text-sm mt-1 flex flex-wrap">
+                  <div className="space-x-2 text-sm mt-1">
                     <button
-                      onClick={() => startEditingComment(comment)}
+                      onClick={() => {
+                        setEditingCommentId(comment.id);
+                        setEditContent(comment.content);
+                      }}
                       className="text-blue-600 hover:underline"
                     >
                       Edit
@@ -188,14 +195,13 @@ export default function GroupComments({ postId, currentUser }) {
                   </div>
                 )}
 
-              <div className="max-w-full overflow-x-hidden">
-                <GroupReplies
-                  commentId={comment.id}
-                  currentUser={currentUser}
-                  isAdmin={currentUser?.isAdmin}
-                  isModerator={currentUser?.isModerator}
-                />
-              </div>
+              <GroupReplies
+                commentId={comment.id}
+                currentUser={currentUser}
+                isAdmin={currentUser?.isAdmin}
+                isModerator={currentUser?.isModerator}
+                DEFAULT_AVATAR={DEFAULT_AVATAR}
+              />
             </div>
           </div>
         ))}
