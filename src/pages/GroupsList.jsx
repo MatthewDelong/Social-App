@@ -1,15 +1,28 @@
 import { useEffect, useState } from "react";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, storage } from "../firebase";
+import { getDownloadURL, ref } from "firebase/storage";
 import { Link } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 
 export default function GroupList() {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [DEFAULT_LOGO, setDEFAULT_LOGO] = useState("");
   const { user } = useAppContext();
 
   useEffect(() => {
+    // Load default logo from Firebase Storage (same pattern as GroupPage.jsx)
+    const loadDefaults = async () => {
+      try {
+        const logoRef = ref(storage, "default-group-logo.png");
+        setDEFAULT_LOGO(await getDownloadURL(logoRef));
+      } catch (err) {
+        console.error("Error loading default logo:", err);
+      }
+    };
+    loadDefaults();
+
     const q = query(collection(db, "groups"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -28,7 +41,7 @@ export default function GroupList() {
         <h2 className="text-2xl font-bold text-gray-800">Groups</h2>
         {user && groups.length > 0 && (
           <Link
-            to="/create-group"
+            to="/groups/new"
             className="px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
           >
             + Create Group
@@ -43,7 +56,7 @@ export default function GroupList() {
           </p>
           {user ? (
             <Link
-              to="/create-group"
+              to="/groups/new"
               className="px-5 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600 transition"
             >
               + Create Your First Group
@@ -64,7 +77,7 @@ export default function GroupList() {
               {/* Group Logo */}
               <div className="w-16 h-16 flex-shrink-0 rounded-full overflow-hidden border">
                 <img
-                  src={group.logoURL || "/default-group-logo.png"}
+                  src={group.logoURL || DEFAULT_LOGO}
                   alt={`${group.name} logo`}
                   className="w-full h-full object-cover"
                 />
