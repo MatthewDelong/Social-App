@@ -7,19 +7,17 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  doc,
   deleteDoc,
   updateDoc,
-  doc
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
 export default function GroupReplies({ commentId, currentUser, isAdmin, isModerator }) {
   const [replies, setReplies] = useState([]);
   const [content, setContent] = useState("");
-
-  // Editing state
   const [editingReplyId, setEditingReplyId] = useState(null);
-  const [editedReplyContent, setEditedReplyContent] = useState("");
+  const [editingContent, setEditingContent] = useState("");
 
   useEffect(() => {
     if (!commentId) return;
@@ -50,29 +48,36 @@ export default function GroupReplies({ commentId, currentUser, isAdmin, isModera
     setContent("");
   };
 
-  // Delete reply
-  const handleDeleteReply = async (replyId) => {
-    await deleteDoc(doc(db, "groupReplies", replyId));
-  };
-
-  // Edit handlers
-  const startEditingReply = (reply) => {
+  const startEditing = (reply) => {
     setEditingReplyId(reply.id);
-    setEditedReplyContent(reply.content);
+    setEditingContent(reply.content);
   };
 
-  const cancelEditingReply = () => {
+  const cancelEditing = () => {
     setEditingReplyId(null);
-    setEditedReplyContent("");
+    setEditingContent("");
   };
 
-  const saveEditedReply = async () => {
-    if (!editedReplyContent.trim()) return;
-    await updateDoc(doc(db, "groupReplies", editingReplyId), {
-      content: editedReplyContent.trim(),
-    });
+  const saveEdit = async (replyId) => {
+    if (!editingContent.trim()) return;
+    const replyRef = doc(db, "groupReplies", replyId);
+    await updateDoc(replyRef, { content: editingContent.trim() });
     setEditingReplyId(null);
-    setEditedReplyContent("");
+    setEditingContent("");
+  };
+
+  const deleteReply = async (replyId) => {
+    const replyRef = doc(db, "groupReplies", replyId);
+    await deleteDoc(replyRef);
+  };
+
+  // Helper: check if current user can edit/delete this reply
+  const canModify = (reply) => {
+    return (
+      isAdmin ||
+      isModerator ||
+      (currentUser && currentUser.uid === reply.uid)
+    );
   };
 
   return (
@@ -91,30 +96,53 @@ export default function GroupReplies({ commentId, currentUser, isAdmin, isModera
 
       <div className="mt-2 space-y-1">
         {replies.map((reply) => (
-          <div key={reply.id} className="border p-1 rounded text-sm flex items-center gap-2">
-            <strong>{reply.author}</strong>:{" "}
+          <div key={reply.id} className="border p-1 rounded text-sm">
+            <strong>{reply.author}</strong>:
             {editingReplyId === reply.id ? (
               <>
                 <input
-                  type="text"
-                  value={editedReplyContent}
-                  onChange={(e) => setEditedReplyContent(e.target.value)}
-                  className="border rounded p-1 text-xs flex-1"
+                  className="ml-1 border rounded p-1 text-sm w-full"
+                  value={editingContent}
+                  onChange={(e) => setEditingContent(e.target.value)}
                 />
-                <div className="space-x-1">
-                  <button onClick={saveEditedReply} className="text-green-600 text-xs">Save</button>
-                  <button onClick={cancelEditingReply} className="text-red-600 text-xs">Cancel</button>
+                <div className="flex gap-2 mt-1">
+                  <button
+                    onClick={() => saveEdit(reply.id)}
+                    className="px-2 py-1 bg-green-500 text-white rounded text-xs"
+                    type="button"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={cancelEditing}
+                    className="px-2 py-1 bg-gray-300 rounded text-xs"
+                    type="button"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </>
             ) : (
-              reply.content
+              <span className="ml-1">{reply.content}</span>
             )}
 
-            {(currentUser.uid === reply.uid || isAdmin || isModerator) && editingReplyId !== reply.id && (
-              <span className="ml-2 space-x-1 text-xs">
-                <button onClick={() => startEditingReply(reply)}>Edit</button>
-                <button onClick={() => handleDeleteReply(reply.id)}>Delete</button>
-              </span>
+            {canModify(reply) && editingReplyId !== reply.id && (
+              <div className="mt-1 space-x-2 text-xs text-gray-600">
+                <button
+                  onClick={() => startEditing(reply)}
+                  className="underline hover:text-blue-600"
+                  type="button"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteReply(reply.id)}
+                  className="underline hover:text-red-600"
+                  type="button"
+                >
+                  Delete
+                </button>
+              </div>
             )}
           </div>
         ))}

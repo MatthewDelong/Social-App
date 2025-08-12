@@ -11,7 +11,6 @@ import {
   getDoc,
   deleteDoc,
   updateDoc,
-  getDocs
 } from "firebase/firestore";
 import { db, storage } from "../../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
@@ -21,10 +20,8 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
   const [comments, setComments] = useState([]);
   const [content, setContent] = useState("");
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
-
-  // Editing state
   const [editingCommentId, setEditingCommentId] = useState(null);
-  const [editedContent, setEditedContent] = useState("");
+  const [editingContent, setEditingContent] = useState("");
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
@@ -49,7 +46,7 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
     const unsub = onSnapshot(q, async (snapshot) => {
       const docs = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
-        ...docSnap.data()
+        ...docSnap.data(),
       }));
 
       // Fetch missing avatars from users/{uid}
@@ -86,34 +83,37 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
     setContent("");
   };
 
-  // Delete comment and its replies
-  const handleDeleteComment = async (commentId) => {
-    await deleteDoc(doc(db, "groupComments", commentId));
-
-    const repliesQuery = query(collection(db, "groupReplies"), where("commentId", "==", commentId));
-    const repliesSnapshot = await getDocs(repliesQuery);
-    const batchDeletes = repliesSnapshot.docs.map((docSnap) => deleteDoc(doc(db, "groupReplies", docSnap.id)));
-    await Promise.all(batchDeletes);
-  };
-
-  // Edit handlers
-  const startEditingComment = (comment) => {
+  const startEditing = (comment) => {
     setEditingCommentId(comment.id);
-    setEditedContent(comment.content);
+    setEditingContent(comment.content);
   };
 
-  const cancelEditingComment = () => {
+  const cancelEditing = () => {
     setEditingCommentId(null);
-    setEditedContent("");
+    setEditingContent("");
   };
 
-  const saveEditedComment = async () => {
-    if (!editedContent.trim()) return;
-    await updateDoc(doc(db, "groupComments", editingCommentId), {
-      content: editedContent.trim(),
-    });
+  const saveEdit = async (commentId) => {
+    if (!editingContent.trim()) return;
+    const commentRef = doc(db, "groupComments", commentId);
+    await updateDoc(commentRef, { content: editingContent.trim() });
     setEditingCommentId(null);
-    setEditedContent("");
+    setEditingContent("");
+  };
+
+  const deleteComment = async (commentId) => {
+    const commentRef = doc(db, "groupComments", commentId);
+    await deleteDoc(commentRef);
+    // Optionally, delete related replies here
+  };
+
+  // Helper: check if current user can edit/delete this comment
+  const canModify = (comment) => {
+    return (
+      isAdmin ||
+      isModerator ||
+      (currentUser && currentUser.uid === comment.uid)
+    );
   };
 
   return (
@@ -125,10 +125,7 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
           placeholder="Write a comment..."
           className="flex-1 p-2 border rounded"
         />
-        <button
-          type="submit"
-          className="px-3 py-1 bg-blue-500 text-white rounded"
-        >
+        <button type="submit" className="px-3 py-1 bg-blue-500 text-white rounded">
           Post
         </button>
       </form>
@@ -142,28 +139,51 @@ export default function GroupComments({ postId, currentUser, isAdmin, isModerato
               className="w-8 h-8 rounded-full object-cover"
             />
             <div className="flex-1">
-              <strong>{comment.author}</strong>:{" "}
+              <strong>{comment.author}</strong>:
               {editingCommentId === comment.id ? (
                 <>
-                  <input
-                    type="text"
-                    value={editedContent}
-                    onChange={(e) => setEditedContent(e.target.value)}
-                    className="border rounded p-1 text-sm w-full"
+                  <textarea
+                    className="w-full border rounded p-1 mt-1 text-sm"
+                    value={editingContent}
+                    onChange={(e) => setEditingContent(e.target.value)}
                   />
-                  <div className="space-x-2 mt-1">
-                    <button onClick={saveEditedComment} className="text-green-600 text-sm">Save</button>
-                    <button onClick={cancelEditingComment} className="text-red-600 text-sm">Cancel</button>
+                  <div className="flex gap-2 mt-1">
+                    <button
+                      onClick={() => saveEdit(comment.id)}
+                      className="px-2 py-1 bg-green-500 text-white rounded text-sm"
+                      type="button"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelEditing}
+                      className="px-2 py-1 bg-gray-300 rounded text-sm"
+                      type="button"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </>
               ) : (
-                comment.content
+                <span className="ml-1">{comment.content}</span>
               )}
 
-              {(currentUser.uid === comment.uid || isAdmin || isModerator) && editingCommentId !== comment.id && (
+              {canModify(comment) && editingCommentId !== comment.id && (
                 <div className="mt-1 space-x-2 text-xs text-gray-600">
-                  <button onClick={() => startEditingComment(comment)}>Edit</button>
-                  <button onClick={() => handleDeleteComment(comment.id)}>Delete</button>
+                  <button
+                    onClick={() => startEditing(comment)}
+                    className="underline hover:text-blue-600"
+                    type="button"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteComment(comment.id)}
+                    className="underline hover:text-red-600"
+                    type="button"
+                  >
+                    Delete
+                  </button>
                 </div>
               )}
 
