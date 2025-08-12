@@ -9,19 +9,22 @@ import {
   serverTimestamp,
   doc,
   getDoc,
+  deleteDoc,
   updateDoc,
-  deleteDoc
+  getDocs
 } from "firebase/firestore";
 import { db, storage } from "../../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
 import GroupReplies from "./GroupReplies";
 
-export default function GroupComments({ postId, currentUser }) {
+export default function GroupComments({ postId, currentUser, isAdmin, isModerator }) {
   const [comments, setComments] = useState([]);
   const [content, setContent] = useState("");
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
-  const [editId, setEditId] = useState("");
-  const [editContent, setEditContent] = useState("");
+
+  // Editing state
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editedContent, setEditedContent] = useState("");
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
@@ -49,7 +52,7 @@ export default function GroupComments({ postId, currentUser }) {
         ...docSnap.data()
       }));
 
-      // 🔹 Fetch missing avatars from users/{uid}
+      // Fetch missing avatars from users/{uid}
       const updated = await Promise.all(
         docs.map(async (c) => {
           if (!c.authorPhotoURL && c.uid) {
@@ -83,28 +86,34 @@ export default function GroupComments({ postId, currentUser }) {
     setContent("");
   };
 
-  const handleStartEdit = (comment) => {
-    setEditId(comment.id);
-    setEditContent(comment.content || "");
-  };
-
-  const handleCancelEdit = () => {
-    setEditId("");
-    setEditContent("");
-  };
-
-  const handleSaveEdit = async (commentId) => {
-    if (!editContent.trim()) return;
-    await updateDoc(doc(db, "groupComments", commentId), {
-      content: editContent.trim(),
-    });
-    setEditId("");
-    setEditContent("");
-  };
-
+  // Delete comment and its replies
   const handleDeleteComment = async (commentId) => {
-    if (!window.confirm("Delete this comment?")) return;
     await deleteDoc(doc(db, "groupComments", commentId));
+
+    const repliesQuery = query(collection(db, "groupReplies"), where("commentId", "==", commentId));
+    const repliesSnapshot = await getDocs(repliesQuery);
+    const batchDeletes = repliesSnapshot.docs.map((docSnap) => deleteDoc(doc(db, "groupReplies", docSnap.id)));
+    await Promise.all(batchDeletes);
+  };
+
+  // Edit handlers
+  const startEditingComment = (comment) => {
+    setEditingCommentId(comment.id);
+    setEditedContent(comment.content);
+  };
+
+  const cancelEditingComment = () => {
+    setEditingCommentId(null);
+    setEditedContent("");
+  };
+
+  const saveEditedComment = async () => {
+    if (!editedContent.trim()) return;
+    await updateDoc(doc(db, "groupComments", editingCommentId), {
+      content: editedContent.trim(),
+    });
+    setEditingCommentId(null);
+    setEditedContent("");
   };
 
   return (
@@ -133,58 +142,37 @@ export default function GroupComments({ postId, currentUser }) {
               className="w-8 h-8 rounded-full object-cover"
             />
             <div className="flex-1">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <strong>{comment.author}</strong>:
-                  {editId === comment.id ? (
-                    <div className="mt-1 flex gap-2">
-                      <input
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        className="flex-1 p-1 border rounded text-sm"
-                      />
-                    </div>
-                  ) : (
-                    <span> {comment.content}</span>
-                  )}
-                </div>
-                {comment.uid === currentUser.uid && (
-                  <div className="ml-2 flex items-center gap-2">
-                    {editId === comment.id ? (
-                      <>
-                        <button
-                          onClick={() => handleSaveEdit(comment.id)}
-                          className="px-2 py-1 bg-blue-500 text-white rounded text-sm"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={handleCancelEdit}
-                          className="px-2 py-1 bg-gray-300 rounded text-sm"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handleStartEdit(comment)}
-                          className="text-blue-500 text-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteComment(comment.id)}
-                          className="text-red-500 text-sm"
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
+              <strong>{comment.author}</strong>:{" "}
+              {editingCommentId === comment.id ? (
+                <>
+                  <input
+                    type="text"
+                    value={editedContent}
+                    onChange={(e) => setEditedContent(e.target.value)}
+                    className="border rounded p-1 text-sm w-full"
+                  />
+                  <div className="space-x-2 mt-1">
+                    <button onClick={saveEditedComment} className="text-green-600 text-sm">Save</button>
+                    <button onClick={cancelEditingComment} className="text-red-600 text-sm">Cancel</button>
                   </div>
-                )}
-              </div>
-              <GroupReplies commentId={comment.id} currentUser={currentUser} />
+                </>
+              ) : (
+                comment.content
+              )}
+
+              {(currentUser.uid === comment.uid || isAdmin || isModerator) && editingCommentId !== comment.id && (
+                <div className="mt-1 space-x-2 text-xs text-gray-600">
+                  <button onClick={() => startEditingComment(comment)}>Edit</button>
+                  <button onClick={() => handleDeleteComment(comment.id)}>Delete</button>
+                </div>
+              )}
+
+              <GroupReplies
+                commentId={comment.id}
+                currentUser={currentUser}
+                isAdmin={isAdmin}
+                isModerator={isModerator}
+              />
             </div>
           </div>
         ))}

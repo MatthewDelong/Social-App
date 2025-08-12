@@ -1,12 +1,25 @@
 import { useEffect, useState } from "react";
-import { collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  serverTimestamp,
+  deleteDoc,
+  updateDoc,
+  doc
+} from "firebase/firestore";
 import { db } from "../../firebase";
 
-export default function GroupReplies({ commentId, currentUser }) {
+export default function GroupReplies({ commentId, currentUser, isAdmin, isModerator }) {
   const [replies, setReplies] = useState([]);
   const [content, setContent] = useState("");
-  const [editId, setEditId] = useState("");
-  const [editContent, setEditContent] = useState("");
+
+  // Editing state
+  const [editingReplyId, setEditingReplyId] = useState(null);
+  const [editedReplyContent, setEditedReplyContent] = useState("");
 
   useEffect(() => {
     if (!commentId) return;
@@ -37,28 +50,29 @@ export default function GroupReplies({ commentId, currentUser }) {
     setContent("");
   };
 
-  const handleStartEdit = (reply) => {
-    setEditId(reply.id);
-    setEditContent(reply.content || "");
-  };
-
-  const handleCancelEdit = () => {
-    setEditId("");
-    setEditContent("");
-  };
-
-  const handleSaveEdit = async (replyId) => {
-    if (!editContent.trim()) return;
-    await updateDoc(doc(db, "groupReplies", replyId), {
-      content: editContent.trim(),
-    });
-    setEditId("");
-    setEditContent("");
-  };
-
+  // Delete reply
   const handleDeleteReply = async (replyId) => {
-    if (!window.confirm("Delete this reply?")) return;
     await deleteDoc(doc(db, "groupReplies", replyId));
+  };
+
+  // Edit handlers
+  const startEditingReply = (reply) => {
+    setEditingReplyId(reply.id);
+    setEditedReplyContent(reply.content);
+  };
+
+  const cancelEditingReply = () => {
+    setEditingReplyId(null);
+    setEditedReplyContent("");
+  };
+
+  const saveEditedReply = async () => {
+    if (!editedReplyContent.trim()) return;
+    await updateDoc(doc(db, "groupReplies", editingReplyId), {
+      content: editedReplyContent.trim(),
+    });
+    setEditingReplyId(null);
+    setEditedReplyContent("");
   };
 
   return (
@@ -77,59 +91,31 @@ export default function GroupReplies({ commentId, currentUser }) {
 
       <div className="mt-2 space-y-1">
         {replies.map((reply) => (
-          <div key={reply.id} className="border p-1 rounded text-sm">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <strong>{reply.author}</strong>:
-                {editId === reply.id ? (
-                  <div className="mt-1 flex gap-2">
-                    <input
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      className="flex-1 p-1 border rounded text-sm"
-                    />
-                  </div>
-                ) : (
-                  <span> {reply.content}</span>
-                )}
-              </div>
-
-              {reply.uid === currentUser.uid && (
-                <div className="ml-4 flex items-center gap-2">
-                  {editId === reply.id ? (
-                    <>
-                      <button
-                        onClick={() => handleSaveEdit(reply.id)}
-                        className="px-2 py-1 bg-blue-500 text-white rounded text-sm"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        className="px-2 py-1 bg-gray-300 rounded text-sm"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => handleStartEdit(reply)}
-                        className="text-blue-500 text-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteReply(reply.id)}
-                        className="text-red-500 text-sm"
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
+          <div key={reply.id} className="border p-1 rounded text-sm flex items-center gap-2">
+            <strong>{reply.author}</strong>:{" "}
+            {editingReplyId === reply.id ? (
+              <>
+                <input
+                  type="text"
+                  value={editedReplyContent}
+                  onChange={(e) => setEditedReplyContent(e.target.value)}
+                  className="border rounded p-1 text-xs flex-1"
+                />
+                <div className="space-x-1">
+                  <button onClick={saveEditedReply} className="text-green-600 text-xs">Save</button>
+                  <button onClick={cancelEditingReply} className="text-red-600 text-xs">Cancel</button>
                 </div>
-              )}
-            </div>
+              </>
+            ) : (
+              reply.content
+            )}
+
+            {(currentUser.uid === reply.uid || isAdmin || isModerator) && editingReplyId !== reply.id && (
+              <span className="ml-2 space-x-1 text-xs">
+                <button onClick={() => startEditingReply(reply)}>Edit</button>
+                <button onClick={() => handleDeleteReply(reply.id)}>Delete</button>
+              </span>
+            )}
           </div>
         ))}
       </div>
