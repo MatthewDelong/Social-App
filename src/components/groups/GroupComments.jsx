@@ -8,7 +8,9 @@ import {
   onSnapshot,
   serverTimestamp,
   doc,
-  getDoc
+  getDoc,
+  updateDoc,
+  deleteDoc
 } from "firebase/firestore";
 import { db, storage } from "../../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
@@ -18,6 +20,8 @@ export default function GroupComments({ postId, currentUser }) {
   const [comments, setComments] = useState([]);
   const [content, setContent] = useState("");
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
+  const [editId, setEditId] = useState("");
+  const [editContent, setEditContent] = useState("");
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
@@ -79,6 +83,30 @@ export default function GroupComments({ postId, currentUser }) {
     setContent("");
   };
 
+  const handleStartEdit = (comment) => {
+    setEditId(comment.id);
+    setEditContent(comment.content || "");
+  };
+
+  const handleCancelEdit = () => {
+    setEditId("");
+    setEditContent("");
+  };
+
+  const handleSaveEdit = async (commentId) => {
+    if (!editContent.trim()) return;
+    await updateDoc(doc(db, "groupComments", commentId), {
+      content: editContent.trim(),
+    });
+    setEditId("");
+    setEditContent("");
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm("Delete this comment?")) return;
+    await deleteDoc(doc(db, "groupComments", commentId));
+  };
+
   return (
     <div className="mt-4">
       <form onSubmit={handleAddComment} className="flex gap-2">
@@ -104,8 +132,58 @@ export default function GroupComments({ postId, currentUser }) {
               alt={comment.author}
               className="w-8 h-8 rounded-full object-cover"
             />
-            <div>
-              <strong>{comment.author}</strong>: {comment.content}
+            <div className="flex-1">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <strong>{comment.author}</strong>:
+                  {editId === comment.id ? (
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        className="flex-1 p-1 border rounded text-sm"
+                      />
+                    </div>
+                  ) : (
+                    <span> {comment.content}</span>
+                  )}
+                </div>
+                {comment.uid === currentUser.uid && (
+                  <div className="ml-2 flex items-center gap-2">
+                    {editId === comment.id ? (
+                      <>
+                        <button
+                          onClick={() => handleSaveEdit(comment.id)}
+                          className="px-2 py-1 bg-blue-500 text-white rounded text-sm"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-2 py-1 bg-gray-300 rounded text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleStartEdit(comment)}
+                          className="text-blue-500 text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="text-red-500 text-sm"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
               <GroupReplies commentId={comment.id} currentUser={currentUser} />
             </div>
           </div>
