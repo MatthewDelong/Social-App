@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, storage } from "../firebase";  // add storage import
+import { getDownloadURL, ref } from "firebase/storage"; // add storage methods
 import { useAppContext } from "../context/AppContext";
 import GroupNewPost from "../components/groups/GroupNewPost";
 
@@ -11,6 +12,21 @@ export default function GroupPage() {
   const [group, setGroup] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
+
+  // Load default avatar from storage once
+  useEffect(() => {
+    const loadDefaultAvatar = async () => {
+      try {
+        const defaultRef = ref(storage, "default-avatar.png");
+        const url = await getDownloadURL(defaultRef);
+        setDEFAULT_AVATAR(url);
+      } catch (err) {
+        console.error("Error loading default avatar:", err);
+      }
+    };
+    loadDefaultAvatar();
+  }, []);
 
   useEffect(() => {
     const fetchGroup = async () => {
@@ -26,9 +42,28 @@ export default function GroupPage() {
       where("groupId", "==", groupId),
       orderBy("createdAt", "desc")
     );
-    const unsub = onSnapshot(q, (snapshot) => {
+
+    const unsub = onSnapshot(q, async (snapshot) => {
       const list = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setPosts(list);
+
+      // Fetch missing authorPhotoURL for posts if not present
+      const updatedList = await Promise.all(
+        list.map(async (post) => {
+          if (!post.authorPhotoURL && post.uid) {
+            try {
+              const userDoc = await getDoc(doc(db, "users", post.uid));
+              if (userDoc.exists()) {
+                return { ...post, authorPhotoURL: userDoc.data().photoURL || "" };
+              }
+            } catch (err) {
+              console.error("Error fetching user photoURL:", err);
+            }
+          }
+          return post;
+        })
+      );
+
+      setPosts(updatedList);
       setLoading(false);
     });
 
@@ -50,12 +85,19 @@ export default function GroupPage() {
           <p>No posts yet.</p>
         ) : (
           posts.map((post) => (
-            <div key={post.id} className="border p-3 rounded">
-              <p className="font-semibold">{post.author}</p>
-              <p>{post.content}</p>
-              <Link to={`/groups/${groupId}/post/${post.id}`} className="text-blue-500">
-                View Comments
-              </Link>
+            <div key={post.id} className="border p-3 rounded flex items-center gap-3">
+              <img
+                src={post.authorPhotoURL || DEFAULT_AVATAR}
+                alt={post.author}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <div className="flex-1">
+                <p className="font-semibold">{post.author}</p>
+                <p>{post.content}</p>
+                <Link to={`/groups/${groupId}/post/${post.id}`} className="text-blue-500">
+                  View Comments
+                </Link>
+              </div>
             </div>
           ))
         )}
