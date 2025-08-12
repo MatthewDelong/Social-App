@@ -87,8 +87,10 @@
     │   │   ├── input.jsx
     │   │   ├── textarea.jsx
     │   │   └── card.jsx
-    │   ├──MembersList
-    │   └─ Navbar.jsx
+    │   ├── Footer.jsx
+    │   ├── Layout.jsx
+    │   ├── MembersList
+    │   └─  Navbar.jsx
     └── pages/
         ├── AdminDashboard.jsx
         ├── Login.jsx
@@ -100,7 +102,8 @@
         ├── Home.jsx
         ├── Profile.jsx
         ├── NewPost.jsx
-        └── ProfileSettings.jsx
+        ├── ProfileSettings.jsx
+        └── UserProfiles.jsx
   ```
 ---
 
