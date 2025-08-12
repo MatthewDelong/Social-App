@@ -188,7 +188,13 @@ export default function GroupComments({ postId, currentUser }) {
                 </div>
               )}
 
-              <GroupReplies commentId={comment.id} currentUser={currentUser} />
+              {/* Pass isAdmin and isModerator to GroupReplies */}
+              <GroupReplies
+                commentId={comment.id}
+                currentUser={currentUser}
+                isAdmin={currentUser?.isAdmin}
+                isModerator={currentUser?.isModerator}
+              />
             </div>
           </div>
         ))}
