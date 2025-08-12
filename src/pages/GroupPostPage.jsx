@@ -92,14 +92,14 @@ export default function GroupPostPage() {
   };
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
+    <div className="p-4 max-w-2xl mx-auto w-full box-border">
       <div className="flex items-center space-x-3 mb-4">
         <img
           src={post.authorPhotoURL || DEFAULT_AVATAR}
           alt={post.author}
-          className="w-10 h-10 rounded-full object-cover"
+          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
         />
-        <h2 className="text-xl font-bold">{post.author}</h2>
+        <h2 className="text-xl font-bold break-words">{post.author}</h2>
       </div>
 
       {isEditing ? (
@@ -108,7 +108,7 @@ export default function GroupPostPage() {
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
             rows={4}
-            className="w-full p-2 border rounded resize-none"
+            className="w-full p-2 border rounded resize-none break-words"
           />
           <div className="mt-2 space-x-2">
             <button
@@ -126,11 +126,11 @@ export default function GroupPostPage() {
           </div>
         </div>
       ) : (
-        <p className="mb-4 whitespace-pre-wrap">{post.content}</p>
+        <p className="mb-4 whitespace-pre-wrap break-words">{post.content}</p>
       )}
 
       {canEditOrDelete && !isEditing && (
-        <div className="mb-4 flex gap-2">
+        <div className="mb-4 flex flex-wrap gap-2">
           <button
             onClick={startEdit}
             className="px-4 py-2 bg-yellow-500 text-white rounded"
