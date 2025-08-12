@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
-import { db, storage } from "../firebase";  // add storage import
-import { getDownloadURL, ref } from "firebase/storage"; // add storage methods
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  updateDoc,
+} from "firebase/firestore";
+import { db, storage } from "../firebase";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { useAppContext } from "../context/AppContext";
 import GroupNewPost from "../components/groups/GroupNewPost";
 
@@ -13,21 +22,30 @@ export default function GroupPage() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
+  const [DEFAULT_BANNER, setDEFAULT_BANNER] = useState("");
+  const [DEFAULT_LOGO, setDEFAULT_LOGO] = useState("");
 
-  // Load default avatar from storage once
+  const isAdminOrMod = user?.isAdmin || user?.isModerator;
+
+  // Load defaults once
   useEffect(() => {
-    const loadDefaultAvatar = async () => {
+    const loadDefaults = async () => {
       try {
-        const defaultRef = ref(storage, "default-avatar.png");
-        const url = await getDownloadURL(defaultRef);
-        setDEFAULT_AVATAR(url);
+        const avatarRef = ref(storage, "default-avatar.png");
+        const bannerRef = ref(storage, "default-banner.jpg");
+        const logoRef = ref(storage, "default-group-logo.png");
+
+        setDEFAULT_AVATAR(await getDownloadURL(avatarRef));
+        setDEFAULT_BANNER(await getDownloadURL(bannerRef));
+        setDEFAULT_LOGO(await getDownloadURL(logoRef));
       } catch (err) {
-        console.error("Error loading default avatar:", err);
+        console.error("Error loading default images:", err);
       }
     };
-    loadDefaultAvatar();
+    loadDefaults();
   }, []);
 
+  // Fetch group & posts
   useEffect(() => {
     const fetchGroup = async () => {
       const groupDoc = await getDoc(doc(db, "groups", groupId));
@@ -46,7 +64,6 @@ export default function GroupPage() {
     const unsub = onSnapshot(q, async (snapshot) => {
       const list = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-      // Fetch missing authorPhotoURL for posts if not present
       const updatedList = await Promise.all(
         list.map(async (post) => {
           if (!post.authorPhotoURL && post.uid) {
@@ -70,22 +87,74 @@ export default function GroupPage() {
     return () => unsub();
   }, [groupId]);
 
+  // Image uploader for banner/logo
+  const handleImageUpload = async (type) => {
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const storagePath = `groups/${groupId}/${type}-${Date.now()}.jpg`;
+        const storageRef = ref(storage, storagePath);
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+
+        await updateDoc(doc(db, "groups", groupId), { [type]: url });
+        setGroup((prev) => ({ ...prev, [type]: url }));
+      } catch (err) {
+        console.error(`Error uploading ${type}:`, err);
+      }
+    };
+    fileInput.click();
+  };
+
   if (!group) return <p className="p-4">Group not found</p>;
   if (loading) return <p className="p-4">Loading posts...</p>;
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold">{group.name}</h1>
-      <p className="mb-4">{group.description}</p>
+    <div className="max-w-2xl mx-auto">
+      {/* Banner Section */}
+      <div className="relative w-full h-40 sm:h-56 md:h-64 overflow-hidden rounded-b-lg cursor-pointer">
+        <img
+          src={group.bannerURL || DEFAULT_BANNER}
+          alt={`${group.name} banner`}
+          className="w-full h-full object-cover"
+          onClick={() => isAdminOrMod && handleImageUpload("bannerURL")}
+        />
+        {/* Logo */}
+        <div
+          className="absolute -bottom-10 left-4 w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden cursor-pointer"
+          onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
+        >
+          <img
+            src={group.logoURL || DEFAULT_LOGO}
+            alt={`${group.name} logo`}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      </div>
 
+      {/* Group Name and Description */}
+      <div className="mt-12 p-4">
+        <h1 className="text-2xl font-bold">{group.name}</h1>
+        <p className="mb-4">{group.description}</p>
+      </div>
+
+      {/* New Post */}
       <GroupNewPost groupId={groupId} currentUser={user} />
 
-      <div className="space-y-4 mt-4">
+      {/* Posts List */}
+      <div className="space-y-4 mt-4 p-4">
         {posts.length === 0 ? (
           <p>No posts yet.</p>
         ) : (
           posts.map((post) => (
-            <div key={post.id} className="border p-3 rounded flex items-center gap-3">
+            <div
+              key={post.id}
+              className="border p-3 rounded flex items-center gap-3"
+            >
               <img
                 src={post.authorPhotoURL || DEFAULT_AVATAR}
                 alt={post.author}
@@ -94,7 +163,10 @@ export default function GroupPage() {
               <div className="flex-1">
                 <p className="font-semibold">{post.author}</p>
                 <p>{post.content}</p>
-                <Link to={`/groups/${groupId}/post/${post.id}`} className="text-blue-500">
+                <Link
+                  to={`/groups/${groupId}/post/${post.id}`}
+                  className="text-blue-500"
+                >
                   View Comments
                 </Link>
               </div>
