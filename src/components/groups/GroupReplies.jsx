@@ -17,7 +17,7 @@ import { getDownloadURL, ref } from "firebase/storage";
 
 export default function GroupReplies({
   commentId,
-  parentReplyId = null,  // new prop for nested replies, default null
+  parentReplyId = null,
   currentUser,
   isAdmin,
   isModerator,
@@ -28,7 +28,6 @@ export default function GroupReplies({
   const [editContent, setEditContent] = useState("");
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
 
-  // Load default avatar once
   useEffect(() => {
     const loadDefaultAvatar = async () => {
       try {
@@ -42,7 +41,6 @@ export default function GroupReplies({
     loadDefaultAvatar();
   }, []);
 
-  // Fetch replies filtered by commentId and parentReplyId
   useEffect(() => {
     if (!commentId) return;
 
@@ -84,7 +82,7 @@ export default function GroupReplies({
 
     await addDoc(collection(db, "groupReplies"), {
       commentId,
-      parentReplyId,  // save parentReplyId (null for top-level)
+      parentReplyId,
       uid: currentUser.uid,
       author: currentUser.displayName,
       authorPhotoURL: currentUser.photoURL || "",
@@ -125,18 +123,21 @@ export default function GroupReplies({
 
   const canEditOrDelete = (reply) => {
     if (!currentUser) return false;
-    const isOwner = reply.uid === currentUser.uid;
-    return isOwner || isAdmin || isModerator;
+    return reply.uid === currentUser.uid || isAdmin || isModerator;
   };
 
   return (
-    <div className={parentReplyId ? "ml-6 mt-2" : "mt-2 ml-6"}>
-      <form onSubmit={handleAddReply} className="flex gap-2 mb-1">
+    <div
+      className={`mt-2 ml-6 w-full max-w-full overflow-x-hidden ${
+        parentReplyId ? "pl-4" : ""
+      }`}
+    >
+      <form onSubmit={handleAddReply} className="flex gap-2 mb-1 w-full max-w-full">
         <input
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Write a reply..."
-          className="flex-1 p-1 border rounded text-sm"
+          className="flex-1 p-1 border rounded text-sm min-w-0"
         />
         <button
           type="submit"
@@ -150,24 +151,24 @@ export default function GroupReplies({
         {replies.map((reply) => (
           <div
             key={reply.id}
-            className="border p-1 rounded text-sm flex items-center gap-2"
+            className="border p-1 rounded text-sm flex items-start gap-2 w-full max-w-full overflow-x-hidden"
           >
             <img
               src={reply.authorPhotoURL || DEFAULT_AVATAR}
               alt={reply.author}
-              className="w-6 h-6 rounded-full object-cover"
+              className="w-6 h-6 rounded-full object-cover flex-shrink-0"
             />
-            <div className="flex-1">
-              <strong>{reply.author}</strong>:{" "}
+            <div className="flex-1 min-w-0 break-words">
+              <strong className="break-words">{reply.author}</strong>:{" "}
               {editReplyId === reply.id ? (
                 <form
                   onSubmit={handleUpdateReply}
-                  className="inline-flex gap-2 items-center"
+                  className="inline-flex gap-2 items-center w-full max-w-full"
                 >
                   <input
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="p-1 border rounded text-sm"
+                    className="p-1 border rounded text-sm flex-1 min-w-0 break-words"
                   />
                   <button
                     type="submit"
@@ -184,11 +185,11 @@ export default function GroupReplies({
                   </button>
                 </form>
               ) : (
-                reply.content
+                <span className="break-words">{reply.content}</span>
               )}
 
               {canEditOrDelete(reply) && editReplyId !== reply.id && (
-                <span className="ml-2 space-x-2 text-xs text-gray-600">
+                <span className="ml-2 space-x-2 text-xs text-gray-600 flex flex-wrap">
                   <button
                     onClick={() => handleEditReply(reply)}
                     className="text-blue-500 hover:underline"
@@ -204,14 +205,15 @@ export default function GroupReplies({
                 </span>
               )}
 
-              {/* Recursive nested replies */}
-              <GroupReplies
-                commentId={commentId}
-                parentReplyId={reply.id}
-                currentUser={currentUser}
-                isAdmin={isAdmin}
-                isModerator={isModerator}
-              />
+              <div className="max-w-full overflow-x-hidden">
+                <GroupReplies
+                  commentId={commentId}
+                  parentReplyId={reply.id}
+                  currentUser={currentUser}
+                  isAdmin={isAdmin}
+                  isModerator={isModerator}
+                />
+              </div>
             </div>
           </div>
         ))}

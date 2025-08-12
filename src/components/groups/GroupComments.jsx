@@ -49,7 +49,6 @@ export default function GroupComments({ postId, currentUser }) {
         ...docSnap.data(),
       }));
 
-      // Fetch missing avatars from users/{uid}
       const updated = await Promise.all(
         docs.map(async (c) => {
           if (!c.authorPhotoURL && c.uid) {
@@ -115,13 +114,13 @@ export default function GroupComments({ postId, currentUser }) {
   };
 
   return (
-    <div className="mt-4 ml-6">
+    <div className="mt-4 ml-6 max-w-full overflow-x-hidden">
       <form onSubmit={handleAddComment} className="flex gap-2 mb-4">
         <input
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Write a comment..."
-          className="flex-1 p-2 border rounded"
+          className="flex-1 p-2 border rounded min-w-0"
         />
         <button
           type="submit"
@@ -135,19 +134,19 @@ export default function GroupComments({ postId, currentUser }) {
         {comments.map((comment) => (
           <div
             key={comment.id}
-            className="border p-2 rounded flex items-start gap-2"
+            className="border p-2 rounded flex items-start gap-2 w-full max-w-full overflow-x-hidden"
           >
             <img
               src={comment.authorPhotoURL || DEFAULT_AVATAR}
               alt={comment.author}
-              className="w-8 h-8 rounded-full object-cover"
+              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
             />
-            <div className="flex-1">
-              <strong>{comment.author}</strong>
+            <div className="flex-1 min-w-0 break-words">
+              <strong className="block break-words">{comment.author}</strong>
               {editingCommentId === comment.id ? (
                 <>
                   <textarea
-                    className="w-full p-2 border rounded my-1"
+                    className="w-full p-2 border rounded my-1 break-words"
                     rows={3}
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
@@ -168,33 +167,35 @@ export default function GroupComments({ postId, currentUser }) {
                   </div>
                 </>
               ) : (
-                <p>{comment.content}</p>
+                <p className="break-words">{comment.content}</p>
               )}
 
-              {(currentUser && canEditOrDeleteComment(comment)) && editingCommentId !== comment.id && (
-                <div className="space-x-2 text-sm mt-1">
-                  <button
-                    onClick={() => startEditingComment(comment)}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteComment(comment.id)}
-                    className="text-red-600 hover:underline"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
+              {(currentUser && canEditOrDeleteComment(comment)) &&
+                editingCommentId !== comment.id && (
+                  <div className="space-x-2 text-sm mt-1 flex flex-wrap">
+                    <button
+                      onClick={() => startEditingComment(comment)}
+                      className="text-blue-600 hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteComment(comment.id)}
+                      className="text-red-600 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
 
-              {/* Pass isAdmin and isModerator to GroupReplies */}
-              <GroupReplies
-                commentId={comment.id}
-                currentUser={currentUser}
-                isAdmin={currentUser?.isAdmin}
-                isModerator={currentUser?.isModerator}
-              />
+              <div className="max-w-full overflow-x-hidden">
+                <GroupReplies
+                  commentId={comment.id}
+                  currentUser={currentUser}
+                  isAdmin={currentUser?.isAdmin}
+                  isModerator={currentUser?.isModerator}
+                />
+              </div>
             </div>
           </div>
         ))}
