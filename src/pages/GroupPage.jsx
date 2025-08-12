@@ -9,6 +9,9 @@ import {
   orderBy,
   onSnapshot,
   updateDoc,
+  setDoc,
+  deleteDoc,
+  getDocs,
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -18,16 +21,21 @@ import GroupNewPost from "../components/groups/GroupNewPost";
 export default function GroupPage() {
   const { groupId } = useParams();
   const { user } = useAppContext();
+
   const [group, setGroup] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
   const [DEFAULT_BANNER, setDEFAULT_BANNER] = useState("");
   const [DEFAULT_LOGO, setDEFAULT_LOGO] = useState("");
 
+  const [isMember, setIsMember] = useState(false);
+  const [members, setMembers] = useState([]);
+
   const isAdminOrMod = user?.isAdmin || user?.isModerator;
 
-  // Load defaults once
+  // Load default images from storage
   useEffect(() => {
     const loadDefaults = async () => {
       try {
@@ -45,7 +53,7 @@ export default function GroupPage() {
     loadDefaults();
   }, []);
 
-  // Fetch group & posts
+  // Fetch group data, posts, and members
   useEffect(() => {
     const fetchGroup = async () => {
       const groupDoc = await getDoc(doc(db, "groups", groupId));
@@ -55,24 +63,28 @@ export default function GroupPage() {
     };
     fetchGroup();
 
-    const q = query(
+    // Posts listener
+    const postsQuery = query(
       collection(db, "groupPosts"),
       where("groupId", "==", groupId),
       orderBy("createdAt", "desc")
     );
 
-    const unsub = onSnapshot(q, async (snapshot) => {
-      const list = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const unsubPosts = onSnapshot(postsQuery, async (snapshot) => {
+      const rawPosts = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-      const updatedList = await Promise.all(
-        list.map(async (post) => {
+      const enrichedPosts = await Promise.all(
+        rawPosts.map(async (post) => {
           if (!post.authorPhotoURL && post.uid) {
             try {
               const userDoc = await getDoc(doc(db, "users", post.uid));
               if (userDoc.exists()) {
                 return {
                   ...post,
-                  authorPhotoURL: userDoc.data().photoURL || "",
+                  authorPhotoURL: userDoc.data().photoURL || DEFAULT_AVATAR,
                 };
               }
             } catch (err) {
@@ -83,14 +95,55 @@ export default function GroupPage() {
         })
       );
 
-      setPosts(updatedList);
+      setPosts(enrichedPosts);
       setLoading(false);
     });
 
-    return () => unsub();
-  }, [groupId]);
+    // Members fetch
+    const fetchMembers = async () => {
+      const membersCol = collection(db, "groups", groupId, "members");
+      const snapshot = await getDocs(membersCol);
+      setMembers(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
 
-  // Image uploader for banner/logo
+      if (user) {
+        const memberRef = doc(db, "groups", groupId, "members", user.uid);
+        const memberSnap = await getDoc(memberRef);
+        setIsMember(memberSnap.exists());
+      }
+    };
+    fetchMembers();
+
+    return () => unsubPosts();
+  }, [groupId, user, DEFAULT_AVATAR]);
+
+  // Join group
+  const joinGroup = async () => {
+    if (!user) return;
+    await setDoc(doc(db, "groups", groupId, "members", user.uid), {
+      displayName: user.displayName || "Anonymous",
+      photoURL: user.photoURL || DEFAULT_AVATAR,
+      joinedAt: new Date(),
+    });
+    setIsMember(true);
+    setMembers((prev) => [
+      ...prev,
+      {
+        id: user.uid,
+        displayName: user.displayName || "Anonymous",
+        photoURL: user.photoURL || DEFAULT_AVATAR,
+      },
+    ]);
+  };
+
+  // Leave group
+  const leaveGroup = async () => {
+    if (!user) return;
+    await deleteDoc(doc(db, "groups", groupId, "members", user.uid));
+    setIsMember(false);
+    setMembers((prev) => prev.filter((m) => m.id !== user.uid));
+  };
+
+  // Banner / logo uploader
   const handleImageUpload = async (type) => {
     const fileInput = document.createElement("input");
     fileInput.type = "file";
@@ -118,7 +171,7 @@ export default function GroupPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Banner & Logo Section */}
+      {/* Banner & Logo */}
       <div className="relative">
         {/* Banner */}
         <div className="w-full h-40 sm:h-56 md:h-64 overflow-hidden cursor-pointer">
@@ -130,7 +183,7 @@ export default function GroupPage() {
           />
         </div>
 
-        {/* Logo Overhang */}
+        {/* Logo overhang */}
         <div
           className="absolute -bottom-12 left-4 cursor-pointer"
           onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
@@ -145,16 +198,36 @@ export default function GroupPage() {
         </div>
       </div>
 
-      {/* Group Name and Description */}
+      {/* Name, Description, Join/Leave */}
       <div className="mt-16 p-4">
         <h1 className="text-2xl font-bold">{group.name}</h1>
         <p className="mb-4">{group.description}</p>
+        <div className="flex items-center gap-4 mb-4">
+          {isMember ? (
+            <button
+              onClick={leaveGroup}
+              className="px-4 py-2 bg-red-500 text-white rounded"
+            >
+              Leave Group
+            </button>
+          ) : (
+            <button
+              onClick={joinGroup}
+              className="px-4 py-2 bg-blue-500 text-white rounded"
+            >
+              Join Group
+            </button>
+          )}
+          <span className="text-sm text-gray-600">
+            {members.length} members
+          </span>
+        </div>
       </div>
 
       {/* New Post */}
       <GroupNewPost groupId={groupId} currentUser={user} />
 
-      {/* Posts List */}
+      {/* Posts list */}
       <div className="space-y-4 mt-4 p-4">
         {posts.length === 0 ? (
           <p>No posts yet.</p>
@@ -182,6 +255,27 @@ export default function GroupPage() {
             </div>
           ))
         )}
+      </div>
+
+      {/* Members list */}
+      <div className="mt-8 p-4 border rounded">
+        <h2 className="text-lg font-semibold mb-3">Members</h2>
+        <div className="flex flex-wrap gap-4">
+          {members.map((m) => (
+            <Link
+              key={m.id}
+              to={`/profile/${m.id}`}
+              className="flex items-center gap-2 hover:bg-gray-100 p-2 rounded"
+            >
+              <img
+                src={m.photoURL || DEFAULT_AVATAR}
+                alt={m.displayName}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              <span>{m.displayName}</span>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
