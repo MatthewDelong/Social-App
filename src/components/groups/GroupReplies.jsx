@@ -13,40 +13,31 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
-export default function GroupPosts({ groupId, currentUser }) {
-  const [posts, setPosts] = useState([]);
+export default function GroupReplies({ commentId, currentUser, isAdmin, isModerator }) {
+  const [replies, setReplies] = useState([]);
   const [content, setContent] = useState("");
-  const [editPostId, setEditPostId] = useState(null);
+  const [editReplyId, setEditReplyId] = useState(null);
   const [editContent, setEditContent] = useState("");
 
   useEffect(() => {
-    if (!groupId) return;
-
+    if (!commentId) return;
     const q = query(
-      collection(db, "groupPosts"),
-      where("groupId", "==", groupId),
-      orderBy("createdAt", "desc")
+      collection(db, "groupReplies"),
+      where("commentId", "==", commentId),
+      orderBy("createdAt", "asc")
     );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setPosts(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setReplies(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
+    return () => unsub();
+  }, [commentId]);
 
-    return () => unsubscribe();
-  }, [groupId]);
-
-  const canEditOrDelete = (post) => {
-    if (!currentUser) return false;
-    const isOwner = post.uid === currentUser.uid;
-    return isOwner || currentUser.isAdmin || currentUser.isModerator;
-  };
-
-  const handleAddPost = async (e) => {
+  const handleAddReply = async (e) => {
     e.preventDefault();
     if (!content.trim()) return;
 
-    await addDoc(collection(db, "groupPosts"), {
-      groupId,
+    await addDoc(collection(db, "groupReplies"), {
+      commentId,
       uid: currentUser.uid,
       author: currentUser.displayName,
       authorPhotoURL: currentUser.photoURL || "",
@@ -57,98 +48,95 @@ export default function GroupPosts({ groupId, currentUser }) {
     setContent("");
   };
 
-  const handleDeletePost = async (postId) => {
-    if (window.confirm("Are you sure you want to delete this post?")) {
-      await deleteDoc(doc(db, "groupPosts", postId));
-    }
+  const handleDeleteReply = async (replyId) => {
+    if (!window.confirm("Are you sure you want to delete this reply?")) return;
+    await deleteDoc(doc(db, "groupReplies", replyId));
   };
 
-  const handleEditPost = (post) => {
-    setEditPostId(post.id);
-    setEditContent(post.content);
+  const handleEditReply = (reply) => {
+    setEditReplyId(reply.id);
+    setEditContent(reply.content);
   };
 
-  const handleUpdatePost = async (e) => {
+  const handleUpdateReply = async (e) => {
     e.preventDefault();
     if (!editContent.trim()) return;
 
-    await updateDoc(doc(db, "groupPosts", editPostId), {
+    await updateDoc(doc(db, "groupReplies", editReplyId), {
       content: editContent.trim(),
       editedAt: serverTimestamp(),
     });
 
-    setEditPostId(null);
+    setEditReplyId(null);
     setEditContent("");
   };
 
   const handleCancelEdit = () => {
-    setEditPostId(null);
+    setEditReplyId(null);
     setEditContent("");
   };
 
+  const canEditOrDelete = (reply) => {
+    if (!currentUser) return false;
+    const isOwner = reply.uid === currentUser.uid;
+    return isOwner || isAdmin || isModerator;
+  };
+
   return (
-    <div className="mt-4">
-      <form onSubmit={handleAddPost} className="flex gap-2 mb-4">
+    <div className="mt-2 ml-6">
+      <form onSubmit={handleAddReply} className="flex gap-2">
         <input
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Write a new post..."
-          className="flex-1 p-2 border rounded"
+          placeholder="Write a reply..."
+          className="flex-1 p-1 border rounded text-sm"
         />
-        <button type="submit" className="px-3 py-1 bg-green-600 text-white rounded">
-          Post
+        <button type="submit" className="px-2 py-1 bg-gray-500 text-white rounded text-sm">
+          Reply
         </button>
       </form>
 
-      <div className="space-y-4">
-        {posts.map((post) => (
-          <div key={post.id} className="border p-3 rounded">
-            <div className="flex items-center gap-3 mb-2">
-              <img
-                src={post.authorPhotoURL || "/default-avatar.png"}
-                alt={post.author}
-                className="w-8 h-8 rounded-full object-cover"
-              />
-              <strong>{post.author}</strong>
-            </div>
-
-            {editPostId === post.id ? (
-              <form onSubmit={handleUpdatePost} className="flex gap-2">
+      <div className="mt-2 space-y-1">
+        {replies.map((reply) => (
+          <div key={reply.id} className="border p-1 rounded text-sm">
+            <strong>{reply.author}</strong>:{" "}
+            {editReplyId === reply.id ? (
+              <form onSubmit={handleUpdateReply} className="inline-flex gap-2 items-center">
                 <input
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
-                  className="flex-1 p-1 border rounded"
+                  className="p-1 border rounded text-sm"
                 />
-                <button type="submit" className="px-3 py-1 bg-blue-600 text-white rounded">
+                <button type="submit" className="px-2 py-1 bg-blue-600 text-white rounded text-xs">
                   Save
                 </button>
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="px-3 py-1 bg-gray-400 text-white rounded"
+                  className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
                 >
                   Cancel
                 </button>
               </form>
             ) : (
-              <p>{post.content}</p>
+              reply.content
             )}
 
-            {canEditOrDelete(post) && editPostId !== post.id && (
-              <div className="mt-2 flex gap-2">
+            {canEditOrDelete(reply) && editReplyId !== reply.id && (
+              <span className="ml-2 space-x-2 text-xs text-gray-600">
                 <button
-                  onClick={() => handleEditPost(post)}
-                  className="px-3 py-1 bg-yellow-500 text-white rounded"
+                  onClick={() => handleEditReply(reply)}
+                  className="text-blue-500 hover:underline"
                 >
                   Edit
                 </button>
                 <button
-                  onClick={() => handleDeletePost(post.id)}
-                  className="px-3 py-1 bg-red-600 text-white rounded"
+                  onClick={() => handleDeleteReply(reply.id)}
+                  className="text-red-500 hover:underline"
                 >
                   Delete
                 </button>
-              </div>
+              </span>
             )}
           </div>
         ))}
