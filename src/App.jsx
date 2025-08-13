@@ -18,6 +18,7 @@ import Navbar from "./components/Navbar";
 import ProfileSettings from "./pages/ProfileSettings";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserProfile from "./pages/UserProfile";
+import Layout from "./components/Layout";
 
 // ✅ Group-related pages
 import GroupsList from "./pages/GroupsList";
@@ -121,9 +122,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <AppProvider>
+      <Layout>
       <Router>
         <AppRoutes />
       </Router>
+      </Layout>
     </AppProvider>
   );
 }
