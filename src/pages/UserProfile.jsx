@@ -1,4 +1,3 @@
-// src/pages/UserProfile.jsx
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
@@ -10,7 +9,7 @@ export default function UserProfile() {
   const { uid } = useParams();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
-  const [groups, setGroups] = useState([]); // ✅ groups state
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
 
@@ -45,11 +44,26 @@ export default function UserProfile() {
         const postSnap = await getDocs(qPosts);
         setPosts(postSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
 
-        // ✅ Load groups the user belongs to
-        const groupsRef = collection(db, "groups");
-        const qGroups = query(groupsRef, where("members", "array-contains", uid));
-        const groupsSnap = await getDocs(qGroups);
-        setGroups(groupsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        // Load groups the user belongs to - FIXED QUERY
+        const allGroupsRef = collection(db, "groups");
+        const allGroupsSnap = await getDocs(allGroupsRef);
+        
+        const userGroups = [];
+        
+        // Check each group to see if user is a member
+        for (const groupDoc of allGroupsSnap.docs) {
+          const groupData = { id: groupDoc.id, ...groupDoc.data() };
+          
+          // Check if user is a member of this group
+          const memberRef = doc(db, "groups", groupDoc.id, "members", uid);
+          const memberSnap = await getDoc(memberRef);
+          
+          if (memberSnap.exists()) {
+            userGroups.push(groupData);
+          }
+        }
+        
+        setGroups(userGroups);
       } catch (err) {
         console.error("Error loading user profile:", err);
       }
@@ -88,12 +102,12 @@ export default function UserProfile() {
         </div>
       </div>
 
-      {/* ✅ Groups Section */}
+      {/* Groups Section - FIXED TEXT AND QUERY */}
       <div>
-        <h3 className="text-xl font-bold mb-4">
-          Groups {profile.displayName} is part of
+        <h3 className="text-xl w-auto font-bold mb-4">
+          Groups I'm part of
         </h3>
-        {groups.length === 0 && <p className="text-gray-500">No groups yet.</p>}
+        {groups.length === 0 && <p className="text-gray-500">Not a member of any groups yet.</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {groups.map((group) => (
             <Card key={group.id}>
