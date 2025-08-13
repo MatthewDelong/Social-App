@@ -12,7 +12,6 @@ import { AppProvider, useAppContext } from "./context/AppContext";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Home from "./pages/Home";
-import Layout from "./components/Layout";
 import Profile from "./pages/Profile";
 import NewPost from "./pages/NewPost";
 import Navbar from "./components/Navbar";
@@ -122,11 +121,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <AppProvider>
-      <Layout>
+     
       <Router>
         <AppRoutes />
       </Router>
-      </Layout>
+      
     </AppProvider>
   );
 }

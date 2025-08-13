@@ -15,7 +15,6 @@ const Footer = () => {
               href="https://github.com/MatthewDelong/README.md/blob/main/LICENSE"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white text-decoration-none"
               className="text-blue-300 hover:text-blue-200 hover:underline transition-colors duration-200"
             >
               MIT License
