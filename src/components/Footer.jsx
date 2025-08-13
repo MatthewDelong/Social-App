@@ -41,13 +41,13 @@ const Footer = () => {
                 <img
                   src="https://mirrors.creativecommons.org/presskit/icons/cc.svg"
                   alt="Creative Commons"
-                  className="h-4 aligh-text-top inline-block"
+                  className="h-4 align-text-top inline-block"
                 />
 
                 <img
                   src="https://mirrors.creativecommons.org/presskit/icons/by.svg"
                   alt="Attribution"
-                  className="h-4 aligh-text-top inline-block"
+                  className="h-4 align-text-top inline-block"
                 />
               </a>
             </span>
