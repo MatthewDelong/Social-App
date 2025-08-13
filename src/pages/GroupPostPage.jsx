@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import GroupComments from "../components/groups/GroupComments";
 import { useEffect, useState } from "react";
@@ -13,29 +13,37 @@ export default function GroupPostPage() {
   const navigate = useNavigate();
 
   const [post, setPost] = useState(null);
+  const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
+  const [DEFAULT_BANNER, setDEFAULT_BANNER] = useState("");
+  const [DEFAULT_LOGO, setDEFAULT_LOGO] = useState("");
 
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
 
-  // Load default avatar from storage
+  // Load default images from storage
   useEffect(() => {
-    const loadDefaultAvatar = async () => {
+    const loadDefaults = async () => {
       try {
-        const defaultRef = ref(storage, "default-avatar.png");
-        const url = await getDownloadURL(defaultRef);
-        setDEFAULT_AVATAR(url);
+        const avatarRef = ref(storage, "default-avatar.png");
+        const bannerRef = ref(storage, "default-banner.jpg");
+        const logoRef = ref(storage, "default-group-logo.png");
+
+        setDEFAULT_AVATAR(await getDownloadURL(avatarRef));
+        setDEFAULT_BANNER(await getDownloadURL(bannerRef));
+        setDEFAULT_LOGO(await getDownloadURL(logoRef));
       } catch (err) {
-        console.error("Error loading default avatar:", err);
+        console.error("Error loading default images:", err);
       }
     };
-    loadDefaultAvatar();
+    loadDefaults();
   }, []);
 
-  // Fetch post from Firestore
+  // Fetch post and group data from Firestore
   useEffect(() => {
-    const fetchPost = async () => {
+    const fetchData = async () => {
+      // Fetch post
       const postDoc = await getDoc(doc(db, "groupPosts", postId));
       if (postDoc.exists()) {
         let data = { id: postDoc.id, ...postDoc.data() };
@@ -50,10 +58,19 @@ export default function GroupPostPage() {
 
         setPost(data);
       }
+
+      // Fetch group data for banner and logo
+      if (groupId) {
+        const groupDoc = await getDoc(doc(db, "groups", groupId));
+        if (groupDoc.exists()) {
+          setGroup({ id: groupDoc.id, ...groupDoc.data() });
+        }
+      }
+
       setLoading(false);
     };
-    fetchPost();
-  }, [postId]);
+    fetchData();
+  }, [postId, groupId]);
 
   if (loading) return <p className="p-4">Loading post...</p>;
   if (!post) return <p className="p-4">Post not found</p>;
@@ -105,7 +122,43 @@ export default function GroupPostPage() {
   };
 
   return (
-    <div className="p-4 max-w-2xl mx-auto w-full box-border">
+    <div className="max-w-2xl mx-auto">
+      {/* Group Banner & Logo */}
+      {group && (
+        <div className="relative mb-4">
+          {/* Banner */}
+          <div className="w-full h-32 sm:h-40 md:h-48 overflow-hidden">
+            <img
+              src={group.bannerURL || DEFAULT_BANNER}
+              alt={`${group.name} banner`}
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          {/* Logo overhang */}
+          <div className="absolute -bottom-8 left-4">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-white overflow-hidden shadow-lg">
+              <img
+                src={group.logoURL || DEFAULT_LOGO}
+                alt={`${group.name} logo`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+
+          {/* Group name and back link */}
+          <div className="mt-10 px-4">
+            <Link 
+              to={`/groups/${groupId}`}
+              className="text-lg font-bold text-blue-600 hover:underline"
+            >
+              {group.name}
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className="p-4">
       <div className="flex items-center space-x-3 mb-4">
         <img
           src={post.authorPhotoURL || DEFAULT_AVATAR}
@@ -172,6 +225,7 @@ export default function GroupPostPage() {
         isAdmin={isAdmin}
         isModerator={isModerator}
       />
+      </div>
     </div>
   );
 }
