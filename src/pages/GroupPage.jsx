@@ -198,7 +198,7 @@ export default function GroupPage() {
           />
           {/* Camera icon for banner */}
           {isAdminOrMod && (
-            <div className="absolute top-4 right-4 w-10 h-10 bg-black bg-opacity-60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+            <div className="absolute bottom-0 right-0 w-10 h-10 bg-black bg-opacity-60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
               <svg 
                 width="20" 
                 height="20" 
@@ -219,7 +219,7 @@ export default function GroupPage() {
         {/* Logo overhang */}
         <div className="absolute -bottom-12 left-4">
           <div
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white shadow-lg relative cursor-pointer group"
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-#020202 shadow-lg relative cursor-pointer group"
             onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
           >
             <img
@@ -229,7 +229,7 @@ export default function GroupPage() {
             />
             {/* Camera icon for logo */}
             {isAdminOrMod && (
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 sm:w-8 sm:h-8 bg-black bg-opacity-60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+              <div className="absolute bottom-0 right-0 w-6 h-6 sm:w-8 sm:h-8 bg-black bg-opacity-60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                 <svg 
                   width="12" 
                   height="12" 
