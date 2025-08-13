@@ -198,7 +198,10 @@ export default function GroupPage() {
           />
           {/* Camera icon for banner */}
           {isAdminOrMod && (
-            <div className="absolute top-4 right-4 w-10 h-10 bg-gray-700 bg-opacity-80 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10 border-2 border-white border-opacity-30">
+            <div 
+              className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10"
+              style={{ backgroundColor: 'rgba(107, 114, 128, 0.8)' }}
+            >
               <svg 
                 width="20" 
                 height="20" 
@@ -229,7 +232,10 @@ export default function GroupPage() {
             />
             {/* Camera icon for logo */}
             {isAdminOrMod && (
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 sm:w-8 sm:h-8 bg-gray-700 bg-opacity-80 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10 border-2 border-white border-opacity-50">
+              <div 
+                className="absolute -bottom-1 -right-1 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10"
+                style={{ backgroundColor: 'rgba(107, 114, 128, 0.8)' }}
+              >
                 <svg 
                   width="12" 
                   height="12" 
