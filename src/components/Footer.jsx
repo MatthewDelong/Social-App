@@ -15,7 +15,7 @@ const Footer = () => {
               href="https://github.com/MatthewDelong/README.md/blob/main/LICENSE"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-white text-decoration-none"
+              className="text-white text-decoration-none"
               className="text-blue-300 hover:text-blue-200 hover:underline transition-colors duration-200"
             >
               MIT License
@@ -37,7 +37,7 @@ const Footer = () => {
                 href="https://creativecommons.org/licenses/by/4.0/"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-white ms-1"
+                className="text-white ms-1"
               >
                 <img
                   src="https://mirrors.creativecommons.org/presskit/icons/cc.svg"
