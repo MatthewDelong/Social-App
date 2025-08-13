@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   doc,
   getDoc,
@@ -21,6 +21,7 @@ import GroupNewPost from "../components/groups/GroupNewPost";
 export default function GroupPage() {
   const { groupId } = useParams();
   const { user } = useAppContext();
+  const navigate = useNavigate();
 
   const [group, setGroup] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -166,19 +167,6 @@ export default function GroupPage() {
     fileInput.click();
   };
 
-  // Debug function for View Comments
-  const handleViewComments = (post) => {
-    const linkPath = `/groups/${groupId}/post/${post.id}`;
-    console.log("Debug - View Comments clicked:");
-    console.log("groupId:", groupId);
-    console.log("post.id:", post.id);
-    console.log("Full path:", linkPath);
-    console.log("Post data:", post);
-    
-    // Try manual navigation
-    window.location.href = linkPath;
-  };
-
   if (!group) return <p className="p-4">Group not found</p>;
   if (loading) return <p className="p-4">Loading posts...</p>;
 
@@ -187,9 +175,9 @@ export default function GroupPage() {
       {/* Banner & Logo */}
       <div className="relative">
         {/* Banner */}
-        <div 
+        <div
           className={`w-full h-40 sm:h-56 md:h-64 overflow-hidden relative ${
-            isAdminOrMod ? 'cursor-pointer group' : ''
+            isAdminOrMod ? "cursor-pointer group" : ""
           }`}
           onClick={() => isAdminOrMod && handleImageUpload("bannerURL")}
         >
@@ -198,27 +186,26 @@ export default function GroupPage() {
             alt={`${group.name} banner`}
             className="w-full h-full object-cover"
           />
-          {/* Camera icon for banner - only show for admins/mods */}
           {isAdminOrMod && (
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-20">
               <div className="w-12 h-12 rounded-full bg-gray-600 bg-opacity-70 flex items-center justify-center">
-                <svg 
-                  className="w-6 h-6 text-white" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2-2V9z" 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2-2V9z"
                   />
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
               </div>
@@ -229,7 +216,7 @@ export default function GroupPage() {
         {/* Logo overhang */}
         <div
           className={`absolute -bottom-12 left-4 ${
-            isAdminOrMod ? 'cursor-pointer group' : ''
+            isAdminOrMod ? "cursor-pointer group" : ""
           }`}
           onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
         >
@@ -239,27 +226,26 @@ export default function GroupPage() {
               alt={`${group.name} logo`}
               className="w-full h-full object-cover"
             />
-            {/* Camera icon for logo - only show for admins/mods */}
             {isAdminOrMod && (
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-20 rounded-full">
                 <div className="w-8 h-8 rounded-full bg-gray-600 bg-opacity-70 flex items-center justify-center">
-                  <svg 
-                    className="w-4 h-4 text-white" 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <svg
+                    className="w-4 h-4 text-white"
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2-2V9z" 
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2-2V9z"
                     />
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" 
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                   </svg>
                 </div>
@@ -289,16 +275,14 @@ export default function GroupPage() {
               Join Group
             </button>
           )}
-          <span className="text-sm text-gray-600">
-            {members.length} members
-          </span>
+          <span className="text-sm text-gray-600">{members.length} members</span>
         </div>
       </div>
 
       {/* New Post */}
       <GroupNewPost groupId={groupId} currentUser={user} />
 
-      {/* Posts list - WITH DEBUGGING */}
+      {/* Posts list */}
       <div className="space-y-4 mt-4 p-4">
         {posts.length === 0 ? (
           <p>No posts yet.</p>
@@ -318,24 +302,16 @@ export default function GroupPage() {
                   <p className="font-semibold text-sm">{post.author}</p>
                   <p className="mt-1 text-gray-800 break-words">{post.content}</p>
                   <div className="mt-2">
-                    {/* Try both Link and button approaches */}
-                    <div className="flex gap-2">
-                      <Link
-                        to={`/groups/${groupId}/post/${post.id}`}
-                        className="text-blue-500 hover:text-blue-700 text-sm font-medium hover:underline"
-                      >
-                        View Comments (Link)
-                      </Link>
-                      <button
-                        onClick={() => handleViewComments(post)}
-                        className="text-green-500 hover:text-green-700 text-sm font-medium hover:underline"
-                      >
-                        View Comments (Button)
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Debug: groupId={groupId}, postId={post.id}
-                    </p>
+                    <Link
+                      to={`/groups/${groupId}/post/${post.id}`}
+                      className="text-blue-500 hover:text-blue-700 text-sm font-medium hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate(`/groups/${groupId}/post/${post.id}`);
+                      }}
+                    >
+                      View Comments
+                    </Link>
                   </div>
                 </div>
               </div>
