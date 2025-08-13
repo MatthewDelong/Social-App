@@ -29,7 +29,7 @@ export default function MembersList({ groupId }) {
   if (loading) return <div>Loading members...</div>;
 
   return (
-    <div>
+    <div style={{ paddingBottom: '2rem', marginBottom: '2rem' }}>
       <h3>Members ({members.length})</h3>
       {members.map(user => (
         <div key={user.uid} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
