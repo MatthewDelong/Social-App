@@ -200,7 +200,7 @@ export default function GroupPage() {
           {isAdminOrMod && (
             <div 
               className="absolute bottom-0 right-0 w-10 h-10 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10"
-              style={{ backgroundColor: 'rgba(107, 114, 128, 0.8)' }}
+              style={{ backgroundColor: 'rgba(107, 114, 128, 0.7)' }}
             >
               <svg 
                 width="20" 
@@ -234,7 +234,7 @@ export default function GroupPage() {
             {isAdminOrMod && (
               <div 
                 className="absolute bottom-0 right-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10"
-                style={{ backgroundColor: 'rgba(107, 114, 128, 0.8)' }}
+                style={{ backgroundColor: 'rgba(107, 114, 128, 0.7)' }}
               >
                 <svg 
                   width="12" 
