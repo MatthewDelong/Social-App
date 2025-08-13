@@ -146,8 +146,8 @@ export default function GroupPostPage() {
             </div>
           </div>
 
-          {/* Group name and back link */}
-          <div className="mt-10 px-4">
+          {/* Group name and back link - FIXED MARGIN */}
+          <div className="mt-24 sm:mt-28 px-4">
             <Link 
               to={`/groups/${groupId}`}
               className="text-lg font-bold text-blue-600 hover:underline"
