@@ -198,7 +198,7 @@ export default function GroupPage() {
           />
           {/* Camera icon for banner */}
           {isAdminOrMod && (
-            <div className="absolute top-4 right-4 w-10 h-10 bg-black bg-opacity-60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div className="absolute top-4 right-4 w-10 h-10 bg-black bg-opacity-60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
               <svg 
                 width="20" 
                 height="20" 
@@ -217,28 +217,29 @@ export default function GroupPage() {
         </div>
 
         {/* Logo overhang */}
-        <div
-          className="absolute -bottom-12 left-4 cursor-pointer group"
-          onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
-        >
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden shadow-lg relative">
+        <div className="absolute -bottom-12 left-4">
+          <div
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white shadow-lg relative cursor-pointer group"
+            onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
+          >
             <img
               src={group.logoURL || DEFAULT_LOGO}
               alt={`${group.name} logo`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-full"
             />
             {/* Camera icon for logo */}
             {isAdminOrMod && (
-              <div className="absolute bottom-0 right-0 w-6 h-6 sm:w-8 sm:h-8 bg-black bg-opacity-60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 sm:w-8 sm:h-8 bg-black bg-opacity-60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                 <svg 
-                  width="14" 
-                  height="14" 
+                  width="12" 
+                  height="12" 
                   viewBox="0 0 24 24" 
                   fill="none" 
                   stroke="white" 
                   strokeWidth="2"
                   strokeLinecap="round" 
                   strokeLinejoin="round"
+                  className="sm:w-4 sm:h-4"
                 >
                   <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
                   <circle cx="12" cy="13" r="3"/>
