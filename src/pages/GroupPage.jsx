@@ -15,7 +15,6 @@ import {
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { formatDistanceToNow } from "date-fns";
 import { useAppContext } from "../context/AppContext";
 import GroupNewPost from "../components/groups/GroupNewPost";
 
@@ -53,18 +52,6 @@ export default function GroupPage() {
     };
     loadDefaults();
   }, []);
-
-  // Format post date
-  const formatPostDate = (timestamp) => {
-    if (!timestamp) return "";
-    try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return formatDistanceToNow(date, { addSuffix: true }).replace("about ", "");
-    } catch (err) {
-      console.error("Error formatting date:", err);
-      return "";
-    }
-  };
 
   // Fetch group data, posts, and members
   useEffect(() => {
@@ -187,77 +174,32 @@ export default function GroupPage() {
       {/* Banner & Logo */}
       <div className="relative">
         {/* Banner */}
-        <div 
-          className="w-full h-40 sm:h-56 md:h-64 overflow-hidden cursor-pointer relative group"
-          onClick={() => isAdminOrMod && handleImageUpload("bannerURL")}
-        >
+        <div className="w-full h-40 sm:h-56 md:h-64 overflow-hidden cursor-pointer">
           <img
             src={group.bannerURL || DEFAULT_BANNER}
             alt={`${group.name} banner`}
             className="w-full h-full object-cover"
+            onClick={() => isAdminOrMod && handleImageUpload("bannerURL")}
           />
-          {/* Camera icon for banner */}
-          {isAdminOrMod && (
-            <div 
-              className="absolute bottom-0 right-0 w-10 h-10 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10"
-              style={{ backgroundColor: 'rgba(107, 114, 128, 0.7)' }}
-            >
-              <svg 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="white" 
-                strokeWidth="2"
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              >
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-                <circle cx="12" cy="13" r="3"/>
-              </svg>
-            </div>
-          )}
         </div>
 
-        {/* Logo overhang */}
-        <div className="absolute -bottom-12 left-4">
-          <div
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white shadow-lg relative cursor-pointer group"
-            onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
-          >
+        {/* Logo overhang - FIXED POSITIONING */}
+        <div
+          className="absolute -bottom-12 left-4 cursor-pointer"
+          onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
+        >
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden shadow-lg">
             <img
               src={group.logoURL || DEFAULT_LOGO}
               alt={`${group.name} logo`}
-              className="w-full h-full object-cover rounded-full"
+              className="w-full h-full object-cover"
             />
-            {/* Camera icon for logo */}
-            {isAdminOrMod && (
-              <div 
-                className="absolute bottom-0 right-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10"
-                style={{ backgroundColor: 'rgba(107, 114, 128, 0.7)' }}
-              >
-                <svg 
-                  width="12" 
-                  height="12" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="white" 
-                  strokeWidth="2"
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                  className="sm:w-4 sm:h-4"
-                >
-                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-                  <circle cx="12" cy="13" r="3"/>
-                </svg>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Name, Description, Join/Leave */}
-      <div className="mt-16 p-4">
+      {/* Name, Description, Join/Leave - FIXED MARGIN */}
+      <div className="mt-20 sm:mt-16 p-4">
         <h1 className="text-2xl font-bold">{group.name}</h1>
         <p className="mb-4">{group.description}</p>
         <div className="flex items-center gap-4 mb-4">
@@ -293,7 +235,7 @@ export default function GroupPage() {
           posts.map((post) => (
             <div
               key={post.id}
-              className="border p-3 rounded flex items-start gap-3"
+              className="border p-3 rounded flex items-center gap-3"
             >
               <img
                 src={post.authorPhotoURL || DEFAULT_AVATAR}
@@ -301,18 +243,11 @@ export default function GroupPage() {
                 className="w-8 h-8 rounded-full object-cover"
               />
               <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <p className="font-semibold">{post.author}</p>
-                  {post.createdAt && (
-                    <span className="text-xs text-gray-500">
-                      {formatPostDate(post.createdAt)}
-                    </span>
-                  )}
-                </div>
-                <p className="mb-2">{post.content}</p>
+                <p className="font-semibold">{post.author}</p>
+                <p>{post.content}</p>
                 <Link
                   to={`/groups/${groupId}/post/${post.id}`}
-                  className="text-blue-500 text-sm"
+                  className="text-blue-500"
                 >
                   View Comments
                 </Link>

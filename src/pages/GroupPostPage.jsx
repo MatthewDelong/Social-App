@@ -123,11 +123,11 @@ export default function GroupPostPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Group Banner & Logo */}
+      {/* Group Banner & Logo - EXACT MATCH TO GroupPage.jsx */}
       {group && (
-        <div className="relative mb-4">
+        <div className="relative">
           {/* Banner */}
-          <div className="w-full h-32 sm:h-40 md:h-48 overflow-hidden">
+          <div className="w-full h-40 sm:h-56 md:h-64 overflow-hidden">
             <img
               src={group.bannerURL || DEFAULT_BANNER}
               alt={`${group.name} banner`}
@@ -135,9 +135,9 @@ export default function GroupPostPage() {
             />
           </div>
 
-          {/* Logo overhang */}
-          <div className="absolute -bottom-8 left-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-white overflow-hidden shadow-lg">
+          {/* Logo overhang - EXACT SAME AS GroupPage.jsx */}
+          <div className="absolute -bottom-12 left-4">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden shadow-lg">
               <img
                 src={group.logoURL || DEFAULT_LOGO}
                 alt={`${group.name} logo`}
@@ -145,86 +145,91 @@ export default function GroupPostPage() {
               />
             </div>
           </div>
-
-          {/* Group name and back link - FIXED MARGIN */}
-          <div className="mt-24 sm:mt-28 px-4">
-            <Link 
-              to={`/groups/${groupId}`}
-              className="text-lg font-bold text-blue-600 hover:underline"
-            >
-              {group.name}
-            </Link>
-          </div>
         </div>
       )}
 
-      <div className="p-4">
-      <div className="flex items-center space-x-3 mb-4">
-        <img
-          src={post.authorPhotoURL || DEFAULT_AVATAR}
-          alt={post.author}
-          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-        />
-        <div className="flex-1">
-          <h2 className="text-xl font-bold break-words">{post.author}</h2>
-          {post.createdAt && (
-            <p className="text-sm text-gray-500">
-              {formatPostDate(post.createdAt)}
-            </p>
-          )}
-        </div>
-      </div>
+      {/* Content - EXACT SAME SPACING AS GroupPage.jsx */}
+      <div className="mt-20 sm:mt-16 p-4">
+        {/* Group name as link back to group */}
+        {group && (
+          <Link 
+            to={`/groups/${groupId}`}
+            className="text-2xl font-bold text-gray-800 hover:underline block mb-4"
+          >
+            {group.name}
+          </Link>
+        )}
 
-      {isEditing ? (
-        <div className="mb-4">
-          <textarea
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            rows={4}
-            className="w-full p-2 border rounded resize-none break-words"
+        {/* Post author info */}
+        <div className="flex items-center space-x-3 mb-4">
+          <img
+            src={post.authorPhotoURL || DEFAULT_AVATAR}
+            alt={post.author}
+            className="w-10 h-10 rounded-full object-cover flex-shrink-0"
           />
-          <div className="mt-2 space-x-2">
-            <button
-              onClick={saveEdit}
-              className="px-4 py-2 bg-blue-600 text-white rounded"
-            >
-              Save
-            </button>
-            <button
-              onClick={cancelEdit}
-              className="px-4 py-2 bg-gray-400 text-white rounded"
-            >
-              Cancel
-            </button>
+          <div className="flex-1">
+            <h2 className="text-xl font-bold break-words">{post.author}</h2>
+            {post.createdAt && (
+              <p className="text-sm text-gray-500">
+                {formatPostDate(post.createdAt)}
+              </p>
+            )}
           </div>
         </div>
-      ) : (
-        <p className="mb-4 whitespace-pre-wrap break-words">{post.content}</p>
-      )}
 
-      {canEditOrDelete && !isEditing && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            onClick={startEdit}
-            className="text-xs bg-yellow-500 text-black-800 px-2 py-0.5 rounded"
-          >
-            Edit
-          </button>
-          <button
-            onClick={deletePost}
-            className="text-xs bg-red-500 text-black-800 px-2 py-0.5 rounded"
-          >
-            Delete
-          </button>
-        </div>
-      )}
+        {/* Post content */}
+        {isEditing ? (
+          <div className="mb-4">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              rows={4}
+              className="w-full p-2 border rounded resize-none break-words"
+            />
+            <div className="mt-2 space-x-2">
+              <button
+                onClick={saveEdit}
+                className="px-4 py-2 bg-blue-600 text-white rounded"
+              >
+                Save
+              </button>
+              <button
+                onClick={cancelEdit}
+                className="px-4 py-2 bg-gray-400 text-white rounded"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="mb-4 whitespace-pre-wrap break-words">{post.content}</p>
+        )}
 
-      <GroupComments
-        postId={postId}
-        currentUser={user}
-        isAdmin={isAdmin}
-        isModerator={isModerator}
-      />
+        {/* Edit/Delete buttons */}
+        {canEditOrDelete && !isEditing && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button
+              onClick={startEdit}
+              className="text-xs bg-yellow-500 text-black-800 px-2 py-0.5 rounded"
+            >
+              Edit
+            </button>
+            <button
+              onClick={deletePost}
+              className="text-xs bg-red-500 text-black-800 px-2 py-0.5 rounded"
+            >
+              Delete
+            </button>
+          </div>
+        )}
+
+        {/* Comments section */}
+        <GroupComments
+          postId={postId}
+          currentUser={user}
+          isAdmin={isAdmin}
+          isModerator={isModerator}
+        />
       </div>
     </div>
   );
