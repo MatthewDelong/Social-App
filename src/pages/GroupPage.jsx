@@ -175,7 +175,9 @@ export default function GroupPage() {
       <div className="relative">
         {/* Banner */}
         <div 
-          className="w-full h-40 sm:h-56 md:h-64 overflow-hidden cursor-pointer relative group"
+          className={`w-full h-40 sm:h-56 md:h-64 overflow-hidden relative ${
+            isAdminOrMod ? 'cursor-pointer group' : ''
+          }`}
           onClick={() => isAdminOrMod && handleImageUpload("bannerURL")}
         >
           <img
@@ -183,60 +185,71 @@ export default function GroupPage() {
             alt={`${group.name} banner`}
             className="w-full h-full object-cover"
           />
-          {/* Camera icon for banner */}
+          {/* Camera icon for banner - only show for admins/mods */}
           {isAdminOrMod && (
-            <div 
-              className="absolute bottom-0 right-0 w-10 h-10 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10"
-              style={{ backgroundColor: 'rgba(107, 114, 128, 0.7)' }}
-            >
-              <svg 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="white" 
-                strokeWidth="2"
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              >
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-                <circle cx="12" cy="13" r="3"/>
-              </svg>
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-20">
+              <div className="w-12 h-12 rounded-full bg-gray-600 bg-opacity-70 flex items-center justify-center">
+                <svg 
+                  className="w-6 h-6 text-white" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2-2V9z" 
+                  />
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" 
+                  />
+                </svg>
+              </div>
             </div>
           )}
         </div>
 
         {/* Logo overhang */}
-        <div className="absolute -bottom-12 left-4">
-          <div
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white shadow-lg relative cursor-pointer group"
-            onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
-          >
+        <div
+          className={`absolute -bottom-12 left-4 ${
+            isAdminOrMod ? 'cursor-pointer group' : ''
+          }`}
+          onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
+        >
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden shadow-lg relative">
             <img
               src={group.logoURL || DEFAULT_LOGO}
               alt={`${group.name} logo`}
-              className="w-full h-full object-cover rounded-full"
+              className="w-full h-full object-cover"
             />
-            {/* Camera icon for logo */}
+            {/* Camera icon for logo - only show for admins/mods */}
             {isAdminOrMod && (
-              <div 
-                className="absolute bottom-0 right-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10"
-                style={{ backgroundColor: 'rgba(107, 114, 128, 0.7)' }}
-              >
-                <svg 
-                  width="12" 
-                  height="12" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="white" 
-                  strokeWidth="2"
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                  className="sm:w-4 sm:h-4"
-                >
-                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
-                  <circle cx="12" cy="13" r="3"/>
-                </svg>
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-20 rounded-full">
+                <div className="w-8 h-8 rounded-full bg-gray-600 bg-opacity-70 flex items-center justify-center">
+                  <svg 
+                    className="w-4 h-4 text-white" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2-2V9z" 
+                    />
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" 
+                    />
+                  </svg>
+                </div>
               </div>
             )}
           </div>
@@ -272,7 +285,7 @@ export default function GroupPage() {
       {/* New Post */}
       <GroupNewPost groupId={groupId} currentUser={user} />
 
-      {/* Posts list */}
+      {/* Posts list - FIXED STYLING AND CLICKABILITY */}
       <div className="space-y-4 mt-4 p-4">
         {posts.length === 0 ? (
           <p>No posts yet.</p>
@@ -280,22 +293,26 @@ export default function GroupPage() {
           posts.map((post) => (
             <div
               key={post.id}
-              className="border p-3 rounded flex items-center gap-3"
+              className="border p-3 rounded bg-white hover:shadow-md transition-shadow"
             >
-              <img
-                src={post.authorPhotoURL || DEFAULT_AVATAR}
-                alt={post.author}
-                className="w-8 h-8 rounded-full object-cover"
-              />
-              <div className="flex-1">
-                <p className="font-semibold">{post.author}</p>
-                <p>{post.content}</p>
-                <Link
-                  to={`/groups/${groupId}/post/${post.id}`}
-                  className="text-blue-500"
-                >
-                  View Comments
-                </Link>
+              <div className="flex items-start gap-3">
+                <img
+                  src={post.authorPhotoURL || DEFAULT_AVATAR}
+                  alt={post.author}
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">{post.author}</p>
+                  <p className="mt-1 text-gray-800 break-words">{post.content}</p>
+                  <div className="mt-2">
+                    <Link
+                      to={`/groups/${groupId}/post/${post.id}`}
+                      className="text-blue-500 hover:text-blue-700 text-sm font-medium hover:underline inline-block"
+                    >
+                      View Comments
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
           ))
@@ -303,21 +320,21 @@ export default function GroupPage() {
       </div>
 
       {/* Members list */}
-      <div className="mt-8 p-4 border rounded">
+      <div className="mt-8 p-4 border rounded bg-white">
         <h2 className="text-lg font-semibold mb-3">Members</h2>
         <div className="flex flex-wrap gap-4">
           {members.map((m) => (
             <Link
               key={m.id}
               to={`/profile/${m.id}`}
-              className="flex items-center gap-2 hover:bg-gray-100 p-2 rounded"
+              className="flex items-center gap-2 hover:bg-gray-100 p-2 rounded transition-colors"
             >
               <img
                 src={m.photoURL || DEFAULT_AVATAR}
                 alt={m.displayName}
                 className="w-10 h-10 rounded-full object-cover"
               />
-              <span>{m.displayName}</span>
+              <span className="text-sm">{m.displayName}</span>
             </Link>
           ))}
         </div>
