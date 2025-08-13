@@ -257,7 +257,7 @@ export default function GroupPage() {
       </div>
 
       {/* Name, Description, Join/Leave */}
-      <div className="mt-20 sm:mt-16 p-4">
+      <div className="mt-16 p-4">
         <h1 className="text-2xl font-bold">{group.name}</h1>
         <p className="mb-4">{group.description}</p>
         <div className="flex items-center gap-4 mb-4">
@@ -285,7 +285,7 @@ export default function GroupPage() {
       {/* New Post */}
       <GroupNewPost groupId={groupId} currentUser={user} />
 
-      {/* Posts list - FIXED STYLING AND CLICKABILITY */}
+      {/* Posts list */}
       <div className="space-y-4 mt-4 p-4">
         {posts.length === 0 ? (
           <p>No posts yet.</p>
@@ -293,31 +293,34 @@ export default function GroupPage() {
           posts.map((post) => (
             <div
               key={post.id}
-              className="border p-3 rounded bg-white hover:shadow-md transition-shadow"
+              className="border p-3 rounded flex items-start gap-3"
             >
-              <div className="flex items-start gap-3">
-                <img
-                  src={post.authorPhotoURL || DEFAULT_AVATAR}
-                  alt={post.author}
-                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm">{post.author}</p>
-                  <p className="mt-1 text-gray-800 break-words">{post.content}</p>
-                  <div className="mt-2">
-                    <Link
-                      to={`/groups/${groupId}/post/${post.id}`}
-                      className="text-blue-500 hover:text-blue-700 text-sm font-medium hover:underline inline-block"
-                    >
-                      View Comments
-                    </Link>
-                  </div>
+              <img
+                src={post.authorPhotoURL || DEFAULT_AVATAR}
+                alt={post.author}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <p className="font-semibold">{post.author}</p>
+                  {post.createdAt && (
+                    <span className="text-xs text-gray-500">
+                      {formatPostDate(post.createdAt)}
+                    </span>
+                  )}
                 </div>
+                <p className="mb-2">{post.content}</p>
+                <Link
+                  to={`/groups/${groupId}/post/${post.id}`}
+                  className="text-blue-500 text-sm"
+                >
+                  View Comments
+                </Link>
               </div>
             </div>
           ))
         )}
-      </div>
+        </div>
 
       {/* Members list */}
       <div className="mt-8 p-4 border rounded bg-white">
