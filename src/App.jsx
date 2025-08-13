@@ -55,6 +55,7 @@ function AppRoutes() {
       className="min-h-screen transition-colors duration-300"
       style={{ backgroundColor: theme?.backgroundColor || "#f9f9f9" }}
     >
+      {/* Show Auth Navbar on login/signup pages, else main navbar for logged in users */}
       {isAuthPage ? <AuthNavbar /> : user && <Navbar />}
 
       <Routes>
