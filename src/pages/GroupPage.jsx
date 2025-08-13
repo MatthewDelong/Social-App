@@ -183,69 +183,60 @@ export default function GroupPage() {
             alt={`${group.name} banner`}
             className="w-full h-full object-cover"
           />
-          {/* Camera icon for banner - only show for admins/mods */}
+          {/* Camera icon for banner */}
           {isAdminOrMod && (
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-20">
-              <div className="w-12 h-12 rounded-full bg-gray-600 bg-opacity-70 flex items-center justify-center">
-                <svg 
-                  className="w-6 h-6 text-white" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
-                  />
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" 
-                  />
-                </svg>
-              </div>
+            <div 
+              className="absolute bottom-0 right-0 w-10 h-10 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10"
+              style={{ backgroundColor: 'rgba(107, 114, 128, 0.7)' }}
+            >
+              <svg 
+                width="20" 
+                height="20" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="white" 
+                strokeWidth="2"
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                <circle cx="12" cy="13" r="3"/>
+              </svg>
             </div>
           )}
         </div>
 
         {/* Logo overhang */}
-        <div
-          className="absolute -bottom-12 left-4 cursor-pointer group"
-          onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
-        >
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden shadow-lg relative">
+        <div className="absolute -bottom-12 left-4">
+          <div
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white shadow-lg relative cursor-pointer group"
+            onClick={() => isAdminOrMod && handleImageUpload("logoURL")}
+          >
             <img
               src={group.logoURL || DEFAULT_LOGO}
               alt={`${group.name} logo`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-full"
             />
-            {/* Camera icon for logo - only show for admins/mods */}
+            {/* Camera icon for logo */}
             {isAdminOrMod && (
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-20 rounded-full">
-                <div className="w-8 h-8 rounded-full bg-gray-600 bg-opacity-70 flex items-center justify-center">
-                  <svg 
-                    className="w-4 h-4 text-white" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
-                    />
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" 
-                    />
-                  </svg>
-                </div>
+              <div 
+                className="absolute bottom-0 right-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity duration-200 z-10"
+                style={{ backgroundColor: 'rgba(107, 114, 128, 0.7)' }}
+              >
+                <svg 
+                  width="12" 
+                  height="12" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="white" 
+                  strokeWidth="2"
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  className="sm:w-4 sm:h-4"
+                >
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
               </div>
             )}
           </div>
