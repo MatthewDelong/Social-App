@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db, storage } from "../../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
+import { formatDistanceToNow } from "date-fns";
 import GroupReplies from "./GroupReplies";
 
 export default function GroupComments({ postId, currentUser }) {
@@ -80,6 +81,17 @@ export default function GroupComments({ postId, currentUser }) {
     return comment.uid === currentUser.uid;
   };
 
+  const formatCommentDate = (timestamp) => {
+    if (!timestamp) return "";
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (err) {
+      console.error("Error formatting date:", err);
+      return "";
+    }
+  };
+
   const handleAddComment = async (e) => {
     e.preventDefault();
     if (!content.trim()) return;
@@ -143,7 +155,15 @@ export default function GroupComments({ postId, currentUser }) {
               className="w-8 h-8 rounded-full object-cover flex-shrink-0"
             />
             <div className="flex-1 break-words">
-              <strong>{comment.author}</strong>
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <strong>{comment.author}</strong>
+                {comment.createdAt && (
+                  <span className="text-xs text-gray-500">
+                    {formatCommentDate(comment.createdAt)}
+                  </span>
+                )}
+              </div>
+              
               {editingCommentId === comment.id ? (
                 <>
                   <textarea

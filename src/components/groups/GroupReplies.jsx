@@ -13,6 +13,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
+import { formatDistanceToNow } from "date-fns";
 
 export default function GroupReplies({
   commentId,
@@ -75,6 +76,17 @@ export default function GroupReplies({
     );
   };
 
+  const formatReplyDate = (timestamp) => {
+    if (!timestamp) return "";
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (err) {
+      console.error("Error formatting date:", err);
+      return "";
+    }
+  };
+
   const handleAddReply = async (e) => {
     e.preventDefault();
     if (!content.trim()) return;
@@ -135,41 +147,51 @@ export default function GroupReplies({
               className="w-6 h-6 rounded-full object-cover flex-shrink-0"
             />
             <div className="flex-1 break-words">
-              <strong>{reply.author}</strong>:{" "}
+              <div className="flex flex-wrap items-center gap-2">
+                <strong>{reply.author}</strong>
+                {reply.createdAt && (
+                  <span className="text-xs text-gray-500">
+                    {formatReplyDate(reply.createdAt)}
+                  </span>
+                )}
+              </div>
+              
               {editReplyId === reply.id ? (
                 <form
                   onSubmit={handleUpdateReply}
-                  className="inline-flex flex-wrap gap-2 items-center"
+                  className="mt-1"
                 >
                   <input
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="p-1 border rounded text-sm"
+                    className="w-full p-1 border rounded text-sm mb-1"
                   />
-                  <button
-                    type="submit"
-                    className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
-                  >
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditReplyId(null);
-                      setEditContent("");
-                    }}
-                    className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
-                  >
-                    Cancel
-                  </button>
+                  <div className="space-x-2">
+                    <button
+                      type="submit"
+                      className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditReplyId(null);
+                        setEditContent("");
+                      }}
+                      className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </form>
               ) : (
-                reply.content
+                <p className="mt-1">{reply.content}</p>
               )}
 
               {canEditOrDelete(reply) &&
                 editReplyId !== reply.id && (
-                  <span className="ml-2 space-x-2 text-xs text-gray-600">
+                  <div className="mt-1 space-x-2 text-xs text-gray-600">
                     <button
                       onClick={() => {
                         setEditReplyId(reply.id);
@@ -187,7 +209,7 @@ export default function GroupReplies({
                     >
                       Delete
                     </button>
-                  </span>
+                  </div>
                 )}
 
               {/* Recursive Nested Replies */}

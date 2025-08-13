@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { formatDistanceToNow } from "date-fns";
 import { useAppContext } from "../context/AppContext";
 import GroupNewPost from "../components/groups/GroupNewPost";
 
@@ -52,6 +53,18 @@ export default function GroupPage() {
     };
     loadDefaults();
   }, []);
+
+  // Format post date
+  const formatPostDate = (timestamp) => {
+    if (!timestamp) return "";
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (err) {
+      console.error("Error formatting date:", err);
+      return "";
+    }
+  };
 
   // Fetch group data, posts, and members
   useEffect(() => {
@@ -235,7 +248,7 @@ export default function GroupPage() {
           posts.map((post) => (
             <div
               key={post.id}
-              className="border p-3 rounded flex items-center gap-3"
+              className="border p-3 rounded flex items-start gap-3"
             >
               <img
                 src={post.authorPhotoURL || DEFAULT_AVATAR}
@@ -243,11 +256,18 @@ export default function GroupPage() {
                 className="w-8 h-8 rounded-full object-cover"
               />
               <div className="flex-1">
-                <p className="font-semibold">{post.author}</p>
-                <p>{post.content}</p>
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <p className="font-semibold">{post.author}</p>
+                  {post.createdAt && (
+                    <span className="text-xs text-gray-500">
+                      {formatPostDate(post.createdAt)}
+                    </span>
+                  )}
+                </div>
+                <p className="mb-2">{post.content}</p>
                 <Link
                   to={`/groups/${groupId}/post/${post.id}`}
-                  className="text-blue-500"
+                  className="text-blue-500 text-sm"
                 >
                   View Comments
                 </Link>

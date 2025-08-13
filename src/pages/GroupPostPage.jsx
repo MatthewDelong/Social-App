@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
+import { formatDistanceToNow } from "date-fns";
 
 export default function GroupPostPage() {
   const { groupId, postId } = useParams();
@@ -63,6 +64,18 @@ export default function GroupPostPage() {
   const isModerator = user?.isModerator;
   const canEditOrDelete = isOwner || isAdmin || isModerator;
 
+  // Format post date
+  const formatPostDate = (timestamp) => {
+    if (!timestamp) return "";
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (err) {
+      console.error("Error formatting date:", err);
+      return "";
+    }
+  };
+
   // Handlers
   const startEdit = () => {
     setEditContent(post.content);
@@ -99,7 +112,14 @@ export default function GroupPostPage() {
           alt={post.author}
           className="w-10 h-10 rounded-full object-cover flex-shrink-0"
         />
-        <h2 className="text-xl font-bold break-words">{post.author}</h2>
+        <div className="flex-1">
+          <h2 className="text-xl font-bold break-words">{post.author}</h2>
+          {post.createdAt && (
+            <p className="text-sm text-gray-500">
+              {formatPostDate(post.createdAt)}
+            </p>
+          )}
+        </div>
       </div>
 
       {isEditing ? (
