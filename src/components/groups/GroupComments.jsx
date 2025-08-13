@@ -85,7 +85,7 @@ export default function GroupComments({ postId, currentUser }) {
     if (!timestamp) return "";
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return formatDistanceToNow(date, { addSuffix: true });
+      return formatDistanceToNow(date, { addSuffix: true }).replace("about ", "");
     } catch (err) {
       console.error("Error formatting date:", err);
       return "";
