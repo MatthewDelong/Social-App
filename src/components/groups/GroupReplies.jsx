@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import {
   collection,
   addDoc,
@@ -26,10 +26,6 @@ export default function GroupReplies({
   const [replies, setReplies] = useState([]);
   const [showReplies, setShowReplies] = useState(parentReplyId === null);
   const [visibleReplies, setVisibleReplies] = useState(3);
-
-  // Refs for scroll-into-view
-  const moreRepliesButtonRef = useRef(null);
-  const nestedRepliesButtonRef = useRef(null);
 
   useEffect(() => {
     if (!commentId) return;
@@ -84,16 +80,9 @@ export default function GroupReplies({
   };
 
   const handleToggleVisibility = () => {
-    setVisibleReplies((prevVisible) => {
-      return prevVisible === 3 ? replies.length : 3;
-    });
-
-    // Keep "View more replies" button in view
-    if (moreRepliesButtonRef.current) {
-      setTimeout(() => {
-        moreRepliesButtonRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 0);
-    }
+    setVisibleReplies((prevVisible) =>
+      prevVisible === 3 ? replies.length : 3
+    );
   };
 
   if (replies.length === 0) {
@@ -102,16 +91,9 @@ export default function GroupReplies({
 
   if (parentReplyId !== null && !showReplies) {
     return (
-      <div className="ml-6 mt-2">
+      <div className="ml-3 mt-2">
         <button
-          ref={nestedRepliesButtonRef}
-          onClick={() => {
-            setShowReplies(true);
-            // Keep nested replies button in view
-            setTimeout(() => {
-              nestedRepliesButtonRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, 0);
-          }}
+          onClick={() => setShowReplies(true)}
           className="text-blue-500 text-xs hover:underline"
         >
           View {replies.length} {replies.length === 1 ? "reply" : "replies"}
@@ -121,7 +103,7 @@ export default function GroupReplies({
   }
 
   return (
-    <div className={parentReplyId ? "ml-6 mt-2" : "mt-2 ml-6"}>
+    <div className={parentReplyId ? "ml-3 mt-2" : "mt-2 ml-3"}>
       {parentReplyId !== null && (
         <button
           onClick={() => setShowReplies(false)}
@@ -132,24 +114,25 @@ export default function GroupReplies({
       )}
 
       <div className="space-y-2">
-        {replies.slice(0, Math.min(visibleReplies, replies.length)).map((reply) => (
-          <SingleReply
-            key={reply.id}
-            reply={reply}
-            commentId={commentId}
-            currentUser={currentUser}
-            isAdmin={isAdmin}
-            isModerator={isModerator}
-            DEFAULT_AVATAR={DEFAULT_AVATAR}
-            canEditOrDelete={canEditOrDelete}
-            formatReplyDate={formatReplyDate}
-          />
-        ))}
+        {replies
+          .slice(0, Math.min(visibleReplies, replies.length))
+          .map((reply) => (
+            <SingleReply
+              key={reply.id}
+              reply={reply}
+              commentId={commentId}
+              currentUser={currentUser}
+              isAdmin={isAdmin}
+              isModerator={isModerator}
+              DEFAULT_AVATAR={DEFAULT_AVATAR}
+              canEditOrDelete={canEditOrDelete}
+              formatReplyDate={formatReplyDate}
+            />
+          ))}
 
         {replies.length > 3 && (
           <div className="mt-2">
             <button
-              ref={moreRepliesButtonRef}
               onClick={handleToggleVisibility}
               className="text-blue-500 text-xs hover:underline font-medium"
             >
@@ -299,7 +282,10 @@ function SingleReply({
           </div>
 
           {showReplyForm && (
-            <form onSubmit={handleAddReply} className="mt-2 p-2 bg-gray-50 rounded">
+            <form
+              onSubmit={handleAddReply}
+              className="mt-2 p-2 bg-gray-50 rounded"
+            >
               <input
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
