@@ -27,7 +27,10 @@ export default function GroupReplies({
   const [content, setContent] = useState("");
   const [editReplyId, setEditReplyId] = useState(null);
   const [editContent, setEditContent] = useState("");
-  const [visibleReplies, setVisibleReplies] = useState(3); // NEW: limit initially
+
+  // Show only 3 replies at a time
+  const INITIAL_VISIBLE = 3;
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
 
   useEffect(() => {
     if (!commentId) return;
@@ -68,7 +71,11 @@ export default function GroupReplies({
 
   const canEditOrDelete = (reply) => {
     if (!currentUser) return false;
-    return reply.uid === currentUser.uid || isAdmin || isModerator;
+    return (
+      reply.uid === currentUser.uid ||
+      isAdmin ||
+      isModerator
+    );
   };
 
   const formatReplyDate = (timestamp) => {
@@ -107,10 +114,15 @@ export default function GroupReplies({
     setEditContent("");
   };
 
+  const visibleReplies = replies.slice(0, visibleCount);
+
   return (
     <div className={parentReplyId ? "ml-6 mt-2" : "mt-2 ml-6"}>
       {/* Add Reply Form */}
-      <form onSubmit={handleAddReply} className="flex flex-wrap gap-2 mb-1">
+      <form
+        onSubmit={handleAddReply}
+        className="flex flex-wrap gap-2 mb-1"
+      >
         <input
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -127,7 +139,7 @@ export default function GroupReplies({
 
       {/* Replies List */}
       <div className="space-y-1">
-        {replies.slice(0, visibleReplies).map((reply) => (
+        {visibleReplies.map((reply) => (
           <div
             key={reply.id}
             className="border p-1 rounded text-sm flex flex-wrap sm:flex-nowrap items-start gap-2"
@@ -148,7 +160,10 @@ export default function GroupReplies({
               </div>
 
               {editReplyId === reply.id ? (
-                <form onSubmit={handleUpdateReply} className="mt-1">
+                <form
+                  onSubmit={handleUpdateReply}
+                  className="mt-1"
+                >
                   <input
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
@@ -177,25 +192,28 @@ export default function GroupReplies({
                 <p className="mt-1">{reply.content}</p>
               )}
 
-              {canEditOrDelete(reply) && editReplyId !== reply.id && (
-                <div className="mt-1 space-x-2 text-xs text-gray-600">
-                  <button
-                    onClick={() => {
-                      setEditReplyId(reply.id);
-                      setEditContent(reply.content);
-                    }}
-                    className="text-blue-500 hover:underline"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteDoc(doc(db, "groupReplies", reply.id))}
-                    className="text-red-500 hover:underline"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
+              {canEditOrDelete(reply) &&
+                editReplyId !== reply.id && (
+                  <div className="mt-1 space-x-2 text-xs text-gray-600">
+                    <button
+                      onClick={() => {
+                        setEditReplyId(reply.id);
+                        setEditContent(reply.content);
+                      }}
+                      className="text-blue-500 hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() =>
+                        deleteDoc(doc(db, "groupReplies", reply.id))
+                      }
+                      className="text-red-500 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
 
               {/* Recursive Nested Replies */}
               <GroupReplies
@@ -210,19 +228,13 @@ export default function GroupReplies({
           </div>
         ))}
 
-        {/* View more / Show less button */}
-        {replies.length > 3 && (
+        {/* View More Replies Button */}
+        {replies.length > visibleCount && (
           <button
-            onClick={() =>
-              setVisibleReplies(
-                visibleReplies < replies.length ? replies.length : 3
-              )
-            }
-            className="text-blue-500 text-xs"
+            onClick={() => setVisibleCount((prev) => prev + INITIAL_VISIBLE)}
+            className="text-xs text-blue-500 hover:underline"
           >
-            {visibleReplies < replies.length
-              ? `View more replies (${replies.length - visibleReplies} more)`
-              : "Show less"}
+            View more replies...
           </button>
         )}
       </div>
