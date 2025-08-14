@@ -27,10 +27,7 @@ export default function GroupReplies({
   const [content, setContent] = useState("");
   const [editReplyId, setEditReplyId] = useState(null);
   const [editContent, setEditContent] = useState("");
-
-  // Show only 3 replies at a time
-  const INITIAL_VISIBLE = 3;
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const [visibleReplies, setVisibleReplies] = useState(3);
 
   useEffect(() => {
     if (!commentId) return;
@@ -71,11 +68,7 @@ export default function GroupReplies({
 
   const canEditOrDelete = (reply) => {
     if (!currentUser) return false;
-    return (
-      reply.uid === currentUser.uid ||
-      isAdmin ||
-      isModerator
-    );
+    return reply.uid === currentUser.uid || isAdmin || isModerator;
   };
 
   const formatReplyDate = (timestamp) => {
@@ -114,15 +107,18 @@ export default function GroupReplies({
     setEditContent("");
   };
 
-  const visibleReplies = replies.slice(0, visibleCount);
+  const handleToggleVisibility = () => {
+    if (visibleReplies < replies.length) {
+      setVisibleReplies(replies.length);
+    } else {
+      setVisibleReplies(3);
+    }
+  };
 
   return (
     <div className={parentReplyId ? "ml-6 mt-2" : "mt-2 ml-6"}>
       {/* Add Reply Form */}
-      <form
-        onSubmit={handleAddReply}
-        className="flex flex-wrap gap-2 mb-1"
-      >
+      <form onSubmit={handleAddReply} className="flex flex-wrap gap-2 mb-1">
         <input
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -139,104 +135,133 @@ export default function GroupReplies({
 
       {/* Replies List */}
       <div className="space-y-1">
-        {visibleReplies.map((reply) => (
-          <div
+        {replies.slice(0, visibleReplies).map((reply, index) => (
+          <ReplyItem
             key={reply.id}
-            className="border p-1 rounded text-sm flex flex-wrap sm:flex-nowrap items-start gap-2"
-          >
-            <img
-              src={reply.authorPhotoURL || DEFAULT_AVATAR}
-              alt={reply.author}
-              className="w-6 h-6 rounded-full object-cover flex-shrink-0"
-            />
-            <div className="flex-1 break-words">
-              <div className="flex flex-wrap items-center gap-2">
-                <strong>{reply.author}</strong>
-                {reply.createdAt && (
-                  <span className="text-xs text-gray-500">
-                    {formatReplyDate(reply.createdAt)}
-                  </span>
-                )}
-              </div>
-
-              {editReplyId === reply.id ? (
-                <form
-                  onSubmit={handleUpdateReply}
-                  className="mt-1"
-                >
-                  <input
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full p-1 border rounded text-sm mb-1"
-                  />
-                  <div className="space-x-2">
-                    <button
-                      type="submit"
-                      className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditReplyId(null);
-                        setEditContent("");
-                      }}
-                      className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <p className="mt-1">{reply.content}</p>
-              )}
-
-              {canEditOrDelete(reply) &&
-                editReplyId !== reply.id && (
-                  <div className="mt-1 space-x-2 text-xs text-gray-600">
-                    <button
-                      onClick={() => {
-                        setEditReplyId(reply.id);
-                        setEditContent(reply.content);
-                      }}
-                      className="text-blue-500 hover:underline"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() =>
-                        deleteDoc(doc(db, "groupReplies", reply.id))
-                      }
-                      className="text-red-500 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-
-              {/* Recursive Nested Replies */}
-              <GroupReplies
-                commentId={commentId}
-                parentReplyId={reply.id}
-                currentUser={currentUser}
-                isAdmin={isAdmin}
-                isModerator={isModerator}
-                DEFAULT_AVATAR={DEFAULT_AVATAR}
-              />
-            </div>
-          </div>
+            reply={reply}
+            commentId={commentId}
+            currentUser={currentUser}
+            isAdmin={isAdmin}
+            isModerator={isModerator}
+            DEFAULT_AVATAR={DEFAULT_AVATAR}
+            canEditOrDelete={canEditOrDelete}
+            formatReplyDate={formatReplyDate}
+            editReplyId={editReplyId}
+            setEditReplyId={setEditReplyId}
+            editContent={editContent}
+            setEditContent={setEditContent}
+            handleUpdateReply={handleUpdateReply}
+          />
         ))}
 
-        {/* View More Replies Button */}
-        {replies.length > visibleCount && (
+        {/* View more / Show less button */}
+        {replies.length > 3 && (
           <button
-            onClick={() => setVisibleCount((prev) => prev + INITIAL_VISIBLE)}
-            className="text-xs text-blue-500 hover:underline"
+            onClick={handleToggleVisibility}
+            className="text-blue-500 text-xs hover:underline"
           >
-            View more replies...
+            {visibleReplies < replies.length
+              ? `View more replies (${replies.length - visibleReplies} more)`
+              : "Show less"}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Separate component for each reply item to ensure proper state isolation
+function ReplyItem({
+  reply,
+  commentId,
+  currentUser,
+  isAdmin,
+  isModerator,
+  DEFAULT_AVATAR,
+  canEditOrDelete,
+  formatReplyDate,
+  editReplyId,
+  setEditReplyId,
+  editContent,
+  setEditContent,
+  handleUpdateReply,
+}) {
+  return (
+    <div className="border p-1 rounded text-sm flex flex-wrap sm:flex-nowrap items-start gap-2">
+      <img
+        src={reply.authorPhotoURL || DEFAULT_AVATAR}
+        alt={reply.author}
+        className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+      />
+      <div className="flex-1 break-words">
+        <div className="flex flex-wrap items-center gap-2">
+          <strong>{reply.author}</strong>
+          {reply.createdAt && (
+            <span className="text-xs text-gray-500">
+              {formatReplyDate(reply.createdAt)}
+            </span>
+          )}
+        </div>
+
+        {editReplyId === reply.id ? (
+          <form onSubmit={handleUpdateReply} className="mt-1">
+            <input
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full p-1 border rounded text-sm mb-1"
+            />
+            <div className="space-x-2">
+              <button
+                type="submit"
+                className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditReplyId(null);
+                  setEditContent("");
+                }}
+                className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <p className="mt-1">{reply.content}</p>
+        )}
+
+        {canEditOrDelete(reply) && editReplyId !== reply.id && (
+          <div className="mt-1 space-x-2 text-xs text-gray-600">
+            <button
+              onClick={() => {
+                setEditReplyId(reply.id);
+                setEditContent(reply.content);
+              }}
+              className="text-blue-500 hover:underline"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => deleteDoc(doc(db, "groupReplies", reply.id))}
+              className="text-red-500 hover:underline"
+            >
+              Delete
+            </button>
+          </div>
+        )}
+
+        {/* Recursive Nested Replies - Each gets its own state management */}
+        <GroupReplies
+          commentId={commentId}
+          parentReplyId={reply.id}
+          currentUser={currentUser}
+          isAdmin={isAdmin}
+          isModerator={isModerator}
+          DEFAULT_AVATAR={DEFAULT_AVATAR}
+        />
       </div>
     </div>
   );
