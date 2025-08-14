@@ -22,7 +22,7 @@ export default function GroupReplies({
   isAdmin,
   isModerator,
   DEFAULT_AVATAR,
-  depth = 0, // ✅ Track reply depth
+  depth = 0, // track nesting
 }) {
   const [replies, setReplies] = useState([]);
   const [showReplies, setShowReplies] = useState(parentReplyId === null);
@@ -86,13 +86,12 @@ export default function GroupReplies({
     );
   };
 
-  if (replies.length === 0) {
-    return null;
-  }
+  if (replies.length === 0) return null;
 
   if (parentReplyId !== null && !showReplies) {
     return (
-      <div className={depth === 0 ? "ml-3 mt-2" : "mt-2"}>
+      <div className={depth === 0 ? "ml-3 mt-2" : "ml-3 mt-2"}>
+        {/* always ml-3 so nested replies line up */}
         <button
           onClick={() => setShowReplies(true)}
           className="text-blue-500 text-xs hover:underline"
@@ -104,7 +103,7 @@ export default function GroupReplies({
   }
 
   return (
-    <div className={depth === 0 ? "ml-3 mt-2" : "mt-2"}>
+    <div className={depth === 0 ? "ml-3 mt-2" : "ml-3 mt-2"}>
       {parentReplyId !== null && (
         <button
           onClick={() => setShowReplies(false)}
@@ -128,7 +127,7 @@ export default function GroupReplies({
               DEFAULT_AVATAR={DEFAULT_AVATAR}
               canEditOrDelete={canEditOrDelete}
               formatReplyDate={formatReplyDate}
-              depth={depth} // ✅ Pass depth here
+              depth={1} // ✅ lock depth at 1 for all replies
             />
           ))}
 
@@ -317,7 +316,7 @@ function SingleReply({
             </form>
           )}
 
-          {/* ✅ Pass same depth for replies to replies */}
+          {/* ✅ All replies under same indent */}
           <GroupReplies
             commentId={commentId}
             parentReplyId={reply.id}
@@ -325,7 +324,7 @@ function SingleReply({
             isAdmin={isAdmin}
             isModerator={isModerator}
             DEFAULT_AVATAR={DEFAULT_AVATAR}
-            depth={depth} // same depth → no extra indent
+            depth={1} // keep same indent for all nested replies
           />
         </div>
       </div>
