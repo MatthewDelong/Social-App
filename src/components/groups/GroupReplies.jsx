@@ -22,6 +22,7 @@ export default function GroupReplies({
   isAdmin,
   isModerator,
   DEFAULT_AVATAR,
+  depth = 0, // ✅ Track reply depth
 }) {
   const [replies, setReplies] = useState([]);
   const [showReplies, setShowReplies] = useState(parentReplyId === null);
@@ -91,7 +92,7 @@ export default function GroupReplies({
 
   if (parentReplyId !== null && !showReplies) {
     return (
-      <div className="ml-3 mt-2">
+      <div className={depth === 0 ? "ml-3 mt-2" : "mt-2"}>
         <button
           onClick={() => setShowReplies(true)}
           className="text-blue-500 text-xs hover:underline"
@@ -103,7 +104,7 @@ export default function GroupReplies({
   }
 
   return (
-    <div className={parentReplyId ? "ml-3 mt-2" : "mt-2 ml-3"}>
+    <div className={depth === 0 ? "ml-3 mt-2" : "mt-2"}>
       {parentReplyId !== null && (
         <button
           onClick={() => setShowReplies(false)}
@@ -127,6 +128,7 @@ export default function GroupReplies({
               DEFAULT_AVATAR={DEFAULT_AVATAR}
               canEditOrDelete={canEditOrDelete}
               formatReplyDate={formatReplyDate}
+              depth={depth} // ✅ Pass depth here
             />
           ))}
 
@@ -156,6 +158,7 @@ function SingleReply({
   DEFAULT_AVATAR,
   canEditOrDelete,
   formatReplyDate,
+  depth,
 }) {
   const [editReplyId, setEditReplyId] = useState(null);
   const [editContent, setEditContent] = useState("");
@@ -314,6 +317,7 @@ function SingleReply({
             </form>
           )}
 
+          {/* ✅ Pass same depth for replies to replies */}
           <GroupReplies
             commentId={commentId}
             parentReplyId={reply.id}
@@ -321,6 +325,7 @@ function SingleReply({
             isAdmin={isAdmin}
             isModerator={isModerator}
             DEFAULT_AVATAR={DEFAULT_AVATAR}
+            depth={depth} // same depth → no extra indent
           />
         </div>
       </div>
