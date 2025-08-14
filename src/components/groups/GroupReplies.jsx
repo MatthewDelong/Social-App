@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   collection,
   addDoc,
@@ -24,8 +24,12 @@ export default function GroupReplies({
   DEFAULT_AVATAR,
 }) {
   const [replies, setReplies] = useState([]);
-  const [showReplies, setShowReplies] = useState(parentReplyId === null); // Show top-level replies, hide nested ones
+  const [showReplies, setShowReplies] = useState(parentReplyId === null);
   const [visibleReplies, setVisibleReplies] = useState(3);
+
+  // Refs for scroll-into-view
+  const moreRepliesButtonRef = useRef(null);
+  const nestedRepliesButtonRef = useRef(null);
 
   useEffect(() => {
     if (!commentId) return;
@@ -80,25 +84,37 @@ export default function GroupReplies({
   };
 
   const handleToggleVisibility = () => {
-    setVisibleReplies(prevVisible => {
+    setVisibleReplies((prevVisible) => {
       return prevVisible === 3 ? replies.length : 3;
     });
+
+    // Keep "View more replies" button in view
+    if (moreRepliesButtonRef.current) {
+      setTimeout(() => {
+        moreRepliesButtonRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 0);
+    }
   };
 
-  // Don't render anything if no replies exist
   if (replies.length === 0) {
     return null;
   }
 
-  // For nested replies (parentReplyId !== null), show collapse/expand button
   if (parentReplyId !== null && !showReplies) {
     return (
       <div className="ml-6 mt-2">
         <button
-          onClick={() => setShowReplies(true)}
+          ref={nestedRepliesButtonRef}
+          onClick={() => {
+            setShowReplies(true);
+            // Keep nested replies button in view
+            setTimeout(() => {
+              nestedRepliesButtonRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 0);
+          }}
           className="text-blue-500 text-xs hover:underline"
         >
-          View {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+          View {replies.length} {replies.length === 1 ? "reply" : "replies"}
         </button>
       </div>
     );
@@ -106,7 +122,6 @@ export default function GroupReplies({
 
   return (
     <div className={parentReplyId ? "ml-6 mt-2" : "mt-2 ml-6"}>
-      {/* Hide button for nested replies */}
       {parentReplyId !== null && (
         <button
           onClick={() => setShowReplies(false)}
@@ -116,7 +131,6 @@ export default function GroupReplies({
         </button>
       )}
 
-      {/* Replies List */}
       <div className="space-y-2">
         {replies.slice(0, Math.min(visibleReplies, replies.length)).map((reply) => (
           <SingleReply
@@ -132,10 +146,10 @@ export default function GroupReplies({
           />
         ))}
 
-        {/* Show more/less button */}
         {replies.length > 3 && (
           <div className="mt-2">
             <button
+              ref={moreRepliesButtonRef}
               onClick={handleToggleVisibility}
               className="text-blue-500 text-xs hover:underline font-medium"
             >
@@ -150,7 +164,6 @@ export default function GroupReplies({
   );
 }
 
-// Individual reply component with toggle-able reply form
 function SingleReply({
   reply,
   commentId,
@@ -180,7 +193,7 @@ function SingleReply({
   const handleAddReply = async (e) => {
     e.preventDefault();
     if (!replyContent.trim()) return;
-    
+
     await addDoc(collection(db, "groupReplies"), {
       commentId,
       parentReplyId: reply.id,
@@ -190,7 +203,7 @@ function SingleReply({
       content: replyContent.trim(),
       createdAt: serverTimestamp(),
     });
-    
+
     setReplyContent("");
     setShowReplyForm(false);
   };
@@ -257,7 +270,6 @@ function SingleReply({
             <p className="mt-1 text-sm">{reply.content}</p>
           )}
 
-          {/* Action buttons */}
           <div className="mt-2 flex flex-wrap gap-2 text-xs">
             {currentUser && (
               <button
@@ -267,7 +279,7 @@ function SingleReply({
                 {showReplyForm ? "Cancel" : "Reply"}
               </button>
             )}
-            
+
             {canEditOrDelete(reply) && editReplyId !== reply.id && (
               <>
                 <button
@@ -286,7 +298,6 @@ function SingleReply({
             )}
           </div>
 
-          {/* Reply form - only shows when Reply button is clicked */}
           {showReplyForm && (
             <form onSubmit={handleAddReply} className="mt-2 p-2 bg-gray-50 rounded">
               <input
@@ -317,7 +328,6 @@ function SingleReply({
             </form>
           )}
 
-          {/* Nested replies - hidden by default, shown on demand */}
           <GroupReplies
             commentId={commentId}
             parentReplyId={reply.id}
