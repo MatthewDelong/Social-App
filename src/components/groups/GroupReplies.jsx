@@ -90,7 +90,7 @@ export default function GroupReplies({
 
   if (parentReplyId !== null && !showReplies) {
     return (
-      <div className={depth === 0 ? "ml-3 mt-2" : "ml-3 mt-2"}>
+      <div className={depth === 0 ? "ml-3 mt-2" : "ml-0 mt-2"}>
         {/* always ml-3 so nested replies line up */}
         <button
           onClick={() => setShowReplies(true)}
@@ -103,7 +103,7 @@ export default function GroupReplies({
   }
 
   return (
-    <div className={depth === 0 ? "ml-3 mt-2" : "ml-3 mt-2"}>
+    <div className={depth === 0 ? "ml-3 mt-2" : "ml-0 mt-2"}>
       {parentReplyId !== null && (
         <button
           onClick={() => setShowReplies(false)}
@@ -324,7 +324,7 @@ function SingleReply({
             isAdmin={isAdmin}
             isModerator={isModerator}
             DEFAULT_AVATAR={DEFAULT_AVATAR}
-            depth={1} // keep same indent for all nested replies
+            depth={depth} // keep same indent for all nested replies
           />
         </div>
       </div>
