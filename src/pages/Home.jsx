@@ -27,6 +27,7 @@ export default function Home() {
   const [showReplyEmojiPicker, setShowReplyEmojiPicker] = useState({});
   const [editReplyMap, setEditReplyMap] = useState({});
   const [editingReplyIndexMap, setEditingReplyIndexMap] = useState({});
+  const [showReplies, setShowReplies] = useState({});
   const { user, theme } = useAppContext();
   const navigate = useNavigate();
 
@@ -195,45 +196,53 @@ export default function Home() {
   };
 
   const handleEditReply = async (postId, commentIndex, replyIndex) => {
-  const key = `${postId}-${commentIndex}-${replyIndex}`;
+    const key = `${postId}-${commentIndex}-${replyIndex}`;
 
-  setPosts((prevPosts) =>
-    prevPosts.map((p) => {
-      if (p.id !== postId) return p;
+    setPosts((prevPosts) =>
+      prevPosts.map((p) => {
+        if (p.id !== postId) return p;
 
-      const updatedComments = p.comments.map((comment, ci) => {
-        if (ci !== commentIndex) return comment;
+        const updatedComments = p.comments.map((comment, ci) => {
+          if (ci !== commentIndex) return comment;
 
-        const updatedReplies = comment.replies.map((reply, ri) => {
-          if (ri !== replyIndex) return reply;
-          return { ...reply, text: editReplyMap[key] }; // clone reply
+          const updatedReplies = comment.replies.map((reply, ri) => {
+            if (ri !== replyIndex) return reply;
+            return { ...reply, text: editReplyMap[key] };
+          });
+
+          return { ...comment, replies: updatedReplies };
         });
 
-        return { ...comment, replies: updatedReplies }; // clone comment
-      });
+        return { ...p, comments: updatedComments };
+      })
+    );
 
-      return { ...p, comments: updatedComments }; // clone post
-    })
-  );
+    await updateDoc(doc(db, "posts", postId), {
+      comments: posts.find((p) => p.id === postId)?.comments.map((comment, ci) =>
+        ci === commentIndex
+          ? {
+              ...comment,
+              replies: comment.replies.map((reply, ri) =>
+                ri === replyIndex
+                  ? { ...reply, text: editReplyMap[key] }
+                  : reply
+              ),
+            }
+          : comment
+      ),
+    });
 
-  await updateDoc(doc(db, "posts", postId), {
-    comments: posts.find((p) => p.id === postId)?.comments.map((comment, ci) =>
-      ci === commentIndex
-        ? {
-            ...comment,
-            replies: comment.replies.map((reply, ri) =>
-              ri === replyIndex
-                ? { ...reply, text: editReplyMap[key] }
-                : reply
-            ),
-          }
-        : comment
-    ),
-  });
+    setEditingReplyIndexMap((prev) => ({ ...prev, [key]: false }));
+    setEditReplyMap((prev) => ({ ...prev, [key]: "" }));
+  };
 
-  setEditingReplyIndexMap((prev) => ({ ...prev, [key]: false }));
-  setEditReplyMap((prev) => ({ ...prev, [key]: "" }));
-};
+  const toggleShowReplies = (postId, commentIndex) => {
+    const key = `${postId}-${commentIndex}`;
+    setShowReplies(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   const goToProfile = (uid) => {
     if (!uid) return;
@@ -325,9 +334,62 @@ export default function Home() {
 
             {/* Comments */}
             <div className="mt-4 space-y-4">
+              {/* New Comment input */}
+              <div className="flex items-start space-x-2">
+                <textarea
+                  placeholder="Write a comment..."
+                  value={commentMap[post.id] || ''}
+                  onChange={(e) =>
+                    setCommentMap((prev) => ({
+                      ...prev,
+                      [post.id]: e.target.value
+                    }))
+                  }
+                  className="border p-1 flex-1 rounded"
+                />
+                <button
+                  onClick={() => handleComment(post.id)}
+                  className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded"
+                >
+                  Comment
+                </button>
+                <button
+                  onClick={() =>
+                    setShowEmojiPicker((prev) => ({
+                      ...prev,
+                      [post.id]: !prev[post.id]
+                    }))
+                  }
+                  className="text-xs bg-yellow-400 px-2 py-0.5 rounded"
+                >
+                  😀
+                </button>
+              </div>
+              {showEmojiPicker[post.id] && (
+                <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
+                  <div className="relative max-w-[350px] mx-auto md:mx-0">
+                    <button
+                      onClick={() => setShowEmojiPicker(prev => ({...prev, [post.id]: false}))}
+                      className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      X
+                    </button>
+                    <EmojiPicker
+                      width="100%"
+                      height={350}
+                      onEmojiClick={(emoji) => addEmoji(post.id, emoji)}
+                    />
+                  </div>
+                </div>
+              )}
+
               {(post.comments || []).map((comment, i) => {
                 const commentUser = usersMap[comment.uid];
                 const commentAvatar = commentUser?.photoURL || DEFAULT_AVATAR;
+                const replyKey = `${post.id}-${i}`;
+                const hasReplies = comment.replies && comment.replies.length > 0;
+                const isShowingReplies = showReplies[replyKey];
+                
                 return (
                   <div key={i} className="ml-4">
                     <div className="flex items-start space-x-2">
@@ -379,231 +441,194 @@ export default function Home() {
                           <p className="text-gray-900">{comment.text}</p>
                         )}
 
-                        {comment.uid === user.uid &&
-                          editCommentMap[`${post.id}-${i}`] === undefined && (
-                            <div className="space-x-2 mt-1">
-                              <button
-                                onClick={() =>
-                                  setEditCommentMap((prev) => ({
-                                    ...prev,
-                                    [`${post.id}-${i}`]: comment.text
-                                  }))
-                                }
-                                className="text-xs text-blue-600 hover:underline"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() =>
-                                  handleDeleteComment(post.id, i)
-                                }
-                                className="text-xs text-red-500 hover:underline"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
-
-                        {/* Replies */}
-                        <div className="ml-4 mt-2 space-y-2">
-                          {(comment.replies || []).map((reply, ri) => {
-                            const replyUser = usersMap[reply.uid];
-                            const replyAvatar = replyUser?.photoURL || DEFAULT_AVATAR;
-                            const replyKey = `${post.id}-${i}-${ri}`;
-                            return (
-                              <div key={ri} className="flex items-start space-x-2">
-                                <img
-                                  src={replyAvatar}
-                                  alt="avatar"
-                                  className="w-5 h-5 rounded-full object-cover cursor-pointer"
-                                  onClick={() => goToProfile(reply.uid)}
-                                />
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2">
-                                    <p
-                                      className="font-semibold text-gray-800 cursor-pointer"
-                                      onClick={() => goToProfile(reply.uid)}
-                                    >
-                                      {replyUser?.displayName || reply.author}
-                                      {replyUser?.isAdmin && (
-                                        <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Admin</span>
-                                      )}
-                                      {replyUser?.isModerator && (
-                                        <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">Moderator</span>
-                                      )}
-                                    </p>
-                                    <span className="text-xs text-gray-500">
-                                      {safeFormatDate(reply.createdAt)}
-                                    </span>
-                                  </div>
-
-                                  {editingReplyIndexMap[replyKey] ? (
-                                    <div>
-                                      <textarea
-                                        value={editReplyMap[replyKey]}
-                                        onChange={(e) =>
-                                          setEditReplyMap((prev) => ({
-                                            ...prev,
-                                            [replyKey]: e.target.value
-                                          }))
-                                        }
-                                        className="border p-1 w-full rounded"
-                                      />
-                                      <button
-                                        onClick={() =>
-                                          handleEditReply(post.id, i, ri)
-                                        }
-                                        className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded mt-1"
-                                      >
-                                        Save
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <p className="text-gray-900">{reply.text}</p>
-                                  )}
-
-                                  {reply.uid === user.uid &&
-                                    !editingReplyIndexMap[replyKey] && (
-                                      <div className="space-x-2 mt-1">
-                                        <button
-                                          onClick={() => {
-                                            setEditingReplyIndexMap((prev) => ({
-                                              ...prev,
-                                              [replyKey]: true
-                                            }));
-                                            setEditReplyMap((prev) => ({
-                                              ...prev,
-                                              [replyKey]: reply.text
-                                            }));
-                                          }}
-                                          className="text-xs text-blue-600 hover:underline"
-                                        >
-                                          Edit
-                                        </button>
-                                        <button
-                                          onClick={() =>
-                                            handleDeleteReply(post.id, i, ri)
-                                          }
-                                          className="text-xs text-red-500 hover:underline"
-                                        >
-                                          Delete
-                                        </button>
-                                      </div>
-                                    )}
-                                </div>
-                              </div>
-                            );
-                          })}
-
-                          {/* Reply input */}
-                          <div className="flex items-start space-x-2 mt-1">
-                            <textarea
-                              placeholder="Write a reply..."
-                              value={commentMap[`${post.id}-reply-${i}`] || ''}
-                              onChange={(e) =>
-                                setCommentMap((prev) => ({
-                                  ...prev,
-                                  [`${post.id}-reply-${i}`]: e.target.value
-                                }))
-                              }
-                              className="border p-1 flex-1 rounded"
-                            />
-                            <button
-                              onClick={() => handleReply(post.id, i)}
-                              className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded"
-                            >
-                              Reply
-                            </button>
-                            <button
-                              onClick={() =>
-                                setShowReplyEmojiPicker((prev) => ({
-                                  ...prev,
-                                  [`${post.id}-reply-${i}`]:
-                                    !prev[`${post.id}-reply-${i}`]
-                                }))
-                              }
-                              className="text-xs bg-yellow-400 px-2 py-0.5 rounded"
-                            >
-                              😀
-                            </button>
-                          </div>
-                          {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
-                            <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
-                              <div className="relative max-w-[350px] mx-auto md:mx-0">
+                        <div className="flex space-x-2 mt-1 text-xs">
+                          {comment.uid === user.uid &&
+                            editCommentMap[`${post.id}-${i}`] === undefined && (
+                              <>
                                 <button
-                                  onClick={() => setShowReplyEmojiPicker(prev => ({
-                                    ...prev,
-                                    [`${post.id}-reply-${i}`]: false
-                                  }))}
-                                  className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-                                >
-                                  X
-                                </button>
-                                <EmojiPicker
-                                  width="100%"
-                                  height={350}
-                                  onEmojiClick={(emoji) =>
-                                    addReplyEmoji(`${post.id}-reply-${i}`, emoji)
+                                  onClick={() =>
+                                    setEditCommentMap((prev) => ({
+                                      ...prev,
+                                      [`${post.id}-${i}`]: comment.text
+                                    }))
                                   }
-                                />
-                              </div>
-                            </div>
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleDeleteComment(post.id, i)
+                                  }
+                                  className="text-red-500 hover:underline"
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          {hasReplies && (
+                            <button
+                              onClick={() => toggleShowReplies(post.id, i)}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {isShowingReplies ? 'Hide replies' : `View replies (${comment.replies.length})`}
+                            </button>
                           )}
                         </div>
+
+                        {/* Replies */}
+                        {isShowingReplies && (
+                          <div className="ml-4 mt-2 space-y-2">
+                            {(comment.replies || []).map((reply, ri) => {
+                              const replyUser = usersMap[reply.uid];
+                              const replyAvatar = replyUser?.photoURL || DEFAULT_AVATAR;
+                              const replyEditKey = `${post.id}-${i}-${ri}`;
+                              return (
+                                <div key={ri} className="flex items-start space-x-2">
+                                  <img
+                                    src={replyAvatar}
+                                    alt="avatar"
+                                    className="w-5 h-5 rounded-full object-cover cursor-pointer"
+                                    onClick={() => goToProfile(reply.uid)}
+                                  />
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-2">
+                                      <p
+                                        className="font-semibold text-gray-800 cursor-pointer text-sm"
+                                        onClick={() => goToProfile(reply.uid)}
+                                      >
+                                        {replyUser?.displayName || reply.author}
+                                        {replyUser?.isAdmin && (
+                                          <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-1 py-0.5 rounded">Admin</span>
+                                        )}
+                                        {replyUser?.isModerator && (
+                                          <span className="ml-2 bg-green-100 text-green-800 text-xs px-1 py-0.5 rounded">Moderator</span>
+                                        )}
+                                      </p>
+                                      <span className="text-xs text-gray-500">
+                                        {safeFormatDate(reply.createdAt)}
+                                      </span>
+                                    </div>
+
+                                    {editingReplyIndexMap[replyEditKey] ? (
+                                      <div>
+                                        <textarea
+                                          value={editReplyMap[replyEditKey]}
+                                          onChange={(e) =>
+                                            setEditReplyMap((prev) => ({
+                                              ...prev,
+                                              [replyEditKey]: e.target.value
+                                            }))
+                                          }
+                                          className="border p-1 w-full rounded"
+                                        />
+                                        <button
+                                          onClick={() =>
+                                            handleEditReply(post.id, i, ri)
+                                          }
+                                          className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded mt-1"
+                                        >
+                                          Save
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <p className="text-gray-900 text-sm">{reply.text}</p>
+                                    )}
+
+                                    {reply.uid === user.uid &&
+                                      !editingReplyIndexMap[replyEditKey] && (
+                                        <div className="space-x-2 mt-1 text-xs">
+                                          <button
+                                            onClick={() => {
+                                              setEditingReplyIndexMap((prev) => ({
+                                                ...prev,
+                                                [replyEditKey]: true
+                                              }));
+                                              setEditReplyMap((prev) => ({
+                                                ...prev,
+                                                [replyEditKey]: reply.text
+                                              }));
+                                            }}
+                                            className="text-blue-600 hover:underline"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={() =>
+                                              handleDeleteReply(post.id, i, ri)
+                                            }
+                                            className="text-red-500 hover:underline"
+                                          >
+                                            Delete
+                                          </button>
+                                        </div>
+                                      )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            {/* Reply input */}
+                            <div className="flex items-start space-x-2 mt-1">
+                              <textarea
+                                placeholder="Write a reply..."
+                                value={commentMap[`${post.id}-reply-${i}`] || ''}
+                                onChange={(e) =>
+                                  setCommentMap((prev) => ({
+                                    ...prev,
+                                    [`${post.id}-reply-${i}`]: e.target.value
+                                  }))
+                                }
+                                className="border p-1 flex-1 rounded"
+                              />
+                              <button
+                                onClick={() => handleReply(post.id, i)}
+                                className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded"
+                              >
+                                Reply
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setShowReplyEmojiPicker((prev) => ({
+                                    ...prev,
+                                    [`${post.id}-reply-${i}`]:
+                                      !prev[`${post.id}-reply-${i}`]
+                                  }))
+                                }
+                                className="text-xs bg-yellow-400 px-2 py-0.5 rounded"
+                              >
+                                😀
+                              </button>
+                            </div>
+                            {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
+                              <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
+                                <div className="relative max-w-[350px] mx-auto md:mx-0">
+                                  <button
+                                    onClick={() => setShowReplyEmojiPicker(prev => ({
+                                      ...prev,
+                                      [`${post.id}-reply-${i}`]: false
+                                    }))}
+                                    className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                                  >
+                                    X
+                                  </button>
+                                  <EmojiPicker
+                                    width="100%"
+                                    height={350}
+                                    onEmojiClick={(emoji) =>
+                                      addReplyEmoji(`${post.id}-reply-${i}`, emoji)
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 );
               })}
-
-              {/* New Comment input */}
-              <div className="flex items-start space-x-2">
-                <textarea
-                  placeholder="Write a comment..."
-                  value={commentMap[post.id] || ''}
-                  onChange={(e) =>
-                    setCommentMap((prev) => ({
-                      ...prev,
-                      [post.id]: e.target.value
-                    }))
-                  }
-                  className="border p-1 flex-1 rounded"
-                />
-                <button
-                  onClick={() => handleComment(post.id)}
-                  className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded"
-                >
-                  Comment
-                </button>
-                <button
-                  onClick={() =>
-                    setShowEmojiPicker((prev) => ({
-                      ...prev,
-                      [post.id]: !prev[post.id]
-                    }))
-                  }
-                  className="text-xs bg-yellow-400 px-2 py-0.5 rounded"
-                >
-                  😀
-                </button>
-              </div>
-              {showEmojiPicker[post.id] && (
-                <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
-                  <div className="relative max-w-[350px] mx-auto md:mx-0">
-                    <button
-                      onClick={() => setShowEmojiPicker(prev => ({...prev, [post.id]: false}))}
-                      className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-                    >
-                      X
-                    </button>
-                    <EmojiPicker
-                      width="100%"
-                      height={350}
-                      onEmojiClick={(emoji) => addEmoji(post.id, emoji)}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         );
