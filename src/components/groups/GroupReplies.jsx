@@ -24,9 +24,7 @@ export default function GroupReplies({
   DEFAULT_AVATAR,
 }) {
   const [replies, setReplies] = useState([]);
-  const [content, setContent] = useState("");
-  const [editReplyId, setEditReplyId] = useState(null);
-  const [editContent, setEditContent] = useState("");
+  const [showReplies, setShowReplies] = useState(parentReplyId === null); // Show top-level replies, hide nested ones
   const [visibleReplies, setVisibleReplies] = useState(3);
 
   useEffect(() => {
@@ -81,20 +79,92 @@ export default function GroupReplies({
     }
   };
 
-  const handleAddReply = async (e) => {
-    e.preventDefault();
-    if (!content.trim()) return;
-    await addDoc(collection(db, "groupReplies"), {
-      commentId,
-      parentReplyId,
-      uid: currentUser.uid,
-      author: currentUser.displayName,
-      authorPhotoURL: currentUser.photoURL || DEFAULT_AVATAR,
-      content: content.trim(),
-      createdAt: serverTimestamp(),
+  const handleToggleVisibility = () => {
+    setVisibleReplies(prevVisible => {
+      return prevVisible === 3 ? replies.length : 3;
     });
-    setContent("");
   };
+
+  // Don't render anything if no replies exist
+  if (replies.length === 0) {
+    return null;
+  }
+
+  // For nested replies (parentReplyId !== null), show collapse/expand button
+  if (parentReplyId !== null && !showReplies) {
+    return (
+      <div className="ml-6 mt-2">
+        <button
+          onClick={() => setShowReplies(true)}
+          className="text-blue-500 text-xs hover:underline"
+        >
+          View {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={parentReplyId ? "ml-6 mt-2" : "mt-2 ml-6"}>
+      {/* Hide button for nested replies */}
+      {parentReplyId !== null && (
+        <button
+          onClick={() => setShowReplies(false)}
+          className="text-gray-500 text-xs hover:underline mb-2"
+        >
+          Hide replies
+        </button>
+      )}
+
+      {/* Replies List */}
+      <div className="space-y-2">
+        {replies.slice(0, Math.min(visibleReplies, replies.length)).map((reply) => (
+          <SingleReply
+            key={reply.id}
+            reply={reply}
+            commentId={commentId}
+            currentUser={currentUser}
+            isAdmin={isAdmin}
+            isModerator={isModerator}
+            DEFAULT_AVATAR={DEFAULT_AVATAR}
+            canEditOrDelete={canEditOrDelete}
+            formatReplyDate={formatReplyDate}
+          />
+        ))}
+
+        {/* Show more/less button */}
+        {replies.length > 3 && (
+          <div className="mt-2">
+            <button
+              onClick={handleToggleVisibility}
+              className="text-blue-500 text-xs hover:underline font-medium"
+            >
+              {visibleReplies >= replies.length
+                ? "Show less"
+                : `View ${replies.length - visibleReplies} more replies`}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Individual reply component with toggle-able reply form
+function SingleReply({
+  reply,
+  commentId,
+  currentUser,
+  isAdmin,
+  isModerator,
+  DEFAULT_AVATAR,
+  canEditOrDelete,
+  formatReplyDate,
+}) {
+  const [editReplyId, setEditReplyId] = useState(null);
+  const [editContent, setEditContent] = useState("");
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyContent, setReplyContent] = useState("");
 
   const handleUpdateReply = async (e) => {
     e.preventDefault();
@@ -107,130 +177,157 @@ export default function GroupReplies({
     setEditContent("");
   };
 
-  const handleToggleVisibility = () => {
-    if (visibleReplies < replies.length) {
-      setVisibleReplies(replies.length);
-    } else {
-      setVisibleReplies(3);
+  const handleAddReply = async (e) => {
+    e.preventDefault();
+    if (!replyContent.trim()) return;
+    
+    await addDoc(collection(db, "groupReplies"), {
+      commentId,
+      parentReplyId: reply.id,
+      uid: currentUser.uid,
+      author: currentUser.displayName,
+      authorPhotoURL: currentUser.photoURL || DEFAULT_AVATAR,
+      content: replyContent.trim(),
+      createdAt: serverTimestamp(),
+    });
+    
+    setReplyContent("");
+    setShowReplyForm(false);
+  };
+
+  const startEdit = () => {
+    setEditReplyId(reply.id);
+    setEditContent(reply.content);
+  };
+
+  const cancelEdit = () => {
+    setEditReplyId(null);
+    setEditContent("");
+  };
+
+  const deleteReply = async () => {
+    if (window.confirm("Delete this reply?")) {
+      await deleteDoc(doc(db, "groupReplies", reply.id));
     }
   };
 
   return (
-    <div className={parentReplyId ? "ml-6 mt-2" : "mt-2 ml-6"}>
-      {/* Add Reply Form */}
-      <form onSubmit={handleAddReply} className="flex flex-wrap gap-2 mb-1">
-        <input
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Write a reply..."
-          className="flex-1 min-w-[150px] p-1 border rounded text-sm"
+    <div className="border border-gray-200 p-2 rounded text-sm bg-white">
+      <div className="flex items-start gap-2">
+        <img
+          src={reply.authorPhotoURL || DEFAULT_AVATAR}
+          alt={reply.author}
+          className="w-6 h-6 rounded-full object-cover flex-shrink-0"
         />
-        <button
-          type="submit"
-          className="px-2 py-1 bg-gray-500 text-white rounded text-sm"
-        >
-          Reply
-        </button>
-      </form>
-
-      {/* Replies List */}
-      <div className="space-y-1">
-        {replies.slice(0, visibleReplies).map((reply) => (
-          <div
-            key={reply.id}
-            className="border p-1 rounded text-sm flex flex-wrap sm:flex-nowrap items-start gap-2"
-          >
-            <img
-              src={reply.authorPhotoURL || DEFAULT_AVATAR}
-              alt={reply.author}
-              className="w-6 h-6 rounded-full object-cover flex-shrink-0"
-            />
-            <div className="flex-1 break-words">
-              <div className="flex flex-wrap items-center gap-2">
-                <strong>{reply.author}</strong>
-                {reply.createdAt && (
-                  <span className="text-xs text-gray-500">
-                    {formatReplyDate(reply.createdAt)}
-                  </span>
-                )}
-              </div>
-
-              {editReplyId === reply.id ? (
-                <form onSubmit={handleUpdateReply} className="mt-1">
-                  <input
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full p-1 border rounded text-sm mb-1"
-                  />
-                  <div className="space-x-2">
-                    <button
-                      type="submit"
-                      className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditReplyId(null);
-                        setEditContent("");
-                      }}
-                      className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <p className="mt-1">{reply.content}</p>
-              )}
-
-              {canEditOrDelete(reply) && editReplyId !== reply.id && (
-                <div className="mt-1 space-x-2 text-xs text-gray-600">
-                  <button
-                    onClick={() => {
-                      setEditReplyId(reply.id);
-                      setEditContent(reply.content);
-                    }}
-                    className="text-blue-500 hover:underline"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteDoc(doc(db, "groupReplies", reply.id))}
-                    className="text-red-500 hover:underline"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-
-              {/* Recursive Nested Replies - Each gets its own state management */}
-              <GroupReplies
-                commentId={commentId}
-                parentReplyId={reply.id}
-                currentUser={currentUser}
-                isAdmin={isAdmin}
-                isModerator={isModerator}
-                DEFAULT_AVATAR={DEFAULT_AVATAR}
-              />
-            </div>
+        <div className="flex-1 break-words">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <strong className="text-sm">{reply.author}</strong>
+            {reply.createdAt && (
+              <span className="text-xs text-gray-500">
+                {formatReplyDate(reply.createdAt)}
+              </span>
+            )}
           </div>
-        ))}
 
-        {/* View more / Show less button */}
-        {replies.length > 3 && (
-          <button
-            onClick={handleToggleVisibility}
-            className="text-blue-500 text-xs hover:underline"
-          >
-            {visibleReplies < replies.length
-              ? `View more replies (${replies.length - visibleReplies} more)`
-              : "Show less"}
-          </button>
-        )}
+          {editReplyId === reply.id ? (
+            <form onSubmit={handleUpdateReply} className="mt-1">
+              <input
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full p-1 border rounded text-sm mb-2"
+                autoFocus
+              />
+              <div className="space-x-2">
+                <button
+                  type="submit"
+                  className="px-2 py-1 bg-green-600 text-white rounded text-xs"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="mt-1 text-sm">{reply.content}</p>
+          )}
+
+          {/* Action buttons */}
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {currentUser && (
+              <button
+                onClick={() => setShowReplyForm(!showReplyForm)}
+                className="text-blue-500 hover:underline"
+              >
+                {showReplyForm ? "Cancel" : "Reply"}
+              </button>
+            )}
+            
+            {canEditOrDelete(reply) && editReplyId !== reply.id && (
+              <>
+                <button
+                  onClick={startEdit}
+                  className="text-blue-500 hover:underline"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={deleteReply}
+                  className="text-red-500 hover:underline"
+                >
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Reply form - only shows when Reply button is clicked */}
+          {showReplyForm && (
+            <form onSubmit={handleAddReply} className="mt-2 p-2 bg-gray-50 rounded">
+              <input
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="Write a reply..."
+                className="w-full p-1 border rounded text-sm mb-2"
+                autoFocus
+              />
+              <div className="space-x-2">
+                <button
+                  type="submit"
+                  className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
+                >
+                  Reply
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReplyForm(false);
+                    setReplyContent("");
+                  }}
+                  className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Nested replies - hidden by default, shown on demand */}
+          <GroupReplies
+            commentId={commentId}
+            parentReplyId={reply.id}
+            currentUser={currentUser}
+            isAdmin={isAdmin}
+            isModerator={isModerator}
+            DEFAULT_AVATAR={DEFAULT_AVATAR}
+          />
+        </div>
       </div>
     </div>
   );
 }
-
