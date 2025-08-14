@@ -135,23 +135,87 @@ export default function GroupReplies({
 
       {/* Replies List */}
       <div className="space-y-1">
-        {replies.slice(0, visibleReplies).map((reply, index) => (
-          <ReplyItem
+        {replies.slice(0, visibleReplies).map((reply) => (
+          <div
             key={reply.id}
-            reply={reply}
-            commentId={commentId}
-            currentUser={currentUser}
-            isAdmin={isAdmin}
-            isModerator={isModerator}
-            DEFAULT_AVATAR={DEFAULT_AVATAR}
-            canEditOrDelete={canEditOrDelete}
-            formatReplyDate={formatReplyDate}
-            editReplyId={editReplyId}
-            setEditReplyId={setEditReplyId}
-            editContent={editContent}
-            setEditContent={setEditContent}
-            handleUpdateReply={handleUpdateReply}
-          />
+            className="border p-1 rounded text-sm flex flex-wrap sm:flex-nowrap items-start gap-2"
+          >
+            <img
+              src={reply.authorPhotoURL || DEFAULT_AVATAR}
+              alt={reply.author}
+              className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+            />
+            <div className="flex-1 break-words">
+              <div className="flex flex-wrap items-center gap-2">
+                <strong>{reply.author}</strong>
+                {reply.createdAt && (
+                  <span className="text-xs text-gray-500">
+                    {formatReplyDate(reply.createdAt)}
+                  </span>
+                )}
+              </div>
+
+              {editReplyId === reply.id ? (
+                <form onSubmit={handleUpdateReply} className="mt-1">
+                  <input
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full p-1 border rounded text-sm mb-1"
+                  />
+                  <div className="space-x-2">
+                    <button
+                      type="submit"
+                      className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditReplyId(null);
+                        setEditContent("");
+                      }}
+                      className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <p className="mt-1">{reply.content}</p>
+              )}
+
+              {canEditOrDelete(reply) && editReplyId !== reply.id && (
+                <div className="mt-1 space-x-2 text-xs text-gray-600">
+                  <button
+                    onClick={() => {
+                      setEditReplyId(reply.id);
+                      setEditContent(reply.content);
+                    }}
+                    className="text-blue-500 hover:underline"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteDoc(doc(db, "groupReplies", reply.id))}
+                    className="text-red-500 hover:underline"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+
+              {/* Recursive Nested Replies - Each gets its own state management */}
+              <GroupReplies
+                commentId={commentId}
+                parentReplyId={reply.id}
+                currentUser={currentUser}
+                isAdmin={isAdmin}
+                isModerator={isModerator}
+                DEFAULT_AVATAR={DEFAULT_AVATAR}
+              />
+            </div>
+          </div>
         ))}
 
         {/* View more / Show less button */}
@@ -170,99 +234,3 @@ export default function GroupReplies({
   );
 }
 
-// Separate component for each reply item to ensure proper state isolation
-function ReplyItem({
-  reply,
-  commentId,
-  currentUser,
-  isAdmin,
-  isModerator,
-  DEFAULT_AVATAR,
-  canEditOrDelete,
-  formatReplyDate,
-  editReplyId,
-  setEditReplyId,
-  editContent,
-  setEditContent,
-  handleUpdateReply,
-}) {
-  return (
-    <div className="border p-1 rounded text-sm flex flex-wrap sm:flex-nowrap items-start gap-2">
-      <img
-        src={reply.authorPhotoURL || DEFAULT_AVATAR}
-        alt={reply.author}
-        className="w-6 h-6 rounded-full object-cover flex-shrink-0"
-      />
-      <div className="flex-1 break-words">
-        <div className="flex flex-wrap items-center gap-2">
-          <strong>{reply.author}</strong>
-          {reply.createdAt && (
-            <span className="text-xs text-gray-500">
-              {formatReplyDate(reply.createdAt)}
-            </span>
-          )}
-        </div>
-
-        {editReplyId === reply.id ? (
-          <form onSubmit={handleUpdateReply} className="mt-1">
-            <input
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="w-full p-1 border rounded text-sm mb-1"
-            />
-            <div className="space-x-2">
-              <button
-                type="submit"
-                className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditReplyId(null);
-                  setEditContent("");
-                }}
-                className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <p className="mt-1">{reply.content}</p>
-        )}
-
-        {canEditOrDelete(reply) && editReplyId !== reply.id && (
-          <div className="mt-1 space-x-2 text-xs text-gray-600">
-            <button
-              onClick={() => {
-                setEditReplyId(reply.id);
-                setEditContent(reply.content);
-              }}
-              className="text-blue-500 hover:underline"
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => deleteDoc(doc(db, "groupReplies", reply.id))}
-              className="text-red-500 hover:underline"
-            >
-              Delete
-            </button>
-          </div>
-        )}
-
-        {/* Recursive Nested Replies - Each gets its own state management */}
-        <GroupReplies
-          commentId={commentId}
-          parentReplyId={reply.id}
-          currentUser={currentUser}
-          isAdmin={isAdmin}
-          isModerator={isModerator}
-          DEFAULT_AVATAR={DEFAULT_AVATAR}
-        />
-      </div>
-    </div>
-  );
-}
