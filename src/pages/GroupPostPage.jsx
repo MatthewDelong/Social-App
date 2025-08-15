@@ -306,17 +306,13 @@ export default function GroupPostPage() {
           </div>
         )}
 
-        {/* Comments section - modified to match Home.jsx flat structure */}
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-3">Comments</h3>
-          <GroupComments
-            postId={postId}
-            currentUser={user}
-            isAdmin={isAdmin}
-            isModerator={isModerator}
-            flatStructure={true} // Add this prop to indicate flat structure
-          />
-        </div>
+        {/* Comments section */}
+        <GroupComments
+          postId={postId}
+          currentUser={user}
+          isAdmin={isAdmin}
+          isModerator={isModerator}
+        />
       </div>
     </div>
   );
