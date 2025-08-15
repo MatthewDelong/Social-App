@@ -22,7 +22,7 @@ export default function GroupReplies({
   isAdmin,
   isModerator,
   DEFAULT_AVATAR,
-  depth = 0, // track nesting
+  depth = 0, // ✅ track depth
 }) {
   const [replies, setReplies] = useState([]);
   const [showReplies, setShowReplies] = useState(parentReplyId === null);
@@ -91,7 +91,6 @@ export default function GroupReplies({
   if (parentReplyId !== null && !showReplies) {
     return (
       <div className={depth === 0 ? "ml-3 mt-2" : "ml-0 mt-2"}>
-        {/* always ml-3 so nested replies line up */}
         <button
           onClick={() => setShowReplies(true)}
           className="text-blue-500 text-xs hover:underline"
@@ -127,7 +126,7 @@ export default function GroupReplies({
               DEFAULT_AVATAR={DEFAULT_AVATAR}
               canEditOrDelete={canEditOrDelete}
               formatReplyDate={formatReplyDate}
-              depth={1} // ✅ lock depth at 1 for all replies
+              depth={depth + 1} // ✅ increase depth
             />
           ))}
 
@@ -316,7 +315,7 @@ function SingleReply({
             </form>
           )}
 
-          {/* ✅ All replies under same indent */}
+          {/* ✅ Keep replies to replies aligned under the first reply */}
           <GroupReplies
             commentId={commentId}
             parentReplyId={reply.id}
@@ -324,7 +323,7 @@ function SingleReply({
             isAdmin={isAdmin}
             isModerator={isModerator}
             DEFAULT_AVATAR={DEFAULT_AVATAR}
-            depth={depth} // keep same indent for all nested replies
+            depth={depth} // no extra indent after first level
           />
         </div>
       </div>
