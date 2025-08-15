@@ -22,7 +22,7 @@ export default function GroupReplies({
   isAdmin,
   isModerator,
   DEFAULT_AVATAR,
-  depth = 0, // ✅ track depth
+  depth = 0, // track nesting
 }) {
   const [replies, setReplies] = useState([]);
   const [showReplies, setShowReplies] = useState(parentReplyId === null);
@@ -126,7 +126,7 @@ export default function GroupReplies({
               DEFAULT_AVATAR={DEFAULT_AVATAR}
               canEditOrDelete={canEditOrDelete}
               formatReplyDate={formatReplyDate}
-              depth={depth + 1} // ✅ increase depth
+              depth={depth} // 🔹 keep same depth for children to stop extra indent
             />
           ))}
 
@@ -315,7 +315,7 @@ function SingleReply({
             </form>
           )}
 
-          {/* ✅ Keep replies to replies aligned under the first reply */}
+          {/* Always pass the SAME depth so replies to replies align */}
           <GroupReplies
             commentId={commentId}
             parentReplyId={reply.id}
@@ -323,7 +323,7 @@ function SingleReply({
             isAdmin={isAdmin}
             isModerator={isModerator}
             DEFAULT_AVATAR={DEFAULT_AVATAR}
-            depth={depth} // no extra indent after first level
+            depth={1} // 🔹 Force all children to use first-level indent only
           />
         </div>
       </div>
