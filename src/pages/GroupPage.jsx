@@ -35,23 +35,6 @@ export default function GroupPage() {
 
   const isAdminOrMod = user?.isAdmin || user?.isModerator;
 
-  // Helper to format time as "x days ago"
-  const timeAgo = (timestamp) => {
-    if (!timestamp) return "";
-    const now = new Date();
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    const diffMs = now - date;
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHr = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHr / 24);
-
-    if (diffDay > 0) return `${diffDay} day${diffDay > 1 ? "s" : ""} ago`;
-    if (diffHr > 0) return `${diffHr} hour${diffHr > 1 ? "s" : ""} ago`;
-    if (diffMin > 0) return `${diffMin} minute${diffMin > 1 ? "s" : ""} ago`;
-    return "Just now";
-  };
-
   // Load default images from storage
   useEffect(() => {
     const loadDefaults = async () => {
@@ -201,12 +184,28 @@ export default function GroupPage() {
               alt={`${group.name} banner`}
               className="w-full h-full object-cover"
             />
+            {/* Camera icon for banner - only show for admins/mods */}
             {isAdminOrMod && (
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-20">
                 <div className="w-12 h-12 rounded-full bg-gray-600 bg-opacity-70 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <svg 
+                    className="w-6 h-6 text-white" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
+                    />
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" 
+                    />
                   </svg>
                 </div>
               </div>
@@ -224,12 +223,28 @@ export default function GroupPage() {
                 alt={`${group.name} logo`}
                 className="w-full h-full object-cover"
               />
+              {/* Camera icon for logo - only show for admins/mods */}
               {isAdminOrMod && (
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-20 rounded-full">
                   <div className="w-8 h-8 rounded-full bg-gray-600 bg-opacity-70 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <svg 
+                      className="w-4 h-4 text-white" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
+                      />
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" 
+                      />
                     </svg>
                   </div>
                 </div>
@@ -239,17 +254,23 @@ export default function GroupPage() {
         </div>
       )}
 
-      {/* Name, Description, Join/Leave */}
+      {/* Name, Description, Join/Leave - FIXED MARGIN */}
       <div className="mt-20 sm:mt-16 p-4">
         <h1 className="text-2xl font-bold">{group.name}</h1>
         <p className="mb-4">{group.description}</p>
         <div className="flex items-center gap-4 mb-4">
           {isMember ? (
-            <button onClick={leaveGroup} className="px-4 py-2 bg-red-500 text-white rounded">
+            <button
+              onClick={leaveGroup}
+              className="px-4 py-2 bg-red-500 text-white rounded"
+            >
               Leave Group
             </button>
           ) : (
-            <button onClick={joinGroup} className="px-4 py-2 bg-blue-500 text-white rounded">
+            <button
+              onClick={joinGroup}
+              className="px-4 py-2 bg-blue-500 text-white rounded"
+            >
               Join Group
             </button>
           )}
@@ -268,19 +289,22 @@ export default function GroupPage() {
           <p>No posts yet.</p>
         ) : (
           posts.map((post) => (
-            <div key={post.id} className="border p-3 rounded flex items-center gap-3">
+            <div
+              key={post.id}
+              className="border p-3 rounded flex items-center gap-3"
+            >
               <img
                 src={post.authorPhotoURL || DEFAULT_AVATAR}
                 alt={post.author}
                 className="w-8 h-8 rounded-full object-cover"
               />
               <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold">{post.author}</p>
-                  <span className="text-xs text-gray-500">{timeAgo(post.createdAt)}</span>
-                </div>
+                <p className="font-semibold">{post.author}</p>
                 <p>{post.content}</p>
-                <Link to={`/groups/${groupId}/post/${post.id}`} className="text-blue-500">
+                <Link
+                  to={`/groups/${groupId}/post/${post.id}`}
+                  className="text-blue-500"
+                >
                   View Comments
                 </Link>
               </div>
