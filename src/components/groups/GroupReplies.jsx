@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+// src/components/groups/GroupReplies.jsx
+import { useEffect, useState, Fragment } from "react";
 import {
   collection,
   addDoc,
@@ -14,6 +15,8 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { formatDistanceToNow } from "date-fns";
+import { arrayUnion, arrayRemove } from "firebase/firestore";
+import { ThumbsUp } from "lucide-react"; // 👍 icon
 
 export default function GroupReplies({
   commentId,
@@ -22,48 +25,65 @@ export default function GroupReplies({
   isAdmin,
   isModerator,
   DEFAULT_AVATAR,
-  depth = 0, // ✅ track depth
 }) {
   const [replies, setReplies] = useState([]);
-  const [showReplies, setShowReplies] = useState(parentReplyId === null);
-  const [visibleReplies, setVisibleReplies] = useState(3);
+  const [editReplyId, setEditReplyId] = useState(null);
+  const [editContent, setEditContent] = useState("");
+  const INITIAL_VISIBLE = 3;
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const [activeReplyBox, setActiveReplyBox] = useState(null);
 
   useEffect(() => {
     if (!commentId) return;
+    let unsub;
+    (async () => {
+      try {
+        const q = query(
+          collection(db, "groupReplies"),
+          where("commentId", "==", commentId),
+          where("parentReplyId", "==", parentReplyId),
+          orderBy("createdAt", "asc")
+        );
 
-    const q = query(
-      collection(db, "groupReplies"),
-      where("commentId", "==", commentId),
-      where("parentReplyId", "==", parentReplyId),
-      orderBy("createdAt", "asc")
-    );
+        unsub = onSnapshot(q, async (snapshot) => {
+          const docs = snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+          }));
 
-    const unsub = onSnapshot(q, async (snapshot) => {
-      const docs = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      }));
+          const updated = await Promise.all(
+            docs.map(async (reply) => {
+              try {
+                if (reply.uid) {
+                  const userDoc = await getDoc(doc(db, "users", reply.uid));
+                  if (userDoc.exists()) {
+                    return {
+                      ...reply,
+                      authorPhotoURL:
+                        userDoc.data().photoURL || DEFAULT_AVATAR,
+                      likes: reply.likes || [],
+                    };
+                  }
+                }
+              } catch {}
+              return { ...reply, authorPhotoURL: DEFAULT_AVATAR, likes: reply.likes || [] };
+            })
+          );
 
-      const updated = await Promise.all(
-        docs.map(async (reply) => {
-          if (reply.uid) {
-            const userDoc = await getDoc(doc(db, "users", reply.uid));
-            if (userDoc.exists()) {
-              return {
-                ...reply,
-                authorPhotoURL: userDoc.data().photoURL || DEFAULT_AVATAR,
-              };
-            }
-          }
-          return { ...reply, authorPhotoURL: DEFAULT_AVATAR };
-        })
-      );
-
-      setReplies(updated);
-    });
-
-    return () => unsub();
+          setReplies(updated);
+        });
+      } catch (err) {
+        console.error("Replies listener error:", err);
+      }
+    })();
+    return () => {
+      if (unsub) unsub();
+    };
   }, [commentId, parentReplyId, DEFAULT_AVATAR]);
+
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+  }, [commentId, parentReplyId]);
 
   const canEditOrDelete = (reply) => {
     if (!currentUser) return false;
@@ -80,252 +100,244 @@ export default function GroupReplies({
     }
   };
 
-  const handleToggleVisibility = () => {
-    setVisibleReplies((prevVisible) =>
-      prevVisible === 3 ? replies.length : 3
-    );
-  };
-
-  if (replies.length === 0) return null;
-
-  if (parentReplyId !== null && !showReplies) {
-    return (
-      <div className={depth === 0 ? "ml-3 mt-2" : "ml-0 mt-2"}>
-        <button
-          onClick={() => setShowReplies(true)}
-          className="text-blue-500 text-xs hover:underline"
-        >
-          View {replies.length} {replies.length === 1 ? "reply" : "replies"}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className={depth === 0 ? "ml-3 mt-2" : "ml-0 mt-2"}>
-      {parentReplyId !== null && (
-        <button
-          onClick={() => setShowReplies(false)}
-          className="text-gray-500 text-xs hover:underline mb-2"
-        >
-          Hide replies
-        </button>
-      )}
-
-      <div className="space-y-2">
-        {replies
-          .slice(0, Math.min(visibleReplies, replies.length))
-          .map((reply) => (
-            <SingleReply
-              key={reply.id}
-              reply={reply}
-              commentId={commentId}
-              currentUser={currentUser}
-              isAdmin={isAdmin}
-              isModerator={isModerator}
-              DEFAULT_AVATAR={DEFAULT_AVATAR}
-              canEditOrDelete={canEditOrDelete}
-              formatReplyDate={formatReplyDate}
-              depth={depth + 1} // ✅ increase depth
-            />
-          ))}
-
-        {replies.length > 3 && (
-          <div className="mt-2">
-            <button
-              onClick={handleToggleVisibility}
-              className="text-blue-500 text-xs hover:underline font-medium"
-            >
-              {visibleReplies >= replies.length
-                ? "Show less"
-                : `View ${replies.length - visibleReplies} more replies`}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SingleReply({
-  reply,
-  commentId,
-  currentUser,
-  isAdmin,
-  isModerator,
-  DEFAULT_AVATAR,
-  canEditOrDelete,
-  formatReplyDate,
-  depth,
-}) {
-  const [editReplyId, setEditReplyId] = useState(null);
-  const [editContent, setEditContent] = useState("");
-  const [showReplyForm, setShowReplyForm] = useState(false);
-  const [replyContent, setReplyContent] = useState("");
-
-  const handleUpdateReply = async (e) => {
-    e.preventDefault();
-    if (!editContent.trim()) return;
-    await updateDoc(doc(db, "groupReplies", editReplyId), {
-      content: editContent.trim(),
-      editedAt: serverTimestamp(),
-    });
-    setEditReplyId(null);
-    setEditContent("");
-  };
-
-  const handleAddReply = async (e) => {
-    e.preventDefault();
-    if (!replyContent.trim()) return;
-
-    await addDoc(collection(db, "groupReplies"), {
-      commentId,
-      parentReplyId: reply.id,
-      uid: currentUser.uid,
-      author: currentUser.displayName,
-      authorPhotoURL: currentUser.photoURL || DEFAULT_AVATAR,
-      content: replyContent.trim(),
-      createdAt: serverTimestamp(),
-    });
-
-    setReplyContent("");
-    setShowReplyForm(false);
-  };
-
-  const startEdit = () => {
-    setEditReplyId(reply.id);
-    setEditContent(reply.content);
-  };
-
-  const cancelEdit = () => {
-    setEditReplyId(null);
-    setEditContent("");
-  };
-
-  const deleteReply = async () => {
-    if (window.confirm("Delete this reply?")) {
-      await deleteDoc(doc(db, "groupReplies", reply.id));
+  const handleAddReply = async (parentId, text) => {
+    if (!currentUser || !text.trim()) return;
+    try {
+      await addDoc(collection(db, "groupReplies"), {
+        commentId,
+        parentReplyId: parentId ?? null,
+        uid: currentUser.uid,
+        author: currentUser.displayName,
+        authorPhotoURL: currentUser.photoURL || DEFAULT_AVATAR,
+        content: text.trim(),
+        createdAt: serverTimestamp(),
+        likes: [],
+      });
+    } catch (err) {
+      console.error("Error adding reply:", err);
     }
   };
 
+  const handleUpdateReply = async (e) => {
+    e.preventDefault();
+    if (!editContent.trim() || !editReplyId) return;
+    try {
+      await updateDoc(doc(db, "groupReplies", editReplyId), {
+        content: editContent.trim(),
+        editedAt: serverTimestamp(),
+      });
+      setEditReplyId(null);
+      setEditContent("");
+    } catch (err) {
+      console.error("Error updating reply:", err);
+    }
+  };
+
+  const toggleLike = async (reply) => {
+    if (!currentUser) return;
+    const replyRef = doc(db, "groupReplies", reply.id);
+    try {
+      if (reply.likes?.includes(currentUser.uid)) {
+        await updateDoc(replyRef, {
+          likes: arrayRemove(currentUser.uid),
+        });
+      } else {
+        await updateDoc(replyRef, {
+          likes: arrayUnion(currentUser.uid),
+        });
+      }
+    } catch (err) {
+      console.error("Error toggling like:", err);
+    }
+  };
+
+  const visibleReplies = replies.slice(0, visibleCount);
+
   return (
-    <div className="border border-gray-200 p-2 rounded text-sm bg-white">
-      <div className="flex items-start gap-2">
-        <img
-          src={reply.authorPhotoURL || DEFAULT_AVATAR}
-          alt={reply.author}
-          className="w-6 h-6 rounded-full object-cover flex-shrink-0"
-        />
-        <div className="flex-1 break-words">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <strong className="text-sm">{reply.author}</strong>
-            {reply.createdAt && (
-              <span className="text-xs text-gray-500">
-                {formatReplyDate(reply.createdAt)}
-              </span>
-            )}
-          </div>
-
-          {editReplyId === reply.id ? (
-            <form onSubmit={handleUpdateReply} className="mt-1">
-              <input
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="w-full p-1 border rounded text-sm mb-2"
-                autoFocus
+    <div className="mt-2">
+      <div className="space-y-2">
+        {visibleReplies.map((reply) => (
+          <Fragment key={reply.id}>
+            <div className="border p-2 rounded text-sm bg-white flex items-start gap-2">
+              <img
+                src={reply.authorPhotoURL || DEFAULT_AVATAR}
+                alt={reply.author}
+                className="w-7 h-7 rounded-full object-cover flex-shrink-0"
               />
-              <div className="space-x-2">
-                <button
-                  type="submit"
-                  className="px-2 py-1 bg-green-600 text-white rounded text-xs"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
-                >
-                  Cancel
-                </button>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong className="text-sm">{reply.author}</strong>
+                  {reply.createdAt && (
+                    <span className="text-xs text-gray-500">
+                      {formatReplyDate(reply.createdAt)}
+                    </span>
+                  )}
+                </div>
+
+                {editReplyId === reply.id ? (
+                  <form onSubmit={handleUpdateReply} className="mt-1">
+                    <input
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="w-full p-2 border rounded text-sm mb-2"
+                      autoFocus
+                    />
+                    <div className="space-x-2">
+                      <button
+                        type="submit"
+                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditReplyId(null);
+                          setEditContent("");
+                        }}
+                        className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="mt-1 break-words">{reply.content}</p>
+                )}
+
+                <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
+                  {/* Reply button */}
+                  <button
+                    onClick={() =>
+                      setActiveReplyBox(
+                        activeReplyBox === reply.id ? null : reply.id
+                      )
+                    }
+                    className="text-blue-600 hover:underline"
+                  >
+                    Reply
+                  </button>
+
+                  {/* Like button with icon */}
+                  <button
+                    onClick={() => toggleLike(reply)}
+                    className={`flex items-center gap-1 hover:underline ${
+                      reply.likes?.includes(currentUser?.uid)
+                        ? "text-blue-600 font-semibold"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    <ThumbsUp size={14} />
+                    {reply.likes?.includes(currentUser?.uid) ? "Liked" : "Like"}
+                  </button>
+
+                  {/* Show like count */}
+                  {reply.likes?.length > 0 && (
+                    <span className="text-gray-500">
+                      {reply.likes.length} {reply.likes.length === 1 ? "Like" : "Likes"}
+                    </span>
+                  )}
+
+                  {/* Edit/Delete only for owner or admin */}
+                  {canEditOrDelete(reply) && editReplyId !== reply.id && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditReplyId(reply.id);
+                          setEditContent(reply.content);
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (window.confirm("Delete this reply?")) {
+                            try {
+                              await deleteDoc(doc(db, "groupReplies", reply.id));
+                            } catch (err) {
+                              console.error("Error deleting reply:", err);
+                            }
+                          }
+                        }}
+                        className="text-red-600 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Inline reply input */}
+                {activeReplyBox === reply.id && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const text = e.target.elements.replyText.value;
+                      handleAddReply(reply.id, text);
+                      setActiveReplyBox(null);
+                      e.target.reset();
+                    }}
+                    className="flex flex-wrap gap-2 mt-2"
+                  >
+                    <input
+                      name="replyText"
+                      placeholder="Write a reply..."
+                      className="flex-1 min-w-[150px] p-2 border rounded text-sm"
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      className="px-3 py-2 bg-gray-700 text-white rounded text-sm"
+                    >
+                      Reply
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveReplyBox(null)}
+                      className="px-3 py-2 bg-gray-400 text-white rounded text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                )}
               </div>
-            </form>
-          ) : (
-            <p className="mt-1 text-sm">{reply.content}</p>
-          )}
+            </div>
 
-          <div className="mt-2 flex flex-wrap gap-2 text-xs">
-            {currentUser && (
-              <button
-                onClick={() => setShowReplyForm(!showReplyForm)}
-                className="text-blue-500 hover:underline"
-              >
-                {showReplyForm ? "Cancel" : "Reply"}
-              </button>
-            )}
-
-            {canEditOrDelete(reply) && editReplyId !== reply.id && (
-              <>
-                <button
-                  onClick={startEdit}
-                  className="text-blue-500 hover:underline"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={deleteReply}
-                  className="text-red-500 hover:underline"
-                >
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
-
-          {showReplyForm && (
-            <form
-              onSubmit={handleAddReply}
-              className="mt-2 p-2 bg-gray-50 rounded"
-            >
-              <input
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="Write a reply..."
-                className="w-full p-1 border rounded text-sm mb-2"
-                autoFocus
+            {/* Nested replies */}
+            <div className="mt-2">
+              <GroupReplies
+                commentId={commentId}
+                parentReplyId={reply.id}
+                currentUser={currentUser}
+                isAdmin={isAdmin}
+                isModerator={isModerator}
+                DEFAULT_AVATAR={DEFAULT_AVATAR}
               />
-              <div className="space-x-2">
-                <button
-                  type="submit"
-                  className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
-                >
-                  Reply
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowReplyForm(false);
-                    setReplyContent("");
-                  }}
-                  className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
+            </div>
+          </Fragment>
+        ))}
 
-          {/* ✅ Keep replies to replies aligned under the first reply */}
-          <GroupReplies
-            commentId={commentId}
-            parentReplyId={reply.id}
-            currentUser={currentUser}
-            isAdmin={isAdmin}
-            isModerator={isModerator}
-            DEFAULT_AVATAR={DEFAULT_AVATAR}
-            depth={depth} // no extra indent after first level
-          />
-        </div>
+        {replies.length > visibleCount && (
+          <button
+            onClick={() =>
+              setVisibleCount((prev) =>
+                Math.min(prev + INITIAL_VISIBLE, replies.length)
+              )
+            }
+            className="text-xs text-blue-600 hover:underline"
+          >
+            View {replies.length - visibleCount} more replies
+          </button>
+        )}
+        {visibleCount > INITIAL_VISIBLE && (
+          <button
+            onClick={() => setVisibleCount(INITIAL_VISIBLE)}
+            className="ml-2 text-xs text-blue-600 hover:underline"
+          >
+            Show less
+          </button>
+        )}
       </div>
     </div>
   );

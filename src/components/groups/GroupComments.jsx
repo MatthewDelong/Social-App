@@ -1,3 +1,4 @@
+// src/components/groups/GroupComments.jsx
 import { useEffect, useState } from "react";
 import {
   collection,
@@ -15,6 +16,8 @@ import {
 import { db, storage } from "../../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
 import { formatDistanceToNow } from "date-fns";
+import { arrayUnion, arrayRemove } from "firebase/firestore";
+import { ThumbsUp } from "lucide-react";
 import GroupReplies from "./GroupReplies";
 
 export default function GroupComments({ postId, currentUser }) {
@@ -23,6 +26,7 @@ export default function GroupComments({ postId, currentUser }) {
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editContent, setEditContent] = useState("");
+  const [activeReplyBox, setActiveReplyBox] = useState(null);
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
@@ -52,7 +56,7 @@ export default function GroupComments({ postId, currentUser }) {
         ...docSnap.data(),
       }));
 
-      // Always ensure we have an avatar from users collection
+      // Always ensure we have an avatar + likes
       const updated = await Promise.all(
         docs.map(async (c) => {
           if (c.uid) {
@@ -62,10 +66,11 @@ export default function GroupComments({ postId, currentUser }) {
                 ...c,
                 authorPhotoURL:
                   userDoc.data().photoURL || DEFAULT_AVATAR,
+                likes: c.likes || [],
               };
             }
           }
-          return { ...c, authorPhotoURL: DEFAULT_AVATAR };
+          return { ...c, authorPhotoURL: DEFAULT_AVATAR, likes: c.likes || [] };
         })
       );
 
@@ -102,6 +107,7 @@ export default function GroupComments({ postId, currentUser }) {
       authorPhotoURL: currentUser.photoURL || DEFAULT_AVATAR,
       content: content.trim(),
       createdAt: serverTimestamp(),
+      likes: [],
     });
     setContent("");
   };
@@ -119,6 +125,42 @@ export default function GroupComments({ postId, currentUser }) {
     });
     setEditingCommentId(null);
     setEditContent("");
+  };
+
+  const toggleLike = async (comment) => {
+    if (!currentUser) return;
+    const commentRef = doc(db, "groupComments", comment.id);
+    try {
+      if (comment.likes?.includes(currentUser.uid)) {
+        await updateDoc(commentRef, {
+          likes: arrayRemove(currentUser.uid),
+        });
+      } else {
+        await updateDoc(commentRef, {
+          likes: arrayUnion(currentUser.uid),
+        });
+      }
+    } catch (err) {
+      console.error("Error toggling like:", err);
+    }
+  };
+
+  const handleAddReply = async (parentCommentId, text) => {
+    if (!currentUser || !text.trim()) return;
+    try {
+      await addDoc(collection(db, "groupReplies"), {
+        commentId: parentCommentId,
+        parentReplyId: null,
+        uid: currentUser.uid,
+        author: currentUser.displayName,
+        authorPhotoURL: currentUser.photoURL || DEFAULT_AVATAR,
+        content: text.trim(),
+        createdAt: serverTimestamp(),
+        likes: [],
+      });
+    } catch (err) {
+      console.error("Error adding reply:", err);
+    }
   };
 
   return (
@@ -194,27 +236,98 @@ export default function GroupComments({ postId, currentUser }) {
                 <p>{comment.content}</p>
               )}
 
-              {canEditOrDeleteComment(comment) &&
-                editingCommentId !== comment.id && (
-                  <div className="space-x-2 text-sm mt-1">
-                    <button
-                      onClick={() => {
-                        setEditingCommentId(comment.id);
-                        setEditContent(comment.content);
-                      }}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteComment(comment.id)}
-                      className="text-red-600 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </div>
+              <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
+                {/* Reply button */}
+                <button
+                  onClick={() =>
+                    setActiveReplyBox(
+                      activeReplyBox === comment.id ? null : comment.id
+                    )
+                  }
+                  className="text-blue-600 hover:underline"
+                >
+                  Reply
+                </button>
+
+                {/* Like button */}
+                <button
+                  onClick={() => toggleLike(comment)}
+                  className={`flex items-center gap-1 hover:underline ${
+                    comment.likes?.includes(currentUser?.uid)
+                      ? "text-blue-600 font-semibold"
+                      : "text-gray-600"
+                  }`}
+                >
+                  <ThumbsUp size={14} />
+                  {comment.likes?.includes(currentUser?.uid) ? "Liked" : "Like"}
+                </button>
+
+                {/* Like count */}
+                {comment.likes?.length > 0 && (
+                  <span className="text-gray-500">
+                    {comment.likes.length}{" "}
+                    {comment.likes.length === 1 ? "Like" : "Likes"}
+                  </span>
                 )}
 
+                {/* Edit/Delete */}
+                {canEditOrDeleteComment(comment) &&
+                  editingCommentId !== comment.id && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditingCommentId(comment.id);
+                          setEditContent(comment.content);
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteComment(comment.id)}
+                        className="text-red-600 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+              </div>
+
+              {/* Inline reply input */}
+              {activeReplyBox === comment.id && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const text = e.target.elements.replyText.value;
+                    handleAddReply(comment.id, text);
+                    setActiveReplyBox(null);
+                    e.target.reset();
+                  }}
+                  className="flex flex-wrap gap-2 mt-2"
+                >
+                  <input
+                    name="replyText"
+                    placeholder="Write a reply..."
+                    className="flex-1 min-w-[150px] p-2 border rounded text-sm"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="px-3 py-2 bg-gray-700 text-white rounded text-sm"
+                  >
+                    Reply
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveReplyBox(null)}
+                    className="px-3 py-2 bg-gray-400 text-white rounded text-sm"
+                  >
+                    Cancel
+                  </button>
+                </form>
+              )}
+
+              {/* Nested Replies */}
               <GroupReplies
                 commentId={comment.id}
                 currentUser={currentUser}
