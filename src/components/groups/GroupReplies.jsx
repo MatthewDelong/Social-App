@@ -304,8 +304,8 @@ export default function GroupReplies({
               </div>
             </div>
 
-            {/* Nested replies */}
-            <div className="mt-2 ml-4">
+            {/* Nested replies - removed ml-4 to prevent staggering */}
+            <div className="mt-2">
               <GroupReplies
                 commentId={commentId}
                 parentReplyId={reply.id}
@@ -318,8 +318,8 @@ export default function GroupReplies({
           </Fragment>
         ))}
 
-        {/* Show buttons only for top-level replies (parentReplyId is null) */}
-        {parentReplyId === null && replies.length > INITIAL_VISIBLE && (
+        {/* Show buttons for all reply levels, not just top-level */}
+        {replies.length > INITIAL_VISIBLE && (
           <div className="flex gap-2 mt-2">
             {visibleCount < replies.length ? (
               <button
