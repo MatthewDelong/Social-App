@@ -148,8 +148,8 @@ export default function Home() {
     setCommentMap((prev) => ({ ...prev, [id]: "" }));
   };
 
-  const handleReply = async (postId, commentIndex) => {
-    const replyKey = `${postId}-reply-${commentIndex}`;
+  const handleReply = async (postId, commentIndex, replyIndex = null) => {
+    const replyKey = replyIndex !== null ? `${postId}-reply-${i}-${ri}` : `${postId}-reply-${commentIndex}`;
     const replyText = commentMap[replyKey];
     if (!replyText?.trim()) return;
     const post = posts.find((p) => p.id === postId);
@@ -162,10 +162,17 @@ export default function Home() {
       createdAt: new Date().toISOString(),
       likes: [],
     };
-    updatedComments[commentIndex].replies = [
-      ...(updatedComments[commentIndex].replies || []),
-      reply,
-    ];
+    if (replyIndex !== null) {
+      updatedComments[commentIndex].replies[replyIndex].replies = [
+        ...(updatedComments[commentIndex].replies[replyIndex].replies || []),
+        reply,
+      ];
+    } else {
+      updatedComments[commentIndex].replies = [
+        ...(updatedComments[commentIndex].replies || []),
+        reply,
+      ];
+    }
     await updateDoc(doc(db, "posts", postId), { comments: updatedComments });
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
@@ -377,6 +384,60 @@ export default function Home() {
               </span>
             </div>
 
+            {/* New Comment input at top */}
+            <div className="flex items-start space-x-2 mt-4 sm:space-x-1 sm:mt-2">
+              <textarea
+                placeholder="Write a comment..."
+                value={commentMap[post.id] || ""}
+                onChange={(e) =>
+                  setCommentMap((prev) => ({
+                    ...prev,
+                    [post.id]: e.target.value,
+                  }))
+                }
+                className="border p-1 flex-1 rounded sm:p-0.5"
+              />
+              <button
+                onClick={() => handleComment(post.id)}
+                className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
+              >
+                Comment
+              </button>
+              <button
+                onClick={() =>
+                  setShowEmojiPicker((prev) => ({
+                    ...prev,
+                    [post.id]: !prev[post.id],
+                  }))
+                }
+                className="text-xs bg-yellow-400 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
+              >
+                😀
+              </button>
+            </div>
+            {showEmojiPicker[post.id] && (
+              <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
+                <div className="relative max-w-[350px] mx-auto md:mx-0">
+                  <button
+                    onClick={() =>
+                      setShowEmojiPicker((prev) => ({
+                        ...prev,
+                        [post.id]: false,
+                      }))
+                    }
+                    className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                  >
+                    X
+                  </button>
+                  <EmojiPicker
+                    width="100%"
+                    height={350}
+                    onEmojiClick={(emoji) => addEmoji(post.id, emoji)}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Comments */}
             <div className="mt-4 space-y-4 sm:mt-2">
               {(post.comments || []).map((comment, i) => {
@@ -499,7 +560,7 @@ export default function Home() {
                         {/* Replies */}
                         <div className="ml-5 mt-2 space-y-2 relative sm:ml-2.5 sm:mt-1">
                           {/* Vertical Line for Replies */}
-                          {(comment.replies.length > 1 || i > 0) && (
+                          {comment.replies.length > 0 && (
                             <div
                               className="absolute left-[-20px] top-0 bottom-0"
                               style={{
@@ -520,7 +581,7 @@ export default function Home() {
                                 style={{ zIndex: 1 }}
                               >
                                 {/* Horizontal Line for Reply */}
-                                {ri === 0 && comment.replies.length > 1 && (
+                                {ri === 0 && comment.replies.length > 0 && (
                                   <div
                                     className="absolute left-[-20px] top-[50%]"
                                     style={{
@@ -649,125 +710,12 @@ export default function Home() {
                               </div>
                             );
                           })}
-
-                          {/* Reply input */}
-                          <div className="flex items-start space-x-2 mt-1 sm:space-x-1 sm:mt-0.5">
-                            <textarea
-                              placeholder="Write a reply..."
-                              value={
-                                commentMap[`${post.id}-reply-${i}`] || ""
-                              }
-                              onChange={(e) =>
-                                setCommentMap((prev) => ({
-                                  ...prev,
-                                  [`${post.id}-reply-${i}`]: e.target.value,
-                                }))
-                              }
-                              className="border p-1 flex-1 rounded sm:p-0.5"
-                            />
-                            <button
-                              onClick={() => handleReply(post.id, i)}
-                              className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
-                            >
-                              Reply
-                            </button>
-                            <button
-                              onClick={() =>
-                                setShowReplyEmojiPicker((prev) => ({
-                                  ...prev,
-                                  [`${post.id}-reply-${i}`]:
-                                    !prev[`${post.id}-reply-${i}`],
-                                }))
-                              }
-                              className="text-xs bg-yellow-400 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
-                            >
-                              😀
-                            </button>
-                          </div>
-                          {showReplyEmojiPicker[`${post.id}-reply-${i}`] && (
-                            <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
-                              <div className="relative max-w-[350px] mx-auto md:mx-0">
-                                <button
-                                  onClick={() =>
-                                    setShowReplyEmojiPicker((prev) => ({
-                                      ...prev,
-                                      [`${post.id}-reply-${i}`]: false,
-                                    }))
-                                  }
-                                  className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-                                >
-                                  X
-                                </button>
-                                <EmojiPicker
-                                  width="100%"
-                                  height={350}
-                                  onEmojiClick={(emoji) =>
-                                    addReplyEmoji(`${post.id}-reply-${i}`, emoji)
-                                  }
-                                />
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
                   </div>
                 );
               })}
-
-              {/* New Comment input */}
-              <div className="flex items-start space-x-2 sm:space-x-1">
-                <textarea
-                  placeholder="Write a comment..."
-                  value={commentMap[post.id] || ""}
-                  onChange={(e) =>
-                    setCommentMap((prev) => ({
-                      ...prev,
-                      [post.id]: e.target.value,
-                    }))
-                  }
-                  className="border p-1 flex-1 rounded sm:p-0.5"
-                />
-                <button
-                  onClick={() => handleComment(post.id)}
-                  className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
-                >
-                  Comment
-                </button>
-                <button
-                  onClick={() =>
-                    setShowEmojiPicker((prev) => ({
-                      ...prev,
-                      [post.id]: !prev[post.id],
-                    }))
-                  }
-                  className="text-xs bg-yellow-400 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
-                >
-                  😀
-                </button>
-              </div>
-              {showEmojiPicker[post.id] && (
-                <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
-                  <div className="relative max-w-[350px] mx-auto md:mx-0">
-                    <button
-                      onClick={() =>
-                        setShowEmojiPicker((prev) => ({
-                          ...prev,
-                          [post.id]: false,
-                        }))
-                      }
-                      className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-                    >
-                      X
-                    </button>
-                    <EmojiPicker
-                      width="100%"
-                      height={350}
-                      onEmojiClick={(emoji) => addEmoji(post.id, emoji)}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         );
