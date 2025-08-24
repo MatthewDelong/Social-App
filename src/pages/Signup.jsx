@@ -1,4 +1,3 @@
-// src/pages/Signup.jsx
 import { useState } from 'react';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -23,34 +22,48 @@ export default function Signup() {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-4 border rounded shadow">
-      <h1 className="text-2xl font-bold mb-6">Sign Up</h1>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
+         style={{ backgroundImage: `url('/images/login&signup.png')` }}>
       
-      <Input
-        placeholder="Display Name"
-        value={displayName}
-        onChange={(e) => setDisplayName(e.target.value)}
-      />
-      
-      <Input
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      
-      <Input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      
-      <Button onClick={handleSignup}>Sign Up</Button>
+      <div className="w-full max-w-md bg-white/90 backdrop-blur-sm p-6 md:p-8 rounded-xl shadow-2xl border border-white/20 mx-auto">
+        <h1 className="text-2xl md:text-3xl font-bold mb-6 text-center text-gray-800">Sign Up</h1>
+        
+        <div className="space-y-4">
+          <Input
+            placeholder="Display Name"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="w-full px-4 py-3 text-base"
+          />
+          
+          <Input
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 py-3 text-base"
+          />
+          
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-4 py-3 text-base"
+          />
+        </div>
+        
+        <Button onClick={handleSignup} className="w-full mt-6 py-3 text-base bg-blue-600 hover:bg-blue-700">
+          Sign Up
+        </Button>
 
-      <p className="mt-4 text-sm">
-        Already have an account?{' '}
-        <Link to="/login" className="text-blue-500 hover:underline">Log in</Link>
-      </p>
+        <p className="mt-6 text-sm text-center text-gray-600">
+          Already have an account?{' '}
+          <Link to="/login" className="text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors">
+            Log in
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
