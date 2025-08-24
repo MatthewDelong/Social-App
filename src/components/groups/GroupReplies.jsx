@@ -1,4 +1,3 @@
-// src/components/groups/GroupReplies.jsx
 import { useEffect, useState, Fragment } from "react";
 import {
   collection,
@@ -32,7 +31,7 @@ export default function GroupReplies({
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [activeReplyBox, setActiveReplyBox] = useState(null);
 
-  // ✅ Optimized listener: no per-user lookups
+  // Optimized listener for replies
   useEffect(() => {
     if (!commentId) return;
     let unsub;
@@ -57,6 +56,8 @@ export default function GroupReplies({
             };
           });
           setReplies(docs);
+          // Only reset visibleCount if replies change significantly
+          setVisibleCount(INITIAL_VISIBLE);
         });
       } catch (err) {
         console.error("Replies listener error:", err);
@@ -67,10 +68,6 @@ export default function GroupReplies({
       if (unsub) unsub();
     };
   }, [commentId, parentReplyId, DEFAULT_AVATAR]);
-
-  useEffect(() => {
-    setVisibleCount(INITIAL_VISIBLE);
-  }, [commentId, parentReplyId]);
 
   const canEditOrDelete = (reply) => {
     if (!currentUser) return false;
@@ -99,7 +96,7 @@ export default function GroupReplies({
         content: text.trim(),
         createdAt: serverTimestamp(),
         likes: [],
-        replyingTo, // ✅ save who this reply is directed at
+        replyingTo,
       });
     } catch (err) {
       console.error("Error adding reply:", err);
@@ -141,6 +138,11 @@ export default function GroupReplies({
 
   const visibleReplies = replies.slice(0, visibleCount);
 
+  // Debugging logs
+  useEffect(() => {
+    console.log(`Replies length: ${replies.length}, Visible count: ${visibleCount}`);
+  }, [replies, visibleCount]);
+
   return (
     <div className="mt-2">
       <div className="space-y-2">
@@ -162,7 +164,6 @@ export default function GroupReplies({
                   )}
                 </div>
 
-                {/* ✅ Show who this reply is directed at */}
                 {reply.replyingTo && (
                   <p className="text-xs text-gray-500">
                     Replying to @{reply.replyingTo}
@@ -201,7 +202,6 @@ export default function GroupReplies({
                 )}
 
                 <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
-                  {/* Reply button */}
                   <button
                     onClick={() =>
                       setActiveReplyBox(
@@ -213,7 +213,6 @@ export default function GroupReplies({
                     Reply
                   </button>
 
-                  {/* Like button */}
                   <button
                     onClick={() => toggleLike(reply)}
                     className={`flex items-center gap-1 hover:underline ${
@@ -233,7 +232,6 @@ export default function GroupReplies({
                     </span>
                   )}
 
-                  {/* Edit/Delete */}
                   {canEditOrDelete(reply) && editReplyId !== reply.id && (
                     <>
                       <button
@@ -263,13 +261,12 @@ export default function GroupReplies({
                   )}
                 </div>
 
-                {/* Inline reply input */}
                 {activeReplyBox === reply.id && (
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
                       const text = e.target.elements.replyText.value;
-                      handleAddReply(reply.id, text, reply.author); // ✅ save replyingTo
+                      handleAddReply(reply.id, text, reply.author);
                       setActiveReplyBox(null);
                       e.target.reset();
                     }}
@@ -299,7 +296,6 @@ export default function GroupReplies({
               </div>
             </div>
 
-            {/* Nested replies */}
             <div className="mt-2">
               <GroupReplies
                 commentId={commentId}
@@ -313,26 +309,30 @@ export default function GroupReplies({
           </Fragment>
         ))}
 
-        {/* View more / fewer */}
-        {replies.length > visibleCount && (
-          <button
-            onClick={() =>
-              setVisibleCount((prev) =>
-                Math.min(prev + INITIAL_VISIBLE, replies.length)
-              )
-            }
-            className="text-xs text-blue-600 hover:underline"
-          >
-            View {replies.length - visibleCount} more replies
-          </button>
-        )}
-        {visibleCount > INITIAL_VISIBLE && (
-          <button
-            onClick={() => setVisibleCount(INITIAL_VISIBLE)}
-            className="ml-2 text-xs text-blue-600 hover:underline"
-          >
-            Show less
-          </button>
+        {/* View more / fewer buttons */}
+        {replies.length > INITIAL_VISIBLE && (
+          <div className="flex gap-2">
+            {replies.length > visibleCount && (
+              <button
+                onClick={() =>
+                  setVisibleCount((prev) =>
+                    Math.min(prev + INITIAL_VISIBLE, replies.length)
+                  )
+                }
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Show more replies ({replies.length - visibleCount})
+              </button>
+            )}
+            {visibleCount > INITIAL_VISIBLE && (
+              <button
+                onClick={() => setVisibleCount(INITIAL_VISIBLE)}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Show fewer replies
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
