@@ -56,6 +56,7 @@ export default function GroupReplies({
               likes: data.likes || [],
             };
           });
+          console.log("Replies updated:", docs); // Debug log
           setReplies(docs);
           setVisibleCount(INITIAL_VISIBLE);
         });
@@ -128,7 +129,7 @@ export default function GroupReplies({
           likes: arrayRemove(currentUser.uid),
         });
       } else {
-        await updateDoc(ref, {
+        await updateDoc(replyRef, {
           likes: arrayUnion(currentUser.uid),
         });
       }
@@ -139,9 +140,11 @@ export default function GroupReplies({
 
   const visibleReplies = replies.slice(0, visibleCount);
 
-  // Check if a reply has children (debugged version)
+  // Check if a reply has children
   const hasChildren = (replyId) => {
-    return replies.some((r) => r.parentReplyId === replyId);
+    const result = replies.some((r) => r.parentReplyId === replyId);
+    console.log(`Has Children for ${replyId}:`, result); // Debug log
+    return result;
   };
 
   return (
