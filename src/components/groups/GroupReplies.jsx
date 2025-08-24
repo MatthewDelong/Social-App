@@ -11,12 +11,11 @@ import {
   doc,
   deleteDoc,
   updateDoc,
-  getDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { formatDistanceToNow } from "date-fns";
 import { arrayUnion, arrayRemove } from "firebase/firestore";
-import { ThumbsUp } from "lucide-react"; // 👍 icon
+import { ThumbsUp } from "lucide-react";
 
 export default function GroupReplies({
   commentId,
@@ -33,9 +32,11 @@ export default function GroupReplies({
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [activeReplyBox, setActiveReplyBox] = useState(null);
 
+  // ✅ Optimized listener: no per-user lookups
   useEffect(() => {
     if (!commentId) return;
     let unsub;
+
     (async () => {
       try {
         const q = query(
@@ -45,37 +46,23 @@ export default function GroupReplies({
           orderBy("createdAt", "asc")
         );
 
-        unsub = onSnapshot(q, async (snapshot) => {
-          const docs = snapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-          }));
-
-          const updated = await Promise.all(
-            docs.map(async (reply) => {
-              try {
-                if (reply.uid) {
-                  const userDoc = await getDoc(doc(db, "users", reply.uid));
-                  if (userDoc.exists()) {
-                    return {
-                      ...reply,
-                      authorPhotoURL:
-                        userDoc.data().photoURL || DEFAULT_AVATAR,
-                      likes: reply.likes || [],
-                    };
-                  }
-                }
-              } catch {}
-              return { ...reply, authorPhotoURL: DEFAULT_AVATAR, likes: reply.likes || [] };
-            })
-          );
-
-          setReplies(updated);
+        unsub = onSnapshot(q, (snapshot) => {
+          const docs = snapshot.docs.map((docSnap) => {
+            const data = docSnap.data();
+            return {
+              id: docSnap.id,
+              ...data,
+              authorPhotoURL: data.authorPhotoURL || DEFAULT_AVATAR,
+              likes: data.likes || [],
+            };
+          });
+          setReplies(docs);
         });
       } catch (err) {
         console.error("Replies listener error:", err);
       }
     })();
+
     return () => {
       if (unsub) unsub();
     };
@@ -100,7 +87,7 @@ export default function GroupReplies({
     }
   };
 
-  const handleAddReply = async (parentId, text) => {
+  const handleAddReply = async (parentId, text, replyingTo = null) => {
     if (!currentUser || !text.trim()) return;
     try {
       await addDoc(collection(db, "groupReplies"), {
@@ -112,6 +99,7 @@ export default function GroupReplies({
         content: text.trim(),
         createdAt: serverTimestamp(),
         likes: [],
+        replyingTo, // ✅ save who this reply is directed at
       });
     } catch (err) {
       console.error("Error adding reply:", err);
@@ -174,6 +162,13 @@ export default function GroupReplies({
                   )}
                 </div>
 
+                {/* ✅ Show who this reply is directed at */}
+                {reply.replyingTo && (
+                  <p className="text-xs text-gray-500">
+                    Replying to @{reply.replyingTo}
+                  </p>
+                )}
+
                 {editReplyId === reply.id ? (
                   <form onSubmit={handleUpdateReply} className="mt-1">
                     <input
@@ -218,7 +213,7 @@ export default function GroupReplies({
                     Reply
                   </button>
 
-                  {/* Like button with icon */}
+                  {/* Like button */}
                   <button
                     onClick={() => toggleLike(reply)}
                     className={`flex items-center gap-1 hover:underline ${
@@ -231,14 +226,14 @@ export default function GroupReplies({
                     {reply.likes?.includes(currentUser?.uid) ? "Liked" : "Like"}
                   </button>
 
-                  {/* Show like count */}
                   {reply.likes?.length > 0 && (
                     <span className="text-gray-500">
-                      {reply.likes.length} {reply.likes.length === 1 ? "Like" : "Likes"}
+                      {reply.likes.length}{" "}
+                      {reply.likes.length === 1 ? "Like" : "Likes"}
                     </span>
                   )}
 
-                  {/* Edit/Delete only for owner or admin */}
+                  {/* Edit/Delete */}
                   {canEditOrDelete(reply) && editReplyId !== reply.id && (
                     <>
                       <button
@@ -274,7 +269,7 @@ export default function GroupReplies({
                     onSubmit={(e) => {
                       e.preventDefault();
                       const text = e.target.elements.replyText.value;
-                      handleAddReply(reply.id, text);
+                      handleAddReply(reply.id, text, reply.author); // ✅ save replyingTo
                       setActiveReplyBox(null);
                       e.target.reset();
                     }}
@@ -282,7 +277,7 @@ export default function GroupReplies({
                   >
                     <input
                       name="replyText"
-                      placeholder="Write a reply..."
+                      placeholder={`Replying to ${reply.author}...`}
                       className="flex-1 min-w-[150px] p-2 border rounded text-sm"
                       autoFocus
                     />
@@ -318,6 +313,7 @@ export default function GroupReplies({
           </Fragment>
         ))}
 
+        {/* View more / fewer */}
         {replies.length > visibleCount && (
           <button
             onClick={() =>
