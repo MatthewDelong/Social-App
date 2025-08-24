@@ -612,7 +612,7 @@ export default function Home() {
                                     [`${post.id}-reply-${i}`]: false,
                                   }))
                                 }
-                                className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-1 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                                className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
                               >
                                 X
                               </button>
@@ -627,10 +627,10 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* Replies */}
-                        <div className="ml-5 mt-2 space-y-2 relative sm:ml-2.5 sm:mt-1">
-                          {/* Vertical Line for Replies */}
-                          {comment.replies.length > 0 && (
+                        {/* Replies with Gap */}
+                        {comment.replies.length > 0 && (
+                          <div className="ml-5 mt-4 space-y-2 relative sm:ml-2.5 sm:mt-2">
+                            {/* Vertical Line for Replies */}
                             <div
                               className="absolute left-[-20px] top-0 bottom-0"
                               style={{
@@ -639,233 +639,233 @@ export default function Home() {
                                 zIndex: 0,
                               }}
                             />
-                          )}
-                          {(comment.replies || []).map((reply, ri) => {
-                            const replyUser = usersMap[reply.uid];
-                            const replyAvatar = replyUser?.photoURL || DEFAULT_AVATAR;
-                            const replyKey = `${post.id}-${i}-${ri}`;
-                            return (
-                              <div
-                                key={ri}
-                                className="flex items-start space-x-2 bg-white p-2 rounded relative"
-                                style={{ zIndex: 1 }}
-                              >
-                                {/* Horizontal Line for Reply */}
-                                {ri === 0 && comment.replies.length > 0 && (
-                                  <div
-                                    className="absolute left-[-20px] top-[50%]"
-                                    style={{
-                                      width: "20px",
-                                      borderBottom: "2px solid #b1aeae",
-                                      marginLeft: "-1px",
-                                      transform: "translateY(-50%)",
-                                      zIndex: 0,
-                                    }}
+                            {(comment.replies || []).map((reply, ri) => {
+                              const replyUser = usersMap[reply.uid];
+                              const replyAvatar = replyUser?.photoURL || DEFAULT_AVATAR;
+                              const replyKey = `${post.id}-${i}-${ri}`;
+                              return (
+                                <div
+                                  key={ri}
+                                  className="flex items-start space-x-2 bg-white p-2 rounded relative"
+                                  style={{ zIndex: 1 }}
+                                >
+                                  {/* Horizontal Line for Reply */}
+                                  {ri === 0 && (
+                                    <div
+                                      className="absolute left-[-20px] top-[50%]"
+                                      style={{
+                                        width: "20px",
+                                        borderBottom: "2px solid #b1aeae",
+                                        marginLeft: "-1px",
+                                        transform: "translateY(-50%)",
+                                        zIndex: 0,
+                                      }}
+                                    />
+                                  )}
+                                  <img
+                                    src={replyAvatar}
+                                    alt="avatar"
+                                    className="w-5 h-5 rounded-full object-cover cursor-pointer sm:w-4 sm:h-4"
+                                    onClick={() => goToProfile(reply.uid)}
                                   />
-                                )}
-                                <img
-                                  src={replyAvatar}
-                                  alt="avatar"
-                                  className="w-5 h-5 rounded-full object-cover cursor-pointer sm:w-4 sm:h-4"
-                                  onClick={() => goToProfile(reply.uid)}
-                                />
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2 sm:space-x-1">
-                                    <p
-                                      className="font-semibold text-gray-800 cursor-pointer"
-                                      onClick={() => goToProfile(reply.uid)}
-                                    >
-                                      {replyUser?.displayName || reply.author}
-                                      {replyUser?.isAdmin && (
-                                        <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
-                                          Admin
-                                        </span>
-                                      )}
-                                      {replyUser?.isModerator && (
-                                        <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">
-                                          Moderator
-                                        </span>
-                                      )}
-                                    </p>
-                                    <span className="text-xs text-gray-500">
-                                      {safeFormatDate(reply.createdAt)}
-                                    </span>
-                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-2 sm:space-x-1">
+                                      <p
+                                        className="font-semibold text-gray-800 cursor-pointer"
+                                        onClick={() => goToProfile(reply.uid)}
+                                      >
+                                        {replyUser?.displayName || reply.author}
+                                        {replyUser?.isAdmin && (
+                                          <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                                            Admin
+                                          </span>
+                                        )}
+                                        {replyUser?.isModerator && (
+                                          <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">
+                                            Moderator
+                                          </span>
+                                        )}
+                                      </p>
+                                      <span className="text-xs text-gray-500">
+                                        {safeFormatDate(reply.createdAt)}
+                                      </span>
+                                    </div>
 
-                                  {editingReplyIndexMap[replyKey] ? (
-                                    <div>
-                                      <textarea
-                                        value={editReplyMap[replyKey]}
-                                        onChange={(e) =>
-                                          setEditReplyMap((prev) => ({
-                                            ...prev,
-                                            [replyKey]: e.target.value,
-                                          }))
-                                        }
-                                        className="border p-1 w-full rounded sm:p-0.5"
-                                      />
+                                    {editingReplyIndexMap[replyKey] ? (
+                                      <div>
+                                        <textarea
+                                          value={editReplyMap[replyKey]}
+                                          onChange={(e) =>
+                                            setEditReplyMap((prev) => ({
+                                              ...prev,
+                                              [replyKey]: e.target.value,
+                                            }))
+                                          }
+                                          className="border p-1 w-full rounded sm:p-0.5"
+                                        />
+                                        <button
+                                          onClick={() =>
+                                            handleEditReply(post.id, i, ri)
+                                          }
+                                          className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded mt-1 sm:mt-0.5 sm:px-1 sm:py-0.5"
+                                        >
+                                          Save
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <p className="text-gray-900">{reply.text}</p>
+                                    )}
+
+                                    <div className="mt-1 flex items-center gap-4 text-xs text-gray-600 sm:mt-0.5 sm:gap-2">
                                       <button
                                         onClick={() =>
-                                          handleEditReply(post.id, i, ri)
+                                          setActiveReply(
+                                            activeReply === `${post.id}-reply-${i}-${ri}`
+                                              ? null
+                                              : `${post.id}-reply-${i}-${ri}`
+                                          )
                                         }
-                                        className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded mt-1 sm:mt-0.5 sm:px-1 sm:py-0.5"
-                                      >
-                                        Save
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <p className="text-gray-900">{reply.text}</p>
-                                  )}
-
-                                  <div className="mt-1 flex items-center gap-4 text-xs text-gray-600 sm:mt-0.5 sm:gap-2">
-                                    <button
-                                      onClick={() =>
-                                        setActiveReply(
-                                          activeReply === `${post.id}-reply-${i}-${ri}`
-                                            ? null
-                                            : `${post.id}-reply-${i}-${ri}`
-                                        )
-                                      }
-                                      className="text-blue-600 hover:underline"
-                                    >
-                                      Reply
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        handleLikeReply(post.id, i, ri)
-                                      }
-                                      className={`flex items-center gap-1 hover:underline ${
-                                        reply.likes?.includes(user?.uid)
-                                          ? "text-blue-600 font-semibold"
-                                          : "text-gray-600"
-                                      }`}
-                                    >
-                                      <ThumbsUp size={14} />
-                                      {reply.likes?.includes(user?.uid)
-                                        ? "Liked"
-                                        : "Like"}
-                                      {reply.likes?.length > 0 &&
-                                        ` (${reply.likes.length})`}
-                                    </button>
-                                    {reply.uid === user.uid &&
-                                      !editingReplyIndexMap[replyKey] && (
-                                        <div className="space-x-2">
-                                          <button
-                                            onClick={() => {
-                                              setEditingReplyIndexMap((prev) => ({
-                                                ...prev,
-                                                [replyKey]: true,
-                                              }));
-                                              setEditReplyMap((prev) => ({
-                                                ...prev,
-                                                [replyKey]: reply.text,
-                                              }));
-                                            }}
-                                            className="text-xs text-blue-600 hover:underline"
-                                          >
-                                            Edit
-                                          </button>
-                                          <button
-                                            onClick={() =>
-                                              handleDeleteReply(post.id, i, ri)
-                                            }
-                                            className="text-xs text-red-500 hover:underline"
-                                          >
-                                            Delete
-                                          </button>
-                                        </div>
-                                      )}
-                                  </div>
-
-                                  {/* Nested Reply Input */}
-                                  {activeReply === `${post.id}-reply-${i}-${ri}` && (
-                                    <form
-                                      onSubmit={(e) => {
-                                        e.preventDefault();
-                                        handleReply(post.id, i, ri);
-                                      }}
-                                      className="flex items-start space-x-2 mt-1 sm:space-x-1 sm:mt-0.5"
-                                    >
-                                      <textarea
-                                        name="replyText"
-                                        placeholder={`Replying to ${reply.author}...`}
-                                        value={
-                                          commentMap[
-                                            `${post.id}-reply-${i}-${ri}`
-                                          ] || ""
-                                        }
-                                        onChange={(e) =>
-                                          setCommentMap((prev) => ({
-                                            ...prev,
-                                            [`${post.id}-reply-${i}-${ri}`]:
-                                              e.target.value,
-                                          }))
-                                        }
-                                        className="border p-1 flex-1 rounded sm:p-0.5"
-                                        autoFocus
-                                      />
-                                      <button
-                                        type="submit"
-                                        className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
+                                        className="text-blue-600 hover:underline"
                                       >
                                         Reply
                                       </button>
                                       <button
-                                        type="button"
-                                        onClick={() => setActiveReply(null)}
-                                        className="text-xs bg-gray-400 text-white px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
-                                      >
-                                        Cancel
-                                      </button>
-                                      <button
                                         onClick={() =>
-                                          setShowReplyEmojiPicker((prev) => ({
-                                            ...prev,
-                                            [`${post.id}-reply-${i}-${ri}`]:
-                                              !prev[`${post.id}-reply-${i}-${ri}`],
-                                          }))
+                                          handleLikeReply(post.id, i, ri)
                                         }
-                                        className="text-xs bg-yellow-400 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
+                                        className={`flex items-center gap-1 hover:underline ${
+                                          reply.likes?.includes(user?.uid)
+                                            ? "text-blue-600 font-semibold"
+                                            : "text-gray-600"
+                                        }`}
                                       >
-                                        😀
+                                        <ThumbsUp size={14} />
+                                        {reply.likes?.includes(user?.uid)
+                                          ? "Liked"
+                                          : "Like"}
+                                        {reply.likes?.length > 0 &&
+                                          ` (${reply.likes.length})`}
                                       </button>
-                                    </form>
-                                  )}
-                                  {showReplyEmojiPicker[
-                                    `${post.id}-reply-${i}-${ri}`
-                                  ] && (
-                                    <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
-                                      <div className="relative max-w-[350px] mx-auto md:mx-0">
+                                      {reply.uid === user.uid &&
+                                        !editingReplyIndexMap[replyKey] && (
+                                          <div className="space-x-2">
+                                            <button
+                                              onClick={() => {
+                                                setEditingReplyIndexMap((prev) => ({
+                                                  ...prev,
+                                                  [replyKey]: true,
+                                                }));
+                                                setEditReplyMap((prev) => ({
+                                                  ...prev,
+                                                  [replyKey]: reply.text,
+                                                }));
+                                              }}
+                                              className="text-xs text-blue-600 hover:underline"
+                                            >
+                                              Edit
+                                            </button>
+                                            <button
+                                              onClick={() =>
+                                                handleDeleteReply(post.id, i, ri)
+                                              }
+                                              className="text-xs text-red-500 hover:underline"
+                                            >
+                                              Delete
+                                            </button>
+                                          </div>
+                                        )}
+                                    </div>
+
+                                    {/* Nested Reply Input */}
+                                    {activeReply === `${post.id}-reply-${i}-${ri}` && (
+                                      <form
+                                        onSubmit={(e) => {
+                                          e.preventDefault();
+                                          handleReply(post.id, i, ri);
+                                        }}
+                                        className="flex items-start space-x-2 mt-1 sm:space-x-1 sm:mt-0.5"
+                                      >
+                                        <textarea
+                                          name="replyText"
+                                          placeholder={`Replying to ${reply.author}...`}
+                                          value={
+                                            commentMap[
+                                              `${post.id}-reply-${i}-${ri}`
+                                            ] || ""
+                                          }
+                                          onChange={(e) =>
+                                            setCommentMap((prev) => ({
+                                              ...prev,
+                                              [`${post.id}-reply-${i}-${ri}`]:
+                                                e.target.value,
+                                            }))
+                                          }
+                                          className="border p-1 flex-1 rounded sm:p-0.5"
+                                          autoFocus
+                                        />
+                                        <button
+                                          type="submit"
+                                          className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
+                                        >
+                                          Reply
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setActiveReply(null)}
+                                          className="text-xs bg-gray-400 text-white px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
+                                        >
+                                          Cancel
+                                        </button>
                                         <button
                                           onClick={() =>
                                             setShowReplyEmojiPicker((prev) => ({
                                               ...prev,
                                               [`${post.id}-reply-${i}-${ri}`]:
-                                                false,
+                                                !prev[`${post.id}-reply-${i}-${ri}`],
                                             }))
                                           }
-                                          className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                                          className="text-xs bg-yellow-400 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
                                         >
-                                          X
+                                          😀
                                         </button>
-                                        <EmojiPicker
-                                          width="100%"
-                                          height={350}
-                                          onEmojiClick={(emoji) =>
-                                            addReplyEmoji(
-                                              `${post.id}-reply-${i}-${ri}`,
-                                              emoji
-                                            )
-                                          }
-                                        />
+                                      </form>
+                                    )}
+                                    {showReplyEmojiPicker[
+                                      `${post.id}-reply-${i}-${ri}`
+                                    ] && (
+                                      <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
+                                        <div className="relative max-w-[350px] mx-auto md:mx-0">
+                                          <button
+                                            onClick={() =>
+                                              setShowReplyEmojiPicker((prev) => ({
+                                                ...prev,
+                                                [`${post.id}-reply-${i}-${ri}`]:
+                                                  false,
+                                              }))
+                                            }
+                                            className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                                          >
+                                            X
+                                          </button>
+                                          <EmojiPicker
+                                            width="100%"
+                                            height={350}
+                                            onEmojiClick={(emoji) =>
+                                              addReplyEmoji(
+                                                `${post.id}-reply-${i}-${ri}`,
+                                                emoji
+                                              )
+                                            }
+                                          />
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
