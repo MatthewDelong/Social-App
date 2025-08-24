@@ -140,8 +140,8 @@ export default function GroupReplies({
   const visibleReplies = replies.slice(0, visibleCount);
 
   return (
-    <div className="mt-2" style={{ marginLeft: depth * 20 + "px", position: "relative" }}>
-      <div className="space-y-2">
+    <div className="mt-2" style={{ position: "relative" }}>
+      <div className="space-y-2 relative" style={{ marginLeft: depth * 20 + "px" }}>
         {visibleReplies.map((reply, index) => (
           <Fragment key={reply.id}>
             <div
@@ -151,22 +151,23 @@ export default function GroupReplies({
                 zIndex: 1,
               }}
             >
-              {/* Connection Line */}
+              {/* Vertical Connection Line */}
               {depth > 0 && (
                 <div
-                  className="absolute left-[-20px] top-0 bottom-0"
+                  className="absolute left-[-20px] top-[-8px] bottom-0" // Extend upward to connect
                   style={{
-                    borderLeft: "2px solid #666", // Darker line color
+                    borderLeft: "2px solid #666",
                     marginLeft: "-1px",
                   }}
                 />
               )}
+              {/* Horizontal Connection Line (only for non-last reply) */}
               {index < visibleReplies.length - 1 && (
                 <div
                   className="absolute left-[-20px] top-[100%]"
                   style={{
                     width: "20px",
-                    borderBottom: "2px solid #666", // Darker line color
+                    borderBottom: "2px solid #666",
                     marginLeft: "-1px",
                   }}
                 />
