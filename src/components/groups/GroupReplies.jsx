@@ -304,7 +304,7 @@ export default function GroupReplies({
               </div>
             </div>
 
-            {/* Nested replies - removed ml-4 to prevent staggering */}
+            {/* Nested replies */}
             <div className="mt-2">
               <GroupReplies
                 commentId={commentId}
@@ -318,25 +318,25 @@ export default function GroupReplies({
           </Fragment>
         ))}
 
-        {/* Show buttons for all reply levels, not just top-level */}
-        {replies.length > INITIAL_VISIBLE && (
-          <div className="flex gap-2 mt-2">
-            {visibleCount < replies.length ? (
-              <button
-                onClick={() => setVisibleCount(replies.length)}
-                className="text-xs text-blue-600 hover:underline font-medium"
-              >
-                View {replies.length - visibleCount} more replies
-              </button>
-            ) : (
-              <button
-                onClick={() => setVisibleCount(INITIAL_VISIBLE)}
-                className="text-xs text-blue-600 hover:underline font-medium"
-              >
-                Show fewer replies
-              </button>
-            )}
-          </div>
+        {replies.length > visibleCount && (
+          <button
+            onClick={() =>
+              setVisibleCount((prev) =>
+                Math.min(prev + INITIAL_VISIBLE, replies.length)
+              )
+            }
+            className="text-xs text-blue-600 hover:underline"
+          >
+            View {replies.length - visibleCount} more replies
+          </button>
+        )}
+        {visibleCount > INITIAL_VISIBLE && (
+          <button
+            onClick={() => setVisibleCount(INITIAL_VISIBLE)}
+            className="ml-2 text-xs text-blue-600 hover:underline"
+          >
+            Show less
+          </button>
         )}
       </div>
     </div>
