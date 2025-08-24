@@ -128,7 +128,7 @@ export default function GroupReplies({
           likes: arrayRemove(currentUser.uid),
         });
       } else {
-        await updateDoc(replyRef, {
+        await updateDoc(ref, {
           likes: arrayUnion(currentUser.uid),
         });
       }
@@ -139,8 +139,10 @@ export default function GroupReplies({
 
   const visibleReplies = replies.slice(0, visibleCount);
 
-  // Check if a reply has children
-  const hasChildren = (replyId) => replies.some((r) => r.parentReplyId === replyId);
+  // Check if a reply has children (debugged version)
+  const hasChildren = (replyId) => {
+    return replies.some((r) => r.parentReplyId === replyId);
+  };
 
   return (
     <div className="mt-2" style={{ position: "relative" }}>
@@ -162,7 +164,7 @@ export default function GroupReplies({
               className="border p-2 rounded text-sm bg-white flex items-start gap-2 relative"
               style={{ position: "relative", zIndex: 1 }}
             >
-              {/* Horizontal Connection Line (only if this reply has children) */}
+              {/* Horizontal Connection Line (triggered by nested replies) */}
               {hasChildren(reply.id) && (
                 <div
                   className="absolute left-[-20px] top-[50%]"
