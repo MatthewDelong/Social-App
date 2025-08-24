@@ -23,6 +23,7 @@ export default function GroupReplies({
   isAdmin,
   isModerator,
   DEFAULT_AVATAR,
+  depth = 0, // Added depth prop to track nesting level
 }) {
   const [replies, setReplies] = useState([]);
   const [editReplyId, setEditReplyId] = useState(null);
@@ -56,7 +57,6 @@ export default function GroupReplies({
             };
           });
           setReplies(docs);
-          // Only reset visibleCount if replies change significantly
           setVisibleCount(INITIAL_VISIBLE);
         });
       } catch (err) {
@@ -140,11 +140,11 @@ export default function GroupReplies({
 
   // Debugging logs
   useEffect(() => {
-    console.log(`Replies length: ${replies.length}, Visible count: ${visibleCount}`);
-  }, [replies, visibleCount]);
+    console.log(`Replies length: ${replies.length}, Visible count: ${visibleCount}, Depth: ${depth}`);
+  }, [replies, visibleCount, depth]);
 
   return (
-    <div className="mt-2">
+    <div className="mt-2" style={{ marginLeft: depth * 20 + "px" }}>
       <div className="space-y-2">
         {visibleReplies.map((reply) => (
           <Fragment key={reply.id}>
@@ -296,6 +296,7 @@ export default function GroupReplies({
               </div>
             </div>
 
+            {/* Nested replies with incremented depth */}
             <div className="mt-2">
               <GroupReplies
                 commentId={commentId}
@@ -304,6 +305,7 @@ export default function GroupReplies({
                 isAdmin={isAdmin}
                 isModerator={isModerator}
                 DEFAULT_AVATAR={DEFAULT_AVATAR}
+                depth={depth + 1} // Increment depth for nested replies
               />
             </div>
           </Fragment>
