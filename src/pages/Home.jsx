@@ -152,7 +152,7 @@ export default function Home() {
   const handleReply = async (postId, commentIndex) => {
     const replyKey = `${postId}-reply-${commentIndex}`;
     const replyText = commentMap[replyKey];
-    console.log("handleReply called", { postId, commentIndex, replyText });
+    console.log("handleReply called", { postId, commentIndex, replyText, replyKey });
     if (!replyText?.trim()) return;
     const post = posts.find((p) => p.id === postId);
     if (!post) {
@@ -574,12 +574,14 @@ export default function Home() {
                               name="replyText"
                               placeholder={`Replying to ${comment.author}...`}
                               value={commentMap[`${post.id}-reply-${i}`] || ""}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const key = `${post.id}-reply-${i}`;
+                                console.log("onChange", { key, value: e.target.value });
                                 setCommentMap((prev) => ({
                                   ...prev,
-                                  [`${post.id}-reply-${i}`]: e.target.value,
-                                }))
-                              }
+                                  [key]: e.target.value,
+                                }));
+                              }}
                               className="border p-1 flex-1 rounded sm:p-0.5"
                               autoFocus
                             />
@@ -779,13 +781,14 @@ export default function Home() {
                                               `${post.id}-reply-${i}-${ri}`
                                             ] || ""
                                           }
-                                          onChange={(e) =>
+                                          onChange={(e) => {
+                                            const key = `${post.id}-reply-${i}-${ri}`;
+                                            console.log("onChange", { key, value: e.target.value });
                                             setCommentMap((prev) => ({
                                               ...prev,
-                                              [`${post.id}-reply-${i}-${ri}`]:
-                                                e.target.value,
-                                            }))
-                                          }
+                                              [key]: e.target.value,
+                                            }));
+                                          }}
                                           className="border p-1 flex-1 rounded sm:p-0.5"
                                           autoFocus
                                         />
