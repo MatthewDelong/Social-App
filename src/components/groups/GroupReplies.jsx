@@ -130,7 +130,7 @@ export default function GroupReplies({
           likes: arrayRemove(currentUser.uid),
         });
       } else {
-        await updateDoc(refly, {
+        await updateDoc(replyRef, {
           likes: arrayUnion(currentUser.uid),
         });
       }
@@ -146,15 +146,15 @@ export default function GroupReplies({
       <div
         className="space-y-2 relative"
         style={{
-          marginLeft: depth * 15 + "px", // Moderate 15px increment, no strict cap
+          marginLeft: depth * 15 + "px", // Moderate 15px increment
           maxWidth: "100%",
           overflowX: "auto", // Fallback for deep nesting
         }}
       >
-        {/* Continuous Vertical Line for the Thread (start at depth 0) */}
+        {/* Continuous Vertical Line for the Thread (start at depth 0, shifted left) */}
         {(depth === 0 || depth > 0) && (
           <div
-            className="absolute left-[-1.5rem] top-0 bottom-0"
+            className="absolute left-[-2rem] top-0 bottom-0" // Shifted left to under avatar
             style={{
               borderLeft: "2px solid #666",
               marginLeft: "-1px",
@@ -172,12 +172,12 @@ export default function GroupReplies({
                 maxWidth: "90vw", // Fit modern mobile screens
               }}
             >
-              {/* Horizontal Connection Line (triggered by nested GroupReplies) */}
+              {/* Horizontal Connection Line (triggered by nested GroupReplies, shifted left) */}
               {depth < 5 && (
                 <div
-                  className="absolute left-[-1.5rem] top-[50%]"
+                  className="absolute left-[-2rem] top-[50%]" // Shifted left to match vertical
                   style={{
-                    width: "1.5rem", // Increased to match margin
+                    width: "2rem", // Extended to reach child vertical line
                     borderBottom: "2px solid #666",
                     marginLeft: "-1px",
                     transform: "translateY(-50%)",
@@ -188,7 +188,7 @@ export default function GroupReplies({
               <img
                 src={reply.authorPhotoURL || DEFAULT_AVATAR}
                 alt={reply.author}
-                className="w-7 h-7 rounded-full object-cover flex-shrink-0" // Restored to 7px for clarity
+                className="w-7 h-7 rounded-full object-cover flex-shrink-0"
               />
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -257,7 +257,7 @@ export default function GroupReplies({
                         : "text-gray-600"
                     }`}
                   >
-                    <ThumbsUp size={14} /> {/* Restored to 14px */}
+                    <ThumbsUp size={14} />
                     {reply.likes?.includes(currentUser?.uid) ? "Liked" : "Like"}
                   </button>
 
