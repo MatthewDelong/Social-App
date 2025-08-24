@@ -142,16 +142,25 @@ export default function GroupReplies({
   const visibleReplies = replies.slice(0, visibleCount);
 
   return (
-    <div className="mt-2" style={{ position: "relative" }}>
-      <div className="space-y-2 relative" style={{ marginLeft: depth * 20 + "px" }}>
-        {/* Continuous Vertical Line for the Thread (start at depth 0) */}
+    <div className="mt-2" style={{ position: "relative", maxWidth: "90vw" }}>
+      <div
+        className="space-y-2 relative"
+        style={{
+          marginLeft: depth * 15 + "px", // Moderate 15px increment
+          maxWidth: "100%",
+          overflowX: "auto", // Fallback for deep nesting
+          position: "relative", // Ensure lines are positioned relative to this
+        }}
+      >
+        {/* Continuous Vertical Line for the Thread (start at depth 0, shifted left) */}
         {(depth === 0 || depth > 0) && (
           <div
-            className="absolute left-[-20px] top-0 bottom-0"
+            className="absolute left-[-3.25rem] top-0 bottom-0" // Adjusted to ~52px left
             style={{
-              borderLeft: "2px solid #b1aeae",
+              borderLeft: "2px solid #666",
               marginLeft: "-1px",
               zIndex: 0, // Behind content
+              background: "rgba(255, 0, 0, 0.1)", // Debug: red background, remove after testing
             }}
           />
         )}
@@ -159,18 +168,23 @@ export default function GroupReplies({
           <Fragment key={reply.id}>
             <div
               className="border p-2 rounded text-sm bg-white flex items-start gap-2 relative"
-              style={{ position: "relative", zIndex: 1 }}
+              style={{
+                position: "relative",
+                zIndex: 1,
+                maxWidth: "90vw", // Fit modern mobile screens
+              }}
             >
-              {/* Horizontal Connection Line (triggered by nested GroupReplies) */}
+              {/* Horizontal Connection Line (triggered by nested GroupReplies, shifted left) */}
               {depth < 5 && (
                 <div
-                  className="absolute left-[-20px] top-[50%]"
+                  className="absolute left-[-3.25rem] top-[50%]" // Adjusted to match vertical
                   style={{
-                    width: "20px",
-                    borderBottom: "2px solid #b1aeae",
+                    width: "3.25rem", // Extended to reach child vertical line
+                    borderBottom: "2px solid #666",
                     marginLeft: "-1px",
                     transform: "translateY(-50%)",
-                    zIndex: 0, // Ensure it’s behind content
+                    zIndex: 0, // Behind content
+                    background: "rgba(0, 255, 0, 0.1)", // Debug: green background, remove after testing
                   }}
                 />
               )}
@@ -200,13 +214,13 @@ export default function GroupReplies({
                     <input
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
-                      className="w-full p-2 border rounded text-sm mb-2"
+                      className="w-full p-1 border rounded text-sm mb-1"
                       autoFocus
                     />
-                    <div className="space-x-2">
+                    <div className="space-x-1">
                       <button
                         type="submit"
-                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                        className="px-1 py-0.5 bg-blue-600 text-white rounded text-xs"
                       >
                         Save
                       </button>
@@ -216,17 +230,17 @@ export default function GroupReplies({
                           setEditReplyId(null);
                           setEditContent("");
                         }}
-                        className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
+                        className="px-1 py-0.5 bg-gray-400 text-white rounded text-xs"
                       >
                         Cancel
                       </button>
                     </div>
                   </form>
                 ) : (
-                  <p className="mt-1 break-words">{reply.content}</p>
+                  <p className="mt-1 break-words text-sm">{reply.content}</p>
                 )}
 
-                <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
+                <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
                   <button
                     onClick={() =>
                       setActiveReplyBox(
@@ -295,24 +309,24 @@ export default function GroupReplies({
                       setActiveReplyBox(null);
                       e.target.reset();
                     }}
-                    className="flex flex-wrap gap-2 mt-2"
+                    className="flex flex-wrap gap-1 mt-1"
                   >
                     <input
                       name="replyText"
                       placeholder={`Replying to ${reply.author}...`}
-                      className="flex-1 min-w-[150px] p-2 border rounded text-sm"
+                      className="flex-1 min-w-[100px] p-1 border rounded text-sm"
                       autoFocus
                     />
                     <button
                       type="submit"
-                      className="px-3 py-2 bg-gray-700 text-white rounded text-sm"
+                      className="px-2 py-0.5 bg-gray-700 text-white rounded text-xs"
                     >
                       Reply
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveReplyBox(null)}
-                      className="px-3 py-2 bg-gray-400 text-white rounded text-sm"
+                      className="px-2 py-0.5 bg-gray-400 text-white rounded text-xs"
                     >
                       Cancel
                     </button>
@@ -321,7 +335,7 @@ export default function GroupReplies({
               </div>
             </div>
 
-            <div className="mt-2">
+            <div className="mt-1">
               <GroupReplies
                 commentId={commentId}
                 parentReplyId={reply.id}
@@ -336,7 +350,7 @@ export default function GroupReplies({
         ))}
 
         {replies.length > INITIAL_VISIBLE && (
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             {replies.length > visibleCount && (
               <button
                 onClick={() =>
