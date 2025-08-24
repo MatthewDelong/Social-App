@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, Fragment } from "react";
+import { useEffect, useState, Fragment } from "react";
 import {
   collection,
   addDoc,
@@ -31,9 +31,8 @@ export default function GroupReplies({
   const INITIAL_VISIBLE = 3;
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [activeReplyBox, setActiveReplyBox] = useState(null);
-  const hasChildrenRef = useRef({}); // Track hasChildren per replyId
 
-  // Optimized listener for replies (fetch all replies for commentId, filter client-side)
+  // Optimized listener for replies
   useEffect(() => {
     if (!commentId) return;
     let unsub;
@@ -43,11 +42,12 @@ export default function GroupReplies({
         const q = query(
           collection(db, "groupReplies"),
           where("commentId", "==", commentId),
+          where("parentReplyId", "==", parentReplyId),
           orderBy("createdAt", "asc")
         );
 
         unsub = onSnapshot(q, (snapshot) => {
-          const allDocs = snapshot.docs.map((docSnap) => {
+          const docs = snapshot.docs.map((docSnap) => {
             const data = docSnap.data();
             return {
               id: docSnap.id,
@@ -56,20 +56,9 @@ export default function GroupReplies({
               likes: data.likes || [],
             };
           });
-          console.log("All replies for commentId", commentId, ":", allDocs); // Log all replies
-          // Filter replies for the current parentReplyId
-          const filteredDocs = parentReplyId
-            ? allDocs.filter((r) => r.parentReplyId === parentReplyId)
-            : allDocs.filter((r) => !r.parentReplyId);
-          console.log("Filtered replies for parentReplyId", parentReplyId, ":", filteredDocs);
-          setReplies(filteredDocs);
+          console.log("Replies fetched for parentReplyId", parentReplyId, ":", docs); // Debug log
+          setReplies(docs);
           setVisibleCount(INITIAL_VISIBLE);
-
-          // Update hasChildrenRef based on allDocs
-          allDocs.forEach((reply) => {
-            hasChildrenRef.current[reply.id] = allDocs.some((r) => r.parentReplyId === reply.id);
-            console.log(`Has Children for ${reply.id}:`, hasChildrenRef.current[reply.id], "All Replies:", allDocs);
-          });
         });
       } catch (err) {
         console.error("Replies listener error:", err);
@@ -172,8 +161,8 @@ export default function GroupReplies({
               className="border p-2 rounded text-sm bg-white flex items-start gap-2 relative"
               style={{ position: "relative", zIndex: 1 }}
             >
-              {/* Horizontal Connection Line (use hasChildrenRef for dynamic check) */}
-              {(hasChildrenRef.current[reply.id] || true) && ( // Force for now, remove 'true' after testing
+              {/* Horizontal Connection Line (triggered by nested GroupReplies) */}
+              {depth < 5 && visibleReplies.length > index + 1 && ( // Simplified condition based on next reply
                 <div
                   className="absolute left-[-20px] top-[50%]"
                   style={{
