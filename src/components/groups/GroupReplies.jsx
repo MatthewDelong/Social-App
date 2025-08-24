@@ -23,7 +23,7 @@ export default function GroupReplies({
   isAdmin,
   isModerator,
   DEFAULT_AVATAR,
-  depth = 0, // Added depth prop to track nesting level
+  depth = 0,
 }) {
   const [replies, setReplies] = useState([]);
   const [editReplyId, setEditReplyId] = useState(null);
@@ -31,6 +31,7 @@ export default function GroupReplies({
   const INITIAL_VISIBLE = 3;
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [activeReplyBox, setActiveReplyBox] = useState(null);
+  const [quotedReply, setQuotedReply] = useState(null); // Track the reply being quoted
 
   // Optimized listener for replies
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function GroupReplies({
     }
   };
 
-  const handleAddReply = async (parentId, text, replyingTo = null) => {
+  const handleAddReply = async (parentId, text, replyingTo = null, quotedId = null) => {
     if (!currentUser || !text.trim()) return;
     try {
       await addDoc(collection(db, "groupReplies"), {
@@ -97,7 +98,10 @@ export default function GroupReplies({
         createdAt: serverTimestamp(),
         likes: [],
         replyingTo,
+        quotedReplyId: quotedId, // Store the ID of the quoted reply
       });
+      setActiveReplyBox(null);
+      setQuotedReply(null); // Clear quoted reply after submission
     } catch (err) {
       console.error("Error adding reply:", err);
     }
@@ -138,10 +142,11 @@ export default function GroupReplies({
 
   const visibleReplies = replies.slice(0, visibleCount);
 
-  // Debugging logs
-  useEffect(() => {
-    console.log(`Replies length: ${replies.length}, Visible count: ${visibleCount}, Depth: ${depth}`);
-  }, [replies, visibleCount, depth]);
+  // Function to handle quoting a reply
+  const handleQuoteReply = (reply) => {
+    setQuotedReply(reply);
+    setActiveReplyBox(reply.id); // Open the reply box for the quoted reply
+  };
 
   return (
     <div className="mt-2" style={{ marginLeft: depth * 20 + "px" }}>
@@ -203,14 +208,10 @@ export default function GroupReplies({
 
                 <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
                   <button
-                    onClick={() =>
-                      setActiveReplyBox(
-                        activeReplyBox === reply.id ? null : reply.id
-                      )
-                    }
+                    onClick={() => handleQuoteReply(reply)} // Use quote action
                     className="text-blue-600 hover:underline"
                   >
-                    Reply
+                    Quote Reply
                   </button>
 
                   <button
@@ -266,15 +267,21 @@ export default function GroupReplies({
                     onSubmit={(e) => {
                       e.preventDefault();
                       const text = e.target.elements.replyText.value;
-                      handleAddReply(reply.id, text, reply.author);
-                      setActiveReplyBox(null);
+                      handleAddReply(reply.id, text, reply.author, quotedReply?.id);
                       e.target.reset();
                     }}
                     className="flex flex-wrap gap-2 mt-2"
                   >
+                    {quotedReply && (
+                      <div className="p-2 bg-gray-100 rounded text-sm mb-2">
+                        <p className="text-gray-600 italic">
+                          {quotedReply.author} said: "{quotedReply.content}"
+                        </p>
+                      </div>
+                    )}
                     <input
                       name="replyText"
-                      placeholder={`Replying to ${reply.author}...`}
+                      placeholder={`Replying to ${reply.author}${quotedReply ? " (quoting)" : ""}...`}
                       className="flex-1 min-w-[150px] p-2 border rounded text-sm"
                       autoFocus
                     />
@@ -286,7 +293,10 @@ export default function GroupReplies({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setActiveReplyBox(null)}
+                      onClick={() => {
+                        setActiveReplyBox(null);
+                        setQuotedReply(null);
+                      }}
                       className="px-3 py-2 bg-gray-400 text-white rounded text-sm"
                     >
                       Cancel
@@ -296,7 +306,6 @@ export default function GroupReplies({
               </div>
             </div>
 
-            {/* Nested replies with incremented depth */}
             <div className="mt-2">
               <GroupReplies
                 commentId={commentId}
@@ -305,13 +314,12 @@ export default function GroupReplies({
                 isAdmin={isAdmin}
                 isModerator={isModerator}
                 DEFAULT_AVATAR={DEFAULT_AVATAR}
-                depth={depth + 1} // Increment depth for nested replies
+                depth={depth + 1}
               />
             </div>
           </Fragment>
         ))}
 
-        {/* View more / fewer buttons */}
         {replies.length > INITIAL_VISIBLE && (
           <div className="flex gap-2">
             {replies.length > visibleCount && (
