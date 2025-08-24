@@ -162,7 +162,7 @@ export default function GroupReplies({
               style={{ position: "relative", zIndex: 1 }}
             >
               {/* Horizontal Connection Line (triggered by nested GroupReplies) */}
-              {depth < 5 && visibleReplies.length > index + 1 && ( // Simplified condition based on next reply
+              {depth < 5 && (
                 <div
                   className="absolute left-[-20px] top-[50%]"
                   style={{
