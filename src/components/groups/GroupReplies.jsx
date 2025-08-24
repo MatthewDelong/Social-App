@@ -151,9 +151,7 @@ export default function GroupReplies({
     }
   };
 
-  // Filter to only show direct replies (not nested ones)
-  const directReplies = replies.filter(reply => reply.parentReplyId === parentReplyId);
-  const visibleReplies = directReplies.slice(0, visibleCount);
+  const visibleReplies = replies.slice(0, visibleCount);
 
   return (
     <div className="mt-2">
@@ -306,7 +304,7 @@ export default function GroupReplies({
               </div>
             </div>
 
-            {/* Nested replies - without visibility controls */}
+            {/* Nested replies */}
             <div className="mt-2 ml-4">
               <GroupReplies
                 commentId={commentId}
@@ -320,19 +318,18 @@ export default function GroupReplies({
           </Fragment>
         ))}
 
-        {/* Show more/Show fewer controls - only for direct replies */}
-        {directReplies.length > INITIAL_VISIBLE && (
-          <div className="mt-2">
-            {directReplies.length > visibleCount ? (
+        {replies.length > INITIAL_VISIBLE && (
+          <div className="flex gap-2">
+            {replies.length > visibleCount ? (
               <button
                 onClick={() =>
                   setVisibleCount((prev) =>
-                    Math.min(prev + INITIAL_VISIBLE, directReplies.length)
+                    Math.min(prev + INITIAL_VISIBLE, replies.length)
                   )
                 }
                 className="text-xs text-blue-600 hover:underline"
               >
-                View {directReplies.length - visibleCount} more replies
+                View {replies.length - visibleCount} more replies
               </button>
             ) : (
               <button
