@@ -56,7 +56,7 @@ export default function GroupReplies({
               likes: data.likes || [],
             };
           });
-          console.log("Replies updated:", docs); // Debug log
+          console.log("Replies updated for parentReplyId", parentReplyId, ":", docs); // Detailed debug log
           setReplies(docs);
           setVisibleCount(INITIAL_VISIBLE);
         });
@@ -143,7 +143,7 @@ export default function GroupReplies({
   // Check if a reply has children
   const hasChildren = (replyId) => {
     const result = replies.some((r) => r.parentReplyId === replyId);
-    console.log(`Has Children for ${replyId}:`, result); // Debug log
+    console.log(`Has Children for ${replyId}:`, result, "Replies:", replies); // Enhanced debug log
     return result;
   };
 
@@ -167,8 +167,8 @@ export default function GroupReplies({
               className="border p-2 rounded text-sm bg-white flex items-start gap-2 relative"
               style={{ position: "relative", zIndex: 1 }}
             >
-              {/* Horizontal Connection Line (triggered by nested replies) */}
-              {hasChildren(reply.id) && (
+              {/* Horizontal Connection Line (triggered by nested replies or hasChildren) */}
+              {(hasChildren(reply.id) || (depth < 5 && visibleReplies.length > index + 1)) && (
                 <div
                   className="absolute left-[-20px] top-[50%]"
                   style={{
