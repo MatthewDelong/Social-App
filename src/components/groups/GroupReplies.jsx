@@ -31,7 +31,7 @@ export default function GroupReplies({
   const INITIAL_VISIBLE = 3;
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [activeReplyBox, setActiveReplyBox] = useState(null);
-  const [quotedReply, setQuotedReply] = useState(null); // Track the reply being quoted
+  const [quotedReply, setQuotedReply] = useState(null);
 
   // Optimized listener for replies
   useEffect(() => {
@@ -98,10 +98,10 @@ export default function GroupReplies({
         createdAt: serverTimestamp(),
         likes: [],
         replyingTo,
-        quotedReplyId: quotedId, // Store the ID of the quoted reply
+        quotedReplyId: quotedId,
       });
       setActiveReplyBox(null);
-      setQuotedReply(null); // Clear quoted reply after submission
+      setQuotedReply(null);
     } catch (err) {
       console.error("Error adding reply:", err);
     }
@@ -142,18 +142,43 @@ export default function GroupReplies({
 
   const visibleReplies = replies.slice(0, visibleCount);
 
-  // Function to handle quoting a reply
   const handleQuoteReply = (reply) => {
     setQuotedReply(reply);
-    setActiveReplyBox(reply.id); // Open the reply box for the quoted reply
+    setActiveReplyBox(reply.id);
   };
 
   return (
-    <div className="mt-2" style={{ marginLeft: depth * 20 + "px" }}>
+    <div className="mt-2" style={{ marginLeft: depth * 20 + "px", position: "relative" }}>
       <div className="space-y-2">
-        {visibleReplies.map((reply) => (
+        {visibleReplies.map((reply, index) => (
           <Fragment key={reply.id}>
-            <div className="border p-2 rounded text-sm bg-white flex items-start gap-2">
+            <div
+              className="border p-2 rounded text-sm bg-white flex items-start gap-2 relative"
+              style={{
+                position: "relative",
+                zIndex: 1,
+              }}
+            >
+              {/* Connection Line */}
+              {depth > 0 && (
+                <div
+                  className="absolute left-[-20px] top-0 bottom-0"
+                  style={{
+                    borderLeft: "2px solid #ccc",
+                    marginLeft: "-1px",
+                  }}
+                />
+              )}
+              {index < visibleReplies.length - 1 && (
+                <div
+                  className="absolute left-[-20px] top-[100%]"
+                  style={{
+                    width: "20px",
+                    borderBottom: "2px solid #ccc",
+                    marginLeft: "-1px",
+                  }}
+                />
+              )}
               <img
                 src={reply.authorPhotoURL || DEFAULT_AVATAR}
                 alt={reply.author}
@@ -208,7 +233,7 @@ export default function GroupReplies({
 
                 <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
                   <button
-                    onClick={() => handleQuoteReply(reply)} // Use quote action
+                    onClick={() => handleQuoteReply(reply)}
                     className="text-blue-600 hover:underline"
                   >
                     Quote Reply
@@ -292,7 +317,7 @@ export default function GroupReplies({
                       Reply
                     </button>
                     <button
-                      type="button"
+                      type="type"
                       onClick={() => {
                         setActiveReplyBox(null);
                         setQuotedReply(null);
