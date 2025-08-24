@@ -142,8 +142,13 @@ export default function GroupReplies({
   const visibleReplies = replies.slice(0, visibleCount);
 
   return (
-    <div className="mt-2" style={{ position: "relative" }}>
-      <div className="space-y-2 relative" style={{ marginLeft: depth * 20 + "px" }}>
+    <div className="mt-2" style={{ position: "relative", maxWidth: "90vw" }}>
+      <div
+        className="space-y-2 relative"
+        style={{
+          marginLeft: depth * 20 + "px",
+        }}
+      >
         {/* Continuous Vertical Line for the Thread (start at depth 0) */}
         {(depth === 0 || depth > 0) && (
           <div
@@ -158,7 +163,7 @@ export default function GroupReplies({
         {visibleReplies.map((reply, index) => (
           <Fragment key={reply.id}>
             <div
-              className="border p-2 rounded text-sm bg-white flex items-start gap-2 relative"
+              className="border rounded flex items-start gap-2 relative"
               style={{ position: "relative", zIndex: 1 }}
             >
               {/* Horizontal Connection Line (triggered by nested GroupReplies) */}
@@ -177,10 +182,10 @@ export default function GroupReplies({
               <img
                 src={reply.authorPhotoURL || DEFAULT_AVATAR}
                 alt={reply.author}
-                className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                className="w-7 h-7 rounded-full object-cover flex-shrink-0 sm:w-6 sm:h-6"
               />
               <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-1">
                   <strong className="text-sm">{reply.author}</strong>
                   {reply.createdAt && (
                     <span className="text-xs text-gray-500">
@@ -196,17 +201,17 @@ export default function GroupReplies({
                 )}
 
                 {editReplyId === reply.id ? (
-                  <form onSubmit={handleUpdateReply} className="mt-1">
+                  <form onSubmit={handleUpdateReply} className="mt-1 sm:mt-0.5">
                     <input
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
-                      className="w-full p-2 border rounded text-sm mb-2"
+                      className="w-full p-2 border rounded text-sm mb-2 sm:p-1 sm:mb-1"
                       autoFocus
                     />
-                    <div className="space-x-2">
+                    <div className="space-x-2 sm:space-x-1">
                       <button
                         type="submit"
-                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs sm:px-1 sm:py-0.5"
                       >
                         Save
                       </button>
@@ -216,17 +221,17 @@ export default function GroupReplies({
                           setEditReplyId(null);
                           setEditContent("");
                         }}
-                        className="px-2 py-1 bg-gray-400 text-white rounded text-xs"
+                        className="px-2 py-1 bg-gray-400 text-white rounded text-xs sm:px-1 sm:py-0.5"
                       >
                         Cancel
                       </button>
                     </div>
                   </form>
                 ) : (
-                  <p className="mt-1 break-words">{reply.content}</p>
+                  <p className="mt-1 break-words sm:mt-0.5">{reply.content}</p>
                 )}
 
-                <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
+                <div className="mt-1 flex items-center gap-4 text-xs text-gray-600 sm:mt-0.5 sm:gap-2">
                   <button
                     onClick={() =>
                       setActiveReplyBox(
@@ -295,24 +300,24 @@ export default function GroupReplies({
                       setActiveReplyBox(null);
                       e.target.reset();
                     }}
-                    className="flex flex-wrap gap-2 mt-2"
+                    className="flex flex-wrap gap-2 mt-2 sm:gap-1 sm:mt-1"
                   >
                     <input
                       name="replyText"
                       placeholder={`Replying to ${reply.author}...`}
-                      className="flex-1 min-w-[150px] p-2 border rounded text-sm"
+                      className="flex-1 min-w-[150px] p-2 border rounded text-sm sm:p-1 sm:min-w-[100px]"
                       autoFocus
                     />
                     <button
                       type="submit"
-                      className="px-3 py-2 bg-gray-700 text-white rounded text-sm"
+                      className="px-3 py-2 bg-gray-700 text-white rounded text-sm sm:px-2 sm:py-1"
                     >
                       Reply
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveReplyBox(null)}
-                      className="px-3 py-2 bg-gray-400 text-white rounded text-sm"
+                      className="px-3 py-2 bg-gray-400 text-white rounded text-sm sm:px-2 sm:py-1"
                     >
                       Cancel
                     </button>
@@ -321,7 +326,7 @@ export default function GroupReplies({
               </div>
             </div>
 
-            <div className="mt-2">
+            <div className="mt-2 sm:mt-1">
               <GroupReplies
                 commentId={commentId}
                 parentReplyId={reply.id}
@@ -336,7 +341,7 @@ export default function GroupReplies({
         ))}
 
         {replies.length > INITIAL_VISIBLE && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 sm:gap-1">
             {replies.length > visibleCount && (
               <button
                 onClick={() =>
