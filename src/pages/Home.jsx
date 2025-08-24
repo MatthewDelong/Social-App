@@ -151,8 +151,8 @@ export default function Home() {
 
   const handleReply = async (postId, commentIndex) => {
     const replyKey = `${postId}-reply-${commentIndex}`;
+    console.log("handleReply called", { postId, commentIndex, replyText: commentMap[replyKey], replyKey, commentMap });
     const replyText = commentMap[replyKey];
-    console.log("handleReply called", { postId, commentIndex, replyText, replyKey });
     if (!replyText?.trim()) return;
     const post = posts.find((p) => p.id === postId);
     if (!post) {
@@ -576,7 +576,7 @@ export default function Home() {
                               value={commentMap[`${post.id}-reply-${i}`] || ""}
                               onChange={(e) => {
                                 const key = `${post.id}-reply-${i}`;
-                                console.log("onChange", { key, value: e.target.value });
+                                console.log("onChange triggered", { key, value: e.target.value });
                                 setCommentMap((prev) => ({
                                   ...prev,
                                   [key]: e.target.value,
@@ -783,7 +783,7 @@ export default function Home() {
                                           }
                                           onChange={(e) => {
                                             const key = `${post.id}-reply-${i}-${ri}`;
-                                            console.log("onChange", { key, value: e.target.value });
+                                            console.log("onChange triggered", { key, value: e.target.value });
                                             setCommentMap((prev) => ({
                                               ...prev,
                                               [key]: e.target.value,
