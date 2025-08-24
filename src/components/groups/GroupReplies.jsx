@@ -151,7 +151,9 @@ export default function GroupReplies({
     }
   };
 
-  const visibleReplies = replies.slice(0, visibleCount);
+  // Filter to only show direct replies (not nested ones)
+  const directReplies = replies.filter(reply => reply.parentReplyId === parentReplyId);
+  const visibleReplies = directReplies.slice(0, visibleCount);
 
   return (
     <div className="mt-2">
@@ -304,8 +306,8 @@ export default function GroupReplies({
               </div>
             </div>
 
-            {/* Nested replies */}
-            <div className="mt-2">
+            {/* Nested replies - without visibility controls */}
+            <div className="mt-2 ml-4">
               <GroupReplies
                 commentId={commentId}
                 parentReplyId={reply.id}
@@ -318,25 +320,29 @@ export default function GroupReplies({
           </Fragment>
         ))}
 
-        {replies.length > visibleCount && (
-          <button
-            onClick={() =>
-              setVisibleCount((prev) =>
-                Math.min(prev + INITIAL_VISIBLE, replies.length)
-              )
-            }
-            className="text-xs text-blue-600 hover:underline"
-          >
-            View {replies.length - visibleCount} more replies
-          </button>
-        )}
-        {visibleCount > INITIAL_VISIBLE && (
-          <button
-            onClick={() => setVisibleCount(INITIAL_VISIBLE)}
-            className="ml-2 text-xs text-blue-600 hover:underline"
-          >
-            Show less
-          </button>
+        {/* Show more/Show fewer controls - only for direct replies */}
+        {directReplies.length > INITIAL_VISIBLE && (
+          <div className="mt-2">
+            {directReplies.length > visibleCount ? (
+              <button
+                onClick={() =>
+                  setVisibleCount((prev) =>
+                    Math.min(prev + INITIAL_VISIBLE, directReplies.length)
+                  )
+                }
+                className="text-xs text-blue-600 hover:underline"
+              >
+                View {directReplies.length - visibleCount} more replies
+              </button>
+            ) : (
+              <button
+                onClick={() => setVisibleCount(INITIAL_VISIBLE)}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Show fewer replies
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
