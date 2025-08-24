@@ -154,11 +154,12 @@ export default function GroupReplies({
         {/* Continuous Vertical Line for the Thread (start at depth 0, shifted left) */}
         {(depth === 0 || depth > 0) && (
           <div
-            className="absolute left-[-2rem] top-0 bottom-0" // Shifted left to under avatar
+            className="absolute left-[-2.25rem] top-0 bottom-0" // Adjusted to ~36px left
             style={{
               borderLeft: "2px solid #666",
               marginLeft: "-1px",
               zIndex: 0, // Behind content
+              // Temporary debug: background: "rgba(255, 0, 0, 0.1)", // Remove after testing
             }}
           />
         )}
@@ -175,13 +176,14 @@ export default function GroupReplies({
               {/* Horizontal Connection Line (triggered by nested GroupReplies, shifted left) */}
               {depth < 5 && (
                 <div
-                  className="absolute left-[-2rem] top-[50%]" // Shifted left to match vertical
+                  className="absolute left-[-2.25rem] top-[50%]" // Adjusted to match vertical
                   style={{
-                    width: "2rem", // Extended to reach child vertical line
+                    width: "2.25rem", // Extended to reach child vertical line
                     borderBottom: "2px solid #666",
                     marginLeft: "-1px",
                     transform: "translateY(-50%)",
                     zIndex: 0, // Behind content
+                    // Temporary debug: background: "rgba(0, 255, 0, 0.1)", // Remove after testing
                   }}
                 />
               )}
