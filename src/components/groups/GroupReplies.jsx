@@ -170,6 +170,7 @@ export default function GroupReplies({
                     borderBottom: "2px solid #666",
                     marginLeft: "-1px",
                     transform: "translateY(-50%)",
+                    zIndex: 0, // Ensure it’s behind content
                   }}
                 />
               )}
