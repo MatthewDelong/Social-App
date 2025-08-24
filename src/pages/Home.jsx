@@ -152,10 +152,19 @@ export default function Home() {
   const handleReply = async (postId, commentIndex) => {
     const replyKey = `${postId}-reply-${commentIndex}`;
     const replyText = commentMap[replyKey];
+    console.log("handleReply called", { postId, commentIndex, replyText });
     if (!replyText?.trim()) return;
     const post = posts.find((p) => p.id === postId);
+    if (!post) {
+      console.error("Post not found for id:", postId);
+      return;
+    }
     const postRef = doc(db, "posts", postId);
     const updatedComments = [...post.comments];
+    if (!updatedComments[commentIndex]) {
+      console.error("Comment index out of bounds:", commentIndex);
+      return;
+    }
     const reply = {
       text: replyText,
       author: user.displayName || user.email || "Unknown User",
@@ -168,14 +177,20 @@ export default function Home() {
       ...(updatedComments[commentIndex].replies || []),
       reply,
     ];
-    await updateDoc(postRef, { comments: updatedComments });
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, comments: updatedComments } : p
-      )
-    );
-    setCommentMap((prev) => ({ ...prev, [replyKey]: "" }));
-    setActiveReply(null); // Close the reply input after submission
+    console.log("Updated comments:", updatedComments);
+    try {
+      await updateDoc(postRef, { comments: updatedComments });
+      console.log("Firestore update successful");
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId ? { ...p, comments: updatedComments } : p
+        )
+      );
+      setCommentMap((prev) => ({ ...prev, [replyKey]: "" }));
+      setActiveReply(null);
+    } catch (error) {
+      console.error("Firestore update failed:", error);
+    }
   };
 
   const handleDeleteComment = async (postId, index) => {
@@ -550,6 +565,7 @@ export default function Home() {
                           <form
                             onSubmit={(e) => {
                               e.preventDefault();
+                              console.log("Form submitted for reply");
                               handleReply(post.id, i);
                             }}
                             className="flex items-start space-x-2 mt-1 sm:space-x-1 sm:mt-0.5"
@@ -750,6 +766,7 @@ export default function Home() {
                                       <form
                                         onSubmit={(e) => {
                                           e.preventDefault();
+                                          console.log("Form submitted for nested reply");
                                           handleReply(post.id, i, ri);
                                         }}
                                         className="flex items-start space-x-2 mt-1 sm:space-x-1 sm:mt-0.5"
