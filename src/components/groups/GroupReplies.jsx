@@ -149,7 +149,7 @@ export default function GroupReplies({
           <div
             className="absolute left-[-20px] top-0 bottom-0"
             style={{
-              borderLeft: "2px solid #666",
+              borderLeft: "2px solid #b1aeae",
               marginLeft: "-1px",
               zIndex: 0, // Behind content
             }}
@@ -167,7 +167,7 @@ export default function GroupReplies({
                   className="absolute left-[-20px] top-[50%]"
                   style={{
                     width: "20px",
-                    borderBottom: "2px solid #666",
+                    borderBottom: "2px solid #b1aeae",
                     marginLeft: "-1px",
                     transform: "translateY(-50%)",
                     zIndex: 0, // Ensure it’s behind content
