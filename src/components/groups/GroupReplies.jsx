@@ -31,7 +31,6 @@ export default function GroupReplies({
   const INITIAL_VISIBLE = 3;
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [activeReplyBox, setActiveReplyBox] = useState(null);
-  const [quotedReply, setQuotedReply] = useState(null);
 
   // Optimized listener for replies
   useEffect(() => {
@@ -85,7 +84,7 @@ export default function GroupReplies({
     }
   };
 
-  const handleAddReply = async (parentId, text, replyingTo = null, quotedId = null) => {
+  const handleAddReply = async (parentId, text, replyingTo = null) => {
     if (!currentUser || !text.trim()) return;
     try {
       await addDoc(collection(db, "groupReplies"), {
@@ -98,10 +97,8 @@ export default function GroupReplies({
         createdAt: serverTimestamp(),
         likes: [],
         replyingTo,
-        quotedReplyId: quotedId,
       });
       setActiveReplyBox(null);
-      setQuotedReply(null);
     } catch (err) {
       console.error("Error adding reply:", err);
     }
@@ -142,11 +139,6 @@ export default function GroupReplies({
 
   const visibleReplies = replies.slice(0, visibleCount);
 
-  const handleQuoteReply = (reply) => {
-    setQuotedReply(reply);
-    setActiveReplyBox(reply.id);
-  };
-
   return (
     <div className="mt-2" style={{ marginLeft: depth * 20 + "px", position: "relative" }}>
       <div className="space-y-2">
@@ -164,7 +156,7 @@ export default function GroupReplies({
                 <div
                   className="absolute left-[-20px] top-0 bottom-0"
                   style={{
-                    borderLeft: "2px solid #ccc",
+                    borderLeft: "2px solid #666", // Darker line color
                     marginLeft: "-1px",
                   }}
                 />
@@ -174,7 +166,7 @@ export default function GroupReplies({
                   className="absolute left-[-20px] top-[100%]"
                   style={{
                     width: "20px",
-                    borderBottom: "2px solid #ccc",
+                    borderBottom: "2px solid #666", // Darker line color
                     marginLeft: "-1px",
                   }}
                 />
@@ -233,10 +225,14 @@ export default function GroupReplies({
 
                 <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
                   <button
-                    onClick={() => handleQuoteReply(reply)}
+                    onClick={() =>
+                      setActiveReplyBox(
+                        activeReplyBox === reply.id ? null : reply.id
+                      )
+                    }
                     className="text-blue-600 hover:underline"
                   >
-                    Quote Reply
+                    Reply
                   </button>
 
                   <button
@@ -292,21 +288,15 @@ export default function GroupReplies({
                     onSubmit={(e) => {
                       e.preventDefault();
                       const text = e.target.elements.replyText.value;
-                      handleAddReply(reply.id, text, reply.author, quotedReply?.id);
+                      handleAddReply(reply.id, text, reply.author);
+                      setActiveReplyBox(null);
                       e.target.reset();
                     }}
                     className="flex flex-wrap gap-2 mt-2"
                   >
-                    {quotedReply && (
-                      <div className="p-2 bg-gray-100 rounded text-sm mb-2">
-                        <p className="text-gray-600 italic">
-                          {quotedReply.author} said: "{quotedReply.content}"
-                        </p>
-                      </div>
-                    )}
                     <input
                       name="replyText"
-                      placeholder={`Replying to ${reply.author}${quotedReply ? " (quoting)" : ""}...`}
+                      placeholder={`Replying to ${reply.author}...`}
                       className="flex-1 min-w-[150px] p-2 border rounded text-sm"
                       autoFocus
                     />
@@ -317,11 +307,8 @@ export default function GroupReplies({
                       Reply
                     </button>
                     <button
-                      type="type"
-                      onClick={() => {
-                        setActiveReplyBox(null);
-                        setQuotedReply(null);
-                      }}
+                      type="button"
+                      onClick={() => setActiveReplyBox(null)}
                       className="px-3 py-2 bg-gray-400 text-white rounded text-sm"
                     >
                       Cancel
