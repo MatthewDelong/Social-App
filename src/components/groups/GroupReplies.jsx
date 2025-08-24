@@ -318,23 +318,20 @@ export default function GroupReplies({
           </Fragment>
         ))}
 
-        {replies.length > INITIAL_VISIBLE && (
-          <div className="flex gap-2">
-            {replies.length > visibleCount ? (
+        {/* Show buttons only for top-level replies (parentReplyId is null) */}
+        {parentReplyId === null && replies.length > INITIAL_VISIBLE && (
+          <div className="flex gap-2 mt-2">
+            {visibleCount < replies.length ? (
               <button
-                onClick={() =>
-                  setVisibleCount((prev) =>
-                    Math.min(prev + INITIAL_VISIBLE, replies.length)
-                  )
-                }
-                className="text-xs text-blue-600 hover:underline"
+                onClick={() => setVisibleCount(replies.length)}
+                className="text-xs text-blue-600 hover:underline font-medium"
               >
                 View {replies.length - visibleCount} more replies
               </button>
             ) : (
               <button
                 onClick={() => setVisibleCount(INITIAL_VISIBLE)}
-                className="text-xs text-blue-600 hover:underline"
+                className="text-xs text-blue-600 hover:underline font-medium"
               >
                 Show fewer replies
               </button>
