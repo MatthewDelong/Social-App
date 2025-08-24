@@ -41,28 +41,31 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
          style={{ backgroundImage: `url('/images/login&signup.png')` }}>
       
-      <div className="max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-2xl border border-white/20">
-        <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">Log In</h1>
+      <div className="w-full max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl bg-white/90 backdrop-blur-sm p-6 md:p-8 rounded-xl shadow-2xl border border-white/20">
+        <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8 text-center text-gray-800">Log In</h1>
         
-        <Input
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mb-4"
-        />
-        <Input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mb-6"
-        />
+        <div className="space-y-4">
+          <Input
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full text-base md:text-lg p-3 md:p-4"
+          />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full text-base md:text-lg p-3 md:p-4"
+          />
+        </div>
         
-        <Button onClick={handleLogin} className="w-full bg-blue-600 hover:bg-blue-700">
+        <Button onClick={handleLogin} className="w-full mt-6 text-base md:text-lg p-3 md:p-4 bg-blue-600 hover:bg-blue-700">
           Log In
         </Button>
 
-        <p className="mt-4 text-sm text-center">
+        <p className="mt-4 text-sm md:text-base text-center">
           <button
             onClick={() => setIsResetting(!isResetting)}
             className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
@@ -80,16 +83,17 @@ export default function Login() {
             
             <Input
               placeholder="Enter your email"
+              type="email"
               value={resetEmail}
               onChange={(e) => setResetEmail(e.target.value)}
-              className="mb-3"
+              className="w-full mb-3 text-base md:text-lg p-3 md:p-4"
             />
             
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button 
                 onClick={handlePasswordReset}
                 disabled={resetSent}
-                className="flex-1"
+                className="flex-1 text-base md:text-lg p-3 md:p-4"
               >
                 {resetSent ? 'Email Sent' : 'Send Reset Link'}
               </Button>
@@ -100,7 +104,7 @@ export default function Login() {
                   setResetSent(false);
                   setResetEmail('');
                 }}
-                className="flex-1"
+                className="flex-1 text-base md:text-lg p-3 md:p-4"
               >
                 Cancel
               </Button>
@@ -108,7 +112,7 @@ export default function Login() {
           </div>
         )}
 
-        <p className="mt-6 text-sm text-center text-gray-600">
+        <p className="mt-6 text-sm md:text-base text-center text-gray-600">
           Don't have an account?{' '}
           <Link to="/signup" className="text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors">
             Sign up
