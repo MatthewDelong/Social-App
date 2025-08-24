@@ -144,8 +144,8 @@ export default function GroupReplies({
   return (
     <div className="mt-2" style={{ position: "relative" }}>
       <div className="space-y-2 relative" style={{ marginLeft: depth * 20 + "px" }}>
-        {/* Continuous Vertical Line for the Thread */}
-        {depth > 0 && (
+        {/* Continuous Vertical Line for the Thread (start at depth 0) */}
+        {(depth === 0 || depth > 0) && (
           <div
             className="absolute left-[-20px] top-0 bottom-0"
             style={{
