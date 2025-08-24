@@ -130,7 +130,7 @@ export default function GroupReplies({
           likes: arrayRemove(currentUser.uid),
         });
       } else {
-        await updateDoc(replyRef, {
+        await updateDoc(refly, {
           likes: arrayUnion(currentUser.uid),
         });
       }
@@ -142,19 +142,19 @@ export default function GroupReplies({
   const visibleReplies = replies.slice(0, visibleCount);
 
   return (
-    <div className="mt-2" style={{ position: "relative", maxWidth: "100%" }}>
+    <div className="mt-2" style={{ position: "relative", maxWidth: "90vw" }}>
       <div
         className="space-y-2 relative"
         style={{
-          marginLeft: Math.min(depth * 15, 60) + "px", // Reduced increment and capped at 60px
+          marginLeft: depth * 15 + "px", // Moderate 15px increment, no strict cap
           maxWidth: "100%",
-          overflowX: "auto", // Allow horizontal scroll if needed
+          overflowX: "auto", // Fallback for deep nesting
         }}
       >
         {/* Continuous Vertical Line for the Thread (start at depth 0) */}
         {(depth === 0 || depth > 0) && (
           <div
-            className="absolute left-[-1rem] top-0 bottom-0"
+            className="absolute left-[-1.5rem] top-0 bottom-0"
             style={{
               borderLeft: "2px solid #666",
               marginLeft: "-1px",
@@ -169,15 +169,15 @@ export default function GroupReplies({
               style={{
                 position: "relative",
                 zIndex: 1,
-                maxWidth: "100%", // Prevent overflow
+                maxWidth: "90vw", // Fit modern mobile screens
               }}
             >
               {/* Horizontal Connection Line (triggered by nested GroupReplies) */}
               {depth < 5 && (
                 <div
-                  className="absolute left-[-1rem] top-[50%]"
+                  className="absolute left-[-1.5rem] top-[50%]"
                   style={{
-                    width: "1rem", // Reduced to 1rem for mobile
+                    width: "1.5rem", // Increased to match margin
                     borderBottom: "2px solid #666",
                     marginLeft: "-1px",
                     transform: "translateY(-50%)",
@@ -188,11 +188,11 @@ export default function GroupReplies({
               <img
                 src={reply.authorPhotoURL || DEFAULT_AVATAR}
                 alt={reply.author}
-                className="w-6 h-6 rounded-full object-cover flex-shrink-0" // Reduced size for mobile
+                className="w-7 h-7 rounded-full object-cover flex-shrink-0" // Restored to 7px for clarity
               />
               <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-1">
-                  <strong className="text-xs">{reply.author}</strong> {/* Smaller font */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong className="text-sm">{reply.author}</strong>
                   {reply.createdAt && (
                     <span className="text-xs text-gray-500">
                       {formatReplyDate(reply.createdAt)}
@@ -211,7 +211,7 @@ export default function GroupReplies({
                     <input
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
-                      className="w-full p-1 border rounded text-sm mb-1" // Reduced padding
+                      className="w-full p-1 border rounded text-sm mb-1"
                       autoFocus
                     />
                     <div className="space-x-1">
@@ -257,7 +257,7 @@ export default function GroupReplies({
                         : "text-gray-600"
                     }`}
                   >
-                    <ThumbsUp size={12} /> {/* Reduced size */}
+                    <ThumbsUp size={14} /> {/* Restored to 14px */}
                     {reply.likes?.includes(currentUser?.uid) ? "Liked" : "Like"}
                   </button>
 
@@ -311,7 +311,7 @@ export default function GroupReplies({
                     <input
                       name="replyText"
                       placeholder={`Replying to ${reply.author}...`}
-                      className="flex-1 min-w-[100px] p-1 border rounded text-sm" // Reduced padding
+                      className="flex-1 min-w-[100px] p-1 border rounded text-sm"
                       autoFocus
                     />
                     <button
@@ -332,7 +332,7 @@ export default function GroupReplies({
               </div>
             </div>
 
-            <div className="mt-1"> {/* Reduced margin */}
+            <div className="mt-1">
               <GroupReplies
                 commentId={commentId}
                 parentReplyId={reply.id}
