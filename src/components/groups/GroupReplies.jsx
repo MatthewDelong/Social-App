@@ -1,4 +1,4 @@
-import { useEffect, useState, Fragment } from "react";
+import { useEffect, useState, useRef, Fragment } from "react";
 import {
   collection,
   addDoc,
@@ -31,8 +31,9 @@ export default function GroupReplies({
   const INITIAL_VISIBLE = 3;
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [activeReplyBox, setActiveReplyBox] = useState(null);
+  const hasChildrenRef = useRef({}); // Track hasChildren per replyId
 
-  // Optimized listener for replies
+  // Optimized listener for replies (fetch all replies for commentId, filter client-side)
   useEffect(() => {
     if (!commentId) return;
     let unsub;
@@ -42,12 +43,11 @@ export default function GroupReplies({
         const q = query(
           collection(db, "groupReplies"),
           where("commentId", "==", commentId),
-          where("parentReplyId", "==", parentReplyId),
           orderBy("createdAt", "asc")
         );
 
         unsub = onSnapshot(q, (snapshot) => {
-          const docs = snapshot.docs.map((docSnap) => {
+          const allDocs = snapshot.docs.map((docSnap) => {
             const data = docSnap.data();
             return {
               id: docSnap.id,
@@ -56,9 +56,20 @@ export default function GroupReplies({
               likes: data.likes || [],
             };
           });
-          console.log("Replies updated for parentReplyId", parentReplyId, ":", docs); // Detailed debug log
-          setReplies(docs);
+          console.log("All replies for commentId", commentId, ":", allDocs); // Log all replies
+          // Filter replies for the current parentReplyId
+          const filteredDocs = parentReplyId
+            ? allDocs.filter((r) => r.parentReplyId === parentReplyId)
+            : allDocs.filter((r) => !r.parentReplyId);
+          console.log("Filtered replies for parentReplyId", parentReplyId, ":", filteredDocs);
+          setReplies(filteredDocs);
           setVisibleCount(INITIAL_VISIBLE);
+
+          // Update hasChildrenRef based on allDocs
+          allDocs.forEach((reply) => {
+            hasChildrenRef.current[reply.id] = allDocs.some((r) => r.parentReplyId === reply.id);
+            console.log(`Has Children for ${reply.id}:`, hasChildrenRef.current[reply.id], "All Replies:", allDocs);
+          });
         });
       } catch (err) {
         console.error("Replies listener error:", err);
@@ -88,6 +99,7 @@ export default function GroupReplies({
   const handleAddReply = async (parentId, text, replyingTo = null) => {
     if (!currentUser || !text.trim()) return;
     try {
+      console.log("Adding reply with parentId:", parentId); // Debug log for parentId
       await addDoc(collection(db, "groupReplies"), {
         commentId,
         parentReplyId: parentId ?? null,
@@ -140,13 +152,6 @@ export default function GroupReplies({
 
   const visibleReplies = replies.slice(0, visibleCount);
 
-  // Check if a reply has children
-  const hasChildren = (replyId) => {
-    const result = replies.some((r) => r.parentReplyId === replyId);
-    console.log(`Has Children for ${replyId}:`, result, "Replies:", replies); // Enhanced debug log
-    return result;
-  };
-
   return (
     <div className="mt-2" style={{ position: "relative" }}>
       <div className="space-y-2 relative" style={{ marginLeft: depth * 20 + "px" }}>
@@ -167,8 +172,8 @@ export default function GroupReplies({
               className="border p-2 rounded text-sm bg-white flex items-start gap-2 relative"
               style={{ position: "relative", zIndex: 1 }}
             >
-              {/* Horizontal Connection Line (triggered by nested replies or hasChildren) */}
-              {(hasChildren(reply.id) || (depth < 5 && visibleReplies.length > index + 1)) && (
+              {/* Horizontal Connection Line (use hasChildrenRef for dynamic check) */}
+              {(hasChildrenRef.current[reply.id] || true) && ( // Force for now, remove 'true' after testing
                 <div
                   className="absolute left-[-20px] top-[50%]"
                   style={{
