@@ -154,6 +154,7 @@ export default function Home() {
     const replyText = commentMap[replyKey];
     if (!replyText?.trim()) return;
     const post = posts.find((p) => p.id === postId);
+    const postRef = doc(db, "posts", postId);
     const updatedComments = [...post.comments];
     const reply = {
       text: replyText,
@@ -167,9 +168,11 @@ export default function Home() {
       ...(updatedComments[commentIndex].replies || []),
       reply,
     ];
-    await updateDoc(doc(db, "posts", postId), { comments: updatedComments });
+    await updateDoc(postRef, { comments: updatedComments });
     setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
+      prev.map((p) =>
+        p.id === postId ? { ...p, comments: updatedComments } : p
+      )
     );
     setCommentMap((prev) => ({ ...prev, [replyKey]: "" }));
     setActiveReply(null); // Close the reply input after submission
@@ -439,19 +442,8 @@ export default function Home() {
                 const commentUser = usersMap[comment.uid];
                 const commentAvatar = commentUser?.photoURL || DEFAULT_AVATAR;
                 return (
-                  <div key={i} className="ml-5 relative sm:ml-2.5">
-                    {/* Vertical Line for Comments */}
-                    {(i > 0 || post.comments.length > 1) && (
-                      <div
-                        className="absolute left-[-20px] top-0 bottom-0"
-                        style={{
-                          borderLeft: "2px solid #b1aeae",
-                          marginLeft: "-1px",
-                          zIndex: 0,
-                        }}
-                      />
-                    )}
-                    <div className="flex items-start space-x-2 bg-white p-2 rounded relative" style={{ zIndex: 1 }}>
+                  <div key={i} className="ml-5 sm:ml-2.5">
+                    <div className="flex items-start space-x-2 bg-white p-2 rounded">
                       <img
                         src={commentAvatar}
                         alt="avatar"
@@ -629,16 +621,7 @@ export default function Home() {
 
                         {/* Replies with Gap */}
                         {comment.replies.length > 0 && (
-                          <div className="ml-5 mt-4 space-y-2 relative sm:ml-2.5 sm:mt-2">
-                            {/* Vertical Line for Replies */}
-                            <div
-                              className="absolute left-[-20px] top-0 bottom-0"
-                              style={{
-                                borderLeft: "2px solid #b1aeae",
-                                marginLeft: "-1px",
-                                zIndex: 0,
-                              }}
-                            />
+                          <div className="ml-5 mt-4 space-y-2 sm:ml-2.5 sm:mt-2">
                             {(comment.replies || []).map((reply, ri) => {
                               const replyUser = usersMap[reply.uid];
                               const replyAvatar = replyUser?.photoURL || DEFAULT_AVATAR;
@@ -646,22 +629,8 @@ export default function Home() {
                               return (
                                 <div
                                   key={ri}
-                                  className="flex items-start space-x-2 bg-white p-2 rounded relative"
-                                  style={{ zIndex: 1 }}
+                                  className="flex items-start space-x-2 bg-white p-2 rounded"
                                 >
-                                  {/* Horizontal Line for Reply */}
-                                  {ri === 0 && (
-                                    <div
-                                      className="absolute left-[-20px] top-[50%]"
-                                      style={{
-                                        width: "20px",
-                                        borderBottom: "2px solid #b1aeae",
-                                        marginLeft: "-1px",
-                                        transform: "translateY(-50%)",
-                                        zIndex: 0,
-                                      }}
-                                    />
-                                  )}
                                   <img
                                     src={replyAvatar}
                                     alt="avatar"
