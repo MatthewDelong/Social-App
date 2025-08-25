@@ -20,10 +20,8 @@ import { arrayUnion, arrayRemove } from "firebase/firestore";
 import EmojiPicker from "emoji-picker-react"; // Added for emoji picker
 import { ThumbsUp, X } from "lucide-react"; // Added X for close button
 import GroupReplies from "./GroupReplies";
-import { useGroupPermissions } from "../../hooks/useGroupPermissions";
-import RoleBadge from "./RoleBadge";
 
-export default function GroupComments({ postId, currentUser, groupId }) {
+export default function GroupComments({ postId, currentUser }) {
   const [comments, setComments] = useState([]);
   const [content, setContent] = useState("");
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
@@ -33,14 +31,6 @@ export default function GroupComments({ postId, currentUser, groupId }) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(null); // State for emoji picker (both comment and reply)
   const commentInputRef = useRef(null); // Ref for comment input
   const replyInputRef = useRef(null); // Ref for reply input
-
-  // Group permissions
-  const {
-    canEditContent,
-    canDeleteContent,
-    getUserRole,
-    isMember
-  } = useGroupPermissions(groupId, currentUser?.uid);
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
@@ -95,8 +85,8 @@ export default function GroupComments({ postId, currentUser, groupId }) {
 
   const canEditOrDeleteComment = (comment) => {
     if (!currentUser) return false;
-    // Use group permissions for edit/delete checks
-    return canEditContent(comment.uid) || canDeleteContent(comment.uid);
+    if (currentUser.isAdmin || currentUser.isModerator) return true;
+    return comment.uid === currentUser.uid;
   };
 
   const formatCommentDate = (timestamp) => {
@@ -112,57 +102,33 @@ export default function GroupComments({ postId, currentUser, groupId }) {
 
   const handleAddComment = async (e) => {
     e.preventDefault();
-    if (!content.trim() || !currentUser || !isMember) return;
-    
-    try {
-      await addDoc(collection(db, "groupComments"), {
-        postId,
-        uid: currentUser.uid,
-        author: currentUser.displayName,
-        authorPhotoURL: currentUser.photoURL || DEFAULT_AVATAR,
-        content: content.trim(),
-        createdAt: serverTimestamp(),
-        likes: [],
-        groupId: groupId // Add groupId for permission tracking
-      });
-      setContent("");
-      setShowEmojiPicker(null);
-    } catch (error) {
-      console.error("Error adding comment:", error);
-      alert("Failed to add comment. Please try again.");
-    }
+    if (!content.trim()) return;
+    await addDoc(collection(db, "groupComments"), {
+      postId,
+      uid: currentUser.uid,
+      author: currentUser.displayName,
+      authorPhotoURL: currentUser.photoURL || DEFAULT_AVATAR,
+      content: content.trim(),
+      createdAt: serverTimestamp(),
+      likes: [],
+    });
+    setContent("");
+    setShowEmojiPicker(null);
   };
 
-  const handleDeleteComment = async (commentId, authorId) => {
-    if (!canDeleteContent(authorId)) {
-      alert("You don't have permission to delete this comment.");
-      return;
-    }
-    
+  const handleDeleteComment = async (commentId) => {
     if (!window.confirm("Are you sure you want to delete this comment?")) return;
-    
-    try {
-      await deleteDoc(doc(db, "groupComments", commentId));
-    } catch (error) {
-      console.error("Error deleting comment:", error);
-      alert("Failed to delete comment. Please try again.");
-    }
+    await deleteDoc(doc(db, "groupComments", commentId));
   };
 
   const saveEditedComment = async () => {
     if (!editContent.trim()) return;
-    
-    try {
-      await updateDoc(doc(db, "groupComments", editingCommentId), {
-        content: editContent.trim(),
-        editedAt: serverTimestamp(),
-      });
-      setEditingCommentId(null);
-      setEditContent("");
-    } catch (error) {
-      console.error("Error editing comment:", error);
-      alert("Failed to edit comment. Please try again.");
-    }
+    await updateDoc(doc(db, "groupComments", editingCommentId), {
+      content: editContent.trim(),
+      editedAt: serverTimestamp(),
+    });
+    setEditingCommentId(null);
+    setEditContent("");
   };
 
   const toggleLike = async (comment) => {
@@ -184,7 +150,7 @@ export default function GroupComments({ postId, currentUser, groupId }) {
   };
 
   const handleAddReply = async (parentCommentId, text) => {
-    if (!currentUser || !text.trim() || !isMember) return;
+    if (!currentUser || !text.trim()) return;
     try {
       await addDoc(collection(db, "groupReplies"), {
         commentId: parentCommentId,
@@ -195,11 +161,9 @@ export default function GroupComments({ postId, currentUser, groupId }) {
         content: text.trim(),
         createdAt: serverTimestamp(),
         likes: [],
-        groupId: groupId // Add groupId for permission tracking
       });
     } catch (err) {
       console.error("Error adding reply:", err);
-      alert("Failed to add reply. Please try again.");
     }
   };
 
@@ -217,83 +181,71 @@ export default function GroupComments({ postId, currentUser, groupId }) {
   return (
     <div className="mt-4">
       {/* Add Comment Form */}
-      {currentUser && isMember ? (
-        <form
-          onSubmit={handleAddComment}
-          className="flex flex-wrap gap-2 mb-4 relative"
-        >
-          <div className="flex items-center w-full relative">
-            <input
-              ref={commentInputRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Write a comment..."
-              className="flex-1 min-w-[200px] p-2 pr-10 border rounded"
-              maxLength={1000}
-            />
-            <button
-              type="button"
-              onClick={() =>
-                setShowEmojiPicker(
-                  showEmojiPicker === "comment" ? null : "comment"
-                )
-              }
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-            >
-              😊
-            </button>
-          </div>
-          {showEmojiPicker === "comment" &&
-            createPortal(
-              <div
-                className="absolute z-50"
-                style={{
-                  top: commentInputRef.current
-                    ? commentInputRef.current.getBoundingClientRect().bottom +
-                      window.scrollY +
-                      2
-                    : "auto",
-                  right: commentInputRef.current
-                    ? window.innerWidth -
-                      commentInputRef.current.getBoundingClientRect().right
-                    : "auto",
-                }}
-              >
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowEmojiPicker(null)}
-                    className="absolute top-2 right-2 z-60 bg-gray-200 rounded-full p-1 hover:bg-gray-300"
-                    title="Close emoji picker"
-                  >
-                    <X size={16} />
-                  </button>
-                  <EmojiPicker
-                    onEmojiClick={(emojiObject) =>
-                      handleEmojiClick(emojiObject, "comment")
-                    }
-                  />
-                </div>
-              </div>,
-              document.body
-            )}
+      <form
+        onSubmit={handleAddComment}
+        className="flex flex-wrap gap-2 mb-4 relative"
+      >
+        <div className="flex items-center w-full relative">
+          <input
+            ref={commentInputRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Write a comment..."
+            className="flex-1 min-w-[200px] p-2 pr-10 border rounded"
+          />
           <button
-            type="submit"
-            disabled={!content.trim()}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            type="button"
+            onClick={() =>
+              setShowEmojiPicker(
+                showEmojiPicker === "comment" ? null : "comment"
+              )
+            }
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
           >
-            Post
+            😊
           </button>
-        </form>
-      ) : !currentUser ? (
-        <div className="mb-4 p-3 bg-gray-50 rounded text-center">
-          <p className="text-gray-600">Please log in to comment</p>
         </div>
-      ) : !isMember ? (
-        <div className="mb-4 p-3 bg-yellow-50 rounded text-center">
-          <p className="text-gray-600">You must be a member of this group to comment</p>
-        </div>
-      ) : null}
+        {showEmojiPicker === "comment" &&
+          createPortal(
+            <div
+              className="absolute z-50"
+              style={{
+                top: commentInputRef.current
+                  ? commentInputRef.current.getBoundingClientRect().bottom +
+                    window.scrollY +
+                    2
+                  : "auto",
+                right: commentInputRef.current
+                  ? window.innerWidth -
+                    commentInputRef.current.getBoundingClientRect().right
+                  : "auto",
+              }}
+            >
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(null)}
+                  className="absolute top-2 right-2 z-60 bg-gray-200 rounded-full p-1 hover:bg-gray-300"
+                  title="Close emoji picker"
+                >
+                  <X size={16} />
+                </button>
+                <EmojiPicker
+                  onEmojiClick={(emojiObject) =>
+                    handleEmojiClick(emojiObject, "comment")
+                  }
+                />
+              </div>
+            </div>,
+            document.body
+          )}
+        <button
+          type="submit"
+          className="px-3 py-1 bg-blue-500 text-white rounded"
+        >
+          Post
+        </button>
+      </form>
 
       {/* Comments List */}
       <div className="space-y-3">
@@ -309,14 +261,10 @@ export default function GroupComments({ postId, currentUser, groupId }) {
             />
             <div className="flex-1 break-words">
               <div className="flex flex-wrap items-center gap-2 mb-1">
-                <div className="flex items-center gap-2">
-                  <strong>{comment.author}</strong>
-                  <RoleBadge role={getUserRole ? getUserRole(comment.uid) : null} size="xs" />
-                </div>
+                <strong>{comment.author}</strong>
                 {comment.createdAt && (
                   <span className="text-xs text-gray-500">
                     {formatCommentDate(comment.createdAt)}
-                    {comment.editedAt && " (edited)"}
                   </span>
                 )}
               </div>
@@ -328,7 +276,6 @@ export default function GroupComments({ postId, currentUser, groupId }) {
                     rows={3}
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    maxLength={1000}
                   />
                   <div className="space-x-2">
                     <button
@@ -353,24 +300,20 @@ export default function GroupComments({ postId, currentUser, groupId }) {
               )}
 
               <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
-                {/* Reply button - Only for members */}
-                {isMember && (
-                  <button
-                    onClick={() =>
-                      setActiveReplyBox(
-                        activeReplyBox === comment.id ? null : comment.id
-                      )
-                    }
-                    className="text-blue-600 hover:underline"
-                  >
-                    Reply
-                  </button>
-                )}
+                <button
+                  onClick={() =>
+                    setActiveReplyBox(
+                      activeReplyBox === comment.id ? null : comment.id
+                    )
+                  }
+                  className="text-blue-600 hover:underline"
+                >
+                  Reply
+                </button>
 
                 <button
                   onClick={() => toggleLike(comment)}
-                  disabled={!currentUser}
-                  className={`flex items-center gap-1 hover:underline disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`flex items-center gap-1 hover:underline ${
                     comment.likes?.includes(currentUser?.uid)
                       ? "text-blue-600 font-semibold"
                       : "text-gray-600"
@@ -387,35 +330,30 @@ export default function GroupComments({ postId, currentUser, groupId }) {
                   </span>
                 )}
 
-                {/* Edit/Delete - Based on group permissions */}
                 {canEditOrDeleteComment(comment) &&
                   editingCommentId !== comment.id && (
                     <>
-                      {canEditContent(comment.uid) && (
-                        <button
-                          onClick={() => {
-                            setEditingCommentId(comment.id);
-                            setEditContent(comment.content);
-                          }}
-                          className="text-blue-600 hover:underline"
-                        >
-                          Edit
-                        </button>
-                      )}
-                      {canDeleteContent(comment.uid) && (
-                        <button
-                          onClick={() => handleDeleteComment(comment.id, comment.uid)}
-                          className="text-red-600 hover:underline"
-                        >
-                          Delete
-                        </button>
-                      )}
+                      <button
+                        onClick={() => {
+                          setEditingCommentId(comment.id);
+                          setEditContent(comment.content);
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteComment(comment.id)}
+                        className="text-red-600 hover:underline"
+                      >
+                        Delete
+                      </button>
                     </>
                   )}
               </div>
 
-              {/* Inline reply input - Only for members */}
-              {activeReplyBox === comment.id && isMember && (
+              {/* Inline reply input */}
+              {activeReplyBox === comment.id && (
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -434,7 +372,6 @@ export default function GroupComments({ postId, currentUser, groupId }) {
                       onChange={(e) => setReplyText(e.target.value)}
                       placeholder="Write a reply..."
                       className="flex-1 min-w-[150px] p-2 pr-10 border rounded text-sm"
-                      maxLength={1000}
                       autoFocus
                     />
                     <button
@@ -488,7 +425,7 @@ export default function GroupComments({ postId, currentUser, groupId }) {
                   <div className="flex gap-2">
                     <button
                       type="submit"
-                      className="px-3 py-2 bg-gray-700 text-white rounded text-sm hover:bg-gray-800 transition-colors"
+                      className="px-3 py-2 bg-gray-700 text-white rounded text-sm"
                     >
                       Reply
                     </button>
@@ -499,7 +436,7 @@ export default function GroupComments({ postId, currentUser, groupId }) {
                         setReplyText("");
                         setShowEmojiPicker(null);
                       }}
-                      className="px-3 py-2 bg-gray-400 text-white rounded text-sm hover:bg-gray-500 transition-colors"
+                      className="px-3 py-2 bg-gray-400 text-white rounded text-sm"
                     >
                       Cancel
                     </button>
@@ -511,7 +448,8 @@ export default function GroupComments({ postId, currentUser, groupId }) {
               <GroupReplies
                 commentId={comment.id}
                 currentUser={currentUser}
-                groupId={groupId}
+                isAdmin={currentUser?.isAdmin}
+                isModerator={currentUser?.isModerator}
                 DEFAULT_AVATAR={DEFAULT_AVATAR}
               />
             </div>

@@ -1,4 +1,3 @@
-// src/pages/GroupPostPage.jsx
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import GroupComments from "../components/groups/GroupComments";
@@ -7,8 +6,6 @@ import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { formatDistanceToNow } from "date-fns";
-import { useGroupPermissions } from "../hooks/useGroupPermissions";
-import RoleBadge from "../components/groups/RoleBadge";
 
 export default function GroupPostPage() {
   const { groupId, postId } = useParams();
@@ -25,18 +22,7 @@ export default function GroupPostPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
 
-  // Group permissions
-  const {
-    canManageGroup,
-    canEditContent,
-    canDeleteContent,
-    getCurrentUserRole,
-    isMember,
-    loading: permissionsLoading
-  } = useGroupPermissions(groupId, user?.uid);
-
-  // Keep backward compatibility for banner/logo editing
-  const isAdminOrMod = user?.isAdmin || user?.isModerator || canManageGroup;
+  const isAdminOrMod = user?.isAdmin || user?.isModerator;
 
   // Load default images from storage
   useEffect(() => {
@@ -88,13 +74,14 @@ export default function GroupPostPage() {
     fetchData();
   }, [postId, groupId]);
 
-  if (loading || permissionsLoading) return <p className="p-4">Loading post...</p>;
+  if (loading) return <p className="p-4">Loading post...</p>;
   if (!post) return <p className="p-4">Post not found</p>;
 
-  // Determine permissions using group system
-  const canEditThisPost = canEditContent(post.uid);
-  const canDeleteThisPost = canDeleteContent(post.uid);
-  const currentUserRole = getCurrentUserRole;
+  // Determine permissions
+  const isOwner = user && post.uid === user.uid;
+  const isAdmin = user?.isAdmin;
+  const isModerator = user?.isModerator;
+  const canEditOrDelete = isOwner || isAdmin || isModerator;
 
   // Format post date
   const formatPostDate = (timestamp) => {
@@ -143,32 +130,20 @@ export default function GroupPostPage() {
   };
 
   const saveEdit = async () => {
-    if (!editContent.trim() || !canEditThisPost) return;
-    try {
-      await updateDoc(doc(db, "groupPosts", post.id), {
-        content: editContent.trim(),
-        editedAt: new Date(),
-      });
-      setPost((prev) => ({ ...prev, content: editContent.trim(), editedAt: new Date() }));
-      setIsEditing(false);
-      setEditContent("");
-    } catch (error) {
-      console.error("Error updating post:", error);
-      alert("Failed to update post. Please try again.");
-    }
+    if (!editContent.trim()) return;
+    await updateDoc(doc(db, "groupPosts", post.id), {
+      content: editContent.trim(),
+      editedAt: new Date(),
+    });
+    setPost((prev) => ({ ...prev, content: editContent.trim() }));
+    setIsEditing(false);
+    setEditContent("");
   };
 
   const deletePost = async () => {
-    if (!canDeleteThisPost) return;
-    if (!window.confirm("Are you sure you want to delete this post? This action cannot be undone.")) return;
-    
-    try {
-      await deleteDoc(doc(db, "groupPosts", post.id));
-      navigate(`/groups/${groupId}`); // Go back to group page
-    } catch (error) {
-      console.error("Error deleting post:", error);
-      alert("Failed to delete post. Please try again.");
-    }
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
+    await deleteDoc(doc(db, "groupPosts", post.id));
+    navigate(-1); // Go back after deleting
   };
 
   return (
@@ -239,7 +214,7 @@ export default function GroupPostPage() {
                         strokeLinecap="round" 
                         strokeLinejoin="round" 
                         strokeWidth={2} 
-                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
+                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
                       />
                       <path 
                         strokeLinecap="round" 
@@ -276,18 +251,10 @@ export default function GroupPostPage() {
             className="w-10 h-10 rounded-full object-cover flex-shrink-0"
           />
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xl font-bold break-words">{post.author}</h2>
-              {post.uid === user?.uid && (
-                <RoleBadge role={currentUserRole} size="xs" />
-              )}
-            </div>
+            <h2 className="text-xl font-bold break-words">{post.author}</h2>
             {post.createdAt && (
               <p className="text-sm text-gray-500">
                 {formatPostDate(post.createdAt)}
-                {post.editedAt && (
-                  <span className="ml-2 text-xs text-gray-400">(edited)</span>
-                )}
               </p>
             )}
           </div>
@@ -322,38 +289,29 @@ export default function GroupPostPage() {
         )}
 
         {/* Edit/Delete buttons */}
-        {(canEditThisPost || canDeleteThisPost) && !isEditing && (
+        {canEditOrDelete && !isEditing && (
           <div className="mb-4 flex flex-wrap gap-2">
-            {canEditThisPost && (
-              <button
-                onClick={startEdit}
-                className="text-xs bg-yellow-500 text-black-800 px-2 py-0.5 rounded hover:bg-yellow-600 transition-colors"
-              >
-                Edit
-              </button>
-            )}
-            {canDeleteThisPost && (
-              <button
-                onClick={deletePost}
-                className="text-xs bg-red-500 text-black-800 px-2 py-0.5 rounded hover:bg-red-600 transition-colors"
-              >
-                Delete
-              </button>
-            )}
+            <button
+              onClick={startEdit}
+              className="text-xs bg-yellow-500 text-black-800 px-2 py-0.5 rounded"
+            >
+              Edit
+            </button>
+            <button
+              onClick={deletePost}
+              className="text-xs bg-red-500 text-black-800 px-2 py-0.5 rounded"
+            >
+              Delete
+            </button>
           </div>
         )}
 
         {/* Comments section */}
         <GroupComments
           postId={postId}
-          groupId={groupId}
           currentUser={user}
-          isAdmin={user?.isAdmin}
-          isModerator={user?.isModerator}
-          canModerateContent={canDeleteContent}
-          canEditContent={canEditContent}
-          canDeleteContent={canDeleteContent}
-          isMember={isMember}
+          isAdmin={isAdmin}
+          isModerator={isModerator}
         />
       </div>
     </div>

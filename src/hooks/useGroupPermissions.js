@@ -1,216 +1,203 @@
-// src/hooks/useGroupPermissions.js
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
 import { db } from "../firebase";
-import {
-  doc,
-  getDoc,
-  onSnapshot,
-  collection,
-  query,
-  where,
-} from "firebase/firestore";
-import { useAppContext } from "../context/AppContext";
 
-export const ROLES = {
-  SITE_ADMIN: "site_admin",
-  SITE_MODERATOR: "site_moderator",
-  GROUP_CREATOR: "group_creator",
-  GROUP_ADMIN: "group_admin",
-  GROUP_MODERATOR: "group_moderator",
-  MEMBER: "member",
+// Role hierarchy levels for easy comparison
+const ROLE_LEVELS = {
+  member: 1,
+  moderator: 2,
+  admin: 3,
+  creator: 4,
 };
 
-// Permission hierarchy (higher number = more permissions)
-const ROLE_HIERARCHY = {
-  [ROLES.SITE_ADMIN]: 6,
-  [ROLES.SITE_MODERATOR]: 5,
-  [ROLES.GROUP_CREATOR]: 4,
-  [ROLES.GROUP_ADMIN]: 3,
-  [ROLES.GROUP_MODERATOR]: 2,
-  [ROLES.MEMBER]: 1,
-};
-
-export const useGroupPermissions = (groupId, targetUserId = null) => {
-  const { user } = useAppContext();
+export function useGroupPermissions(groupId, userId) {
   const [groupData, setGroupData] = useState(null);
-  const [userGroupRole, setUserGroupRole] = useState(null);
-  const [targetUserRole, setTargetUserRole] = useState(null);
+  const [members, setMembers] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Listen to group data
   useEffect(() => {
-    if (!user?.uid || !groupId) {
+    if (!groupId) {
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-
-    // Listen to group data
     const groupRef = doc(db, "groups", groupId);
-    const unsubscribeGroup = onSnapshot(groupRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setGroupData({ id: snapshot.id, ...snapshot.data() });
-      } else {
-        setGroupData(null);
-      }
-    });
-
-    // Listen to current user's group membership
-    const userMemberRef = doc(db, "groups", groupId, "members", user.uid);
-    const unsubscribeUserMember = onSnapshot(userMemberRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setUserGroupRole(snapshot.data().role || ROLES.MEMBER);
-      } else {
-        setUserGroupRole(null);
-      }
-    });
-
-    // Listen to target user's group membership if specified
-    let unsubscribeTargetUser = null;
-    if (targetUserId) {
-      const targetMemberRef = doc(
-        db,
-        "groups",
-        groupId,
-        "members",
-        targetUserId
-      );
-      unsubscribeTargetUser = onSnapshot(targetMemberRef, (snapshot) => {
-        if (snapshot.exists()) {
-          setTargetUserRole(snapshot.data().role || ROLES.MEMBER);
+    const unsubscribe = onSnapshot(
+      groupRef,
+      (doc) => {
+        if (doc.exists()) {
+          setGroupData({ id: doc.id, ...doc.data() });
         } else {
-          setTargetUserRole(null);
+          setError("Group not found");
         }
-      });
-    }
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error listening to group:", err);
+        setError("Failed to load group data");
+        setLoading(false);
+      }
+    );
 
-    setLoading(false);
+    return () => unsubscribe();
+  }, [groupId]);
 
-    return () => {
-      unsubscribeGroup();
-      unsubscribeUserMember();
-      if (unsubscribeTargetUser) unsubscribeTargetUser();
-    };
-  }, [groupId, user?.uid, targetUserId]);
+  // Listen to group members
+  useEffect(() => {
+    if (!groupId) return;
 
-  // Get user's effective role (considering site-wide permissions)
-  const getEffectiveRole = (userId = user?.uid, groupRole = userGroupRole) => {
-    if (!userId || !user) return ROLES.MEMBER;
+    const membersRef = collection(db, "groups", groupId, "members");
+    const unsubscribe = onSnapshot(
+      membersRef,
+      (snapshot) => {
+        const membersData = {};
+        snapshot.docs.forEach((doc) => {
+          membersData[doc.id] = { id: doc.id, ...doc.data() };
+        });
+        setMembers(membersData);
+      },
+      (err) => {
+        console.error("Error listening to members:", err);
+        setError("Failed to load members data");
+      }
+    );
 
-    // Site admins override everything
-    if (user.isAdmin) return ROLES.SITE_ADMIN;
-    if (user.isModerator) return ROLES.SITE_MODERATOR;
+    return () => unsubscribe();
+  }, [groupId]);
 
-    // Group creator check
-    if (groupData?.creatorId === userId) return ROLES.GROUP_CREATOR;
+  // Get current user's role in the group
+  const getCurrentUserRole = useMemo(() => {
+    if (!userId || !members[userId]) return null;
+    return members[userId].role || "member";
+  }, [userId, members]);
 
-    // Return group-specific role or default to member
-    return groupRole || ROLES.MEMBER;
-  };
+  // Get effective role (considers site-wide permissions)
+  const getEffectiveRole = useMemo(() => {
+    // This would need to be passed from your auth context
+    // For now, assuming site-wide admin/moderator status is available
+    // You should pass these as additional parameters to the hook
+    return getCurrentUserRole;
+  }, [getCurrentUserRole]);
 
-  const getCurrentUserRole = () => getEffectiveRole();
-  const getTargetUserRole = () =>
-    getEffectiveRole(targetUserId, targetUserRole);
+  // Check if user is a member
+  const isMember = useMemo(() => {
+    return Boolean(userId && members[userId]);
+  }, [userId, members]);
 
-  // Permission checking functions
-  const hasPermission = (requiredRole, userRole = getCurrentUserRole()) => {
-    const userLevel = ROLE_HIERARCHY[userRole] || 0;
-    const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0;
-    return userLevel >= requiredLevel;
-  };
+  // Get any user's role
+  const getUserRole = useMemo(
+    () => (targetUserId) => {
+      if (!targetUserId || !members[targetUserId]) return null;
+      return members[targetUserId].role || "member";
+    },
+    [members]
+  );
 
-  const canManageGroup = () => hasPermission(ROLES.GROUP_CREATOR);
-  const canAssignAdmins = () => hasPermission(ROLES.GROUP_CREATOR);
-  const canAssignModerators = () => hasPermission(ROLES.GROUP_ADMIN);
-  const canModerateContent = () => hasPermission(ROLES.GROUP_MODERATOR);
-  const canDeleteGroup = () => hasPermission(ROLES.GROUP_CREATOR);
+  // Permission functions
+  const canEditContent = useMemo(
+    () => (authorId) => {
+      if (!userId || !isMember) return false;
+      // Own content
+      if (authorId === userId) return true;
+      // Moderators and above can edit any content
+      const userRole = getCurrentUserRole;
+      return userRole && ROLE_LEVELS[userRole] >= ROLE_LEVELS.moderator;
+    },
+    [userId, isMember, getCurrentUserRole]
+  );
 
-  // Check if current user can manage target user
-  const canManageUser = (targetRole = getTargetUserRole()) => {
-    const currentRole = getCurrentUserRole();
-    const currentLevel = ROLE_HIERARCHY[currentRole] || 0;
-    const targetLevel = ROLE_HIERARCHY[targetRole] || 0;
+  const canDeleteContent = useMemo(
+    () => (authorId) => {
+      if (!userId || !isMember) return false;
+      // Own content
+      if (authorId === userId) return true;
+      // Moderators and above can delete any content
+      const userRole = getCurrentUserRole;
+      return userRole && ROLE_LEVELS[userRole] >= ROLE_LEVELS.moderator;
+    },
+    [userId, isMember, getCurrentUserRole]
+  );
 
-    // Can only manage users with lower hierarchy level
-    return currentLevel > targetLevel;
-  };
+  const canManageGroup = useMemo(() => {
+    const userRole = getCurrentUserRole;
+    return userRole && ROLE_LEVELS[userRole] >= ROLE_LEVELS.admin;
+  }, [getCurrentUserRole]);
 
-  // Check if user can assign a specific role
-  const canAssignRole = (roleToAssign) => {
-    const currentRole = getCurrentUserRole();
+  const canAssignAdmins = useMemo(() => {
+    return getCurrentUserRole === "creator";
+  }, [getCurrentUserRole]);
 
-    switch (roleToAssign) {
-      case ROLES.GROUP_ADMIN:
-        return hasPermission(ROLES.GROUP_CREATOR, currentRole);
-      case ROLES.GROUP_MODERATOR:
-        return hasPermission(ROLES.GROUP_ADMIN, currentRole);
-      default:
-        return false;
-    }
-  };
+  const canAssignModerators = useMemo(() => {
+    const userRole = getCurrentUserRole;
+    return userRole && ROLE_LEVELS[userRole] >= ROLE_LEVELS.admin;
+  }, [getCurrentUserRole]);
 
-  // Check if user can perform action on a specific post/content
-  const canEditContent = (contentAuthorId) => {
-    if (!contentAuthorId) return false;
+  const canRemoveMember = useMemo(
+    () => (targetUserId) => {
+      if (!userId || !isMember) return false;
+      if (targetUserId === userId) return true; // Can always leave
+      
+      const userRole = getCurrentUserRole;
+      const targetRole = getUserRole(targetUserId);
+      
+      if (!userRole || !targetRole) return false;
+      
+      // Can only remove members with lower roles
+      return ROLE_LEVELS[userRole] > ROLE_LEVELS[targetRole];
+    },
+    [userId, isMember, getCurrentUserRole, getUserRole]
+  );
 
-    // Own content
-    if (contentAuthorId === user?.uid) return true;
-
-    // Moderator or higher can edit any content
-    return canModerateContent();
-  };
-
-  const canDeleteContent = (contentAuthorId) => {
-    if (!contentAuthorId) return false;
-
-    // Own content
-    if (contentAuthorId === user?.uid) return true;
-
-    // Moderator or higher can delete any content
-    return canModerateContent();
-  };
-
-  const isMember = () => userGroupRole !== null;
-  const isGroupCreator = () => groupData?.creatorId === user?.uid;
-  const isGroupAdmin = () =>
-    userGroupRole === ROLES.GROUP_ADMIN || isGroupCreator();
-  const isGroupModerator = () =>
-    userGroupRole === ROLES.GROUP_MODERATOR || isGroupAdmin();
+  const canAssignRole = useMemo(
+    () => (targetUserId, newRole) => {
+      if (!userId || !isMember) return false;
+      
+      const userRole = getCurrentUserRole;
+      const targetRole = getUserRole(targetUserId);
+      
+      if (!userRole) return false;
+      
+      // Can't change creator role
+      if (targetRole === "creator" || newRole === "creator") return false;
+      
+      // Only creator can assign admin roles
+      if (newRole === "admin" && userRole !== "creator") return false;
+      
+      // Admins and creators can assign moderator roles
+      if (newRole === "moderator" && ROLE_LEVELS[userRole] < ROLE_LEVELS.admin) return false;
+      
+      // Can only manage users with lower roles
+      if (targetRole && ROLE_LEVELS[userRole] <= ROLE_LEVELS[targetRole]) return false;
+      
+      return true;
+    },
+    [userId, isMember, getCurrentUserRole, getUserRole]
+  );
 
   return {
     // Data
     groupData,
-    userGroupRole,
-    targetUserRole,
+    members,
     loading,
-
-    // Role getters
+    error,
+    
+    // Current user status
+    isMember,
     getCurrentUserRole,
-    getTargetUserRole,
     getEffectiveRole,
-
-    // Permission checks
-    hasPermission,
+    
+    // User role functions
+    getUserRole,
+    
+    // Permission functions
+    canEditContent,
+    canDeleteContent,
     canManageGroup,
     canAssignAdmins,
     canAssignModerators,
-    canModerateContent,
-    canDeleteGroup,
-    canManageUser,
+    canRemoveMember,
     canAssignRole,
-    canEditContent,
-    canDeleteContent,
-
-    // Status checks
-    isMember,
-    isGroupCreator,
-    isGroupAdmin,
-    isGroupModerator,
-
-    // Constants
-    ROLES,
-    ROLE_HIERARCHY,
   };
-};
-
-export default useGroupPermissions;
+}

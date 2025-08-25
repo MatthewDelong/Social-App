@@ -12,15 +12,11 @@ import {
   setDoc,
   deleteDoc,
   getDocs,
-  serverTimestamp,
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { useAppContext } from "../context/AppContext";
 import GroupNewPost from "../components/groups/GroupNewPost";
-import { useGroupPermissions } from "../hooks/useGroupPermissions";
-import RoleBadge from "../components/groups/RoleBadge";
-import GroupRoleManager from "../components/groups/GroupRoleManager";
 
 export default function GroupPage() {
   const { groupId } = useParams();
@@ -42,22 +38,7 @@ export default function GroupPage() {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
 
-  const [showRoleManager, setShowRoleManager] = useState(false);
-
-  // Group permissions
-  const {
-    canManageGroup,
-    canAssignAdmins,
-    canDeleteContent,
-    canEditContent,
-    getCurrentUserRole,
-    isMember: isPermissionMember,
-    getUserRole
-  } = useGroupPermissions(groupId, user?.uid);
-
   const isAdminOrMod = user?.isAdmin || user?.isModerator;
-  const isCreator = group?.creatorId === user?.uid || group?.createdBy === user?.uid;
-  const currentUserRole = getCurrentUserRole;
 
   // Load default images from storage
   useEffect(() => {
@@ -125,61 +106,48 @@ export default function GroupPage() {
       setLoading(false);
     });
 
-    // Members listener for real-time updates
-    const membersQuery = collection(db, "groups", groupId, "members");
-    const unsubMembers = onSnapshot(membersQuery, (snapshot) => {
-      const membersData = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setMembers(membersData);
-      
+    // Members fetch
+    const fetchMembers = async () => {
+      const membersCol = collection(db, "groups", groupId, "members");
+      const snapshot = await getDocs(membersCol);
+      setMembers(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+
       if (user) {
-        const userMember = membersData.find(m => m.id === user.uid);
-        setIsMember(!!userMember);
+        const memberRef = doc(db, "groups", groupId, "members", user.uid);
+        const memberSnap = await getDoc(memberRef);
+        setIsMember(memberSnap.exists());
       }
-    });
-
-    return () => {
-      unsubPosts();
-      unsubMembers();
     };
+    fetchMembers();
 
+    return () => unsubPosts();
   }, [groupId, user, DEFAULT_AVATAR]);
 
   // Join group
   const joinGroup = async () => {
     if (!user) return;
-    try {
-      await setDoc(doc(db, "groups", groupId, "members", user.uid), {
-        userId: user.uid,
+    await setDoc(doc(db, "groups", groupId, "members", user.uid), {
+      displayName: user.displayName || "Anonymous",
+      photoURL: user.photoURL || DEFAULT_AVATAR,
+      joinedAt: new Date(),
+    });
+    setIsMember(true);
+    setMembers((prev) => [
+      ...prev,
+      {
+        id: user.uid,
         displayName: user.displayName || "Anonymous",
-        email: user.email,
         photoURL: user.photoURL || DEFAULT_AVATAR,
-        role: "member",
-        joinedAt: serverTimestamp(),
-      });
-    } catch (error) {
-      console.error("Error joining group:", error);
-      alert("Failed to join group. Please try again.");
-    }
+      },
+    ]);
   };
 
   // Leave group
   const leaveGroup = async () => {
     if (!user) return;
-    
-    // Prevent creator from leaving their own group
-    if (isCreator) {
-      alert("Group creators cannot leave their own group. Transfer ownership or delete the group instead.");
-      return;
-    }
-    
-    if (!confirm("Are you sure you want to leave this group?")) return;
-    
-    try {
-      await deleteDoc(doc(db, "groups", groupId, "members", user.uid));
-    } catch (error) {
-      console.error("Error leaving group:", error);
-      alert("Failed to leave group. Please try again.");
-    }
+    await deleteDoc(doc(db, "groups", groupId, "members", user.uid));
+    setIsMember(false);
+    setMembers((prev) => prev.filter((m) => m.id !== user.uid));
   };
 
   // Banner / logo uploader
@@ -223,30 +191,8 @@ export default function GroupPage() {
     }
   };
 
-  // Delete post
-  const deletePost = async (postId, authorId) => {
-    if (!canDeleteContent(authorId)) {
-      alert("You don't have permission to delete this post.");
-      return;
-    }
-    
-    if (!confirm("Are you sure you want to delete this post?")) return;
-    
-    try {
-      await deleteDoc(doc(db, "groupPosts", postId));
-    } catch (error) {
-      console.error("Error deleting post:", error);
-      alert("Failed to delete post. Please try again.");
-    }
-  };
-
   // Delete group
   const deleteGroup = async () => {
-    if (!canManageGroup) {
-      alert("You don't have permission to delete this group.");
-      return;
-    }
-    
     if (!window.confirm("Are you sure you want to delete this group? This action cannot be undone.")) {
       return;
     }
@@ -328,73 +274,47 @@ export default function GroupPage() {
             <h1 className="text-2xl font-bold">{group.name}</h1>
             <p className="mb-4">{group.description}</p>
             <div className="flex items-center gap-4 mb-4">
-              {user && (
-                <>
-                  {isMember ? (
-                    <button
-                      onClick={leaveGroup}
-                      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                      disabled={isCreator}
-                    >
-                      {isCreator ? "Creator" : "Leave Group"}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={joinGroup}
-                      className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                    >
-                      Join Group
-                    </button>
-                  )}
-                  
-                  {currentUserRole && (
-                    <RoleBadge role={currentUserRole} size="sm" />
-                  )}
-                </>
+              {isMember ? (
+                <button
+                  onClick={leaveGroup}
+                  className="px-1 py-0 bg-red-500 text-white rounded"
+                >
+                  Leave Group
+                </button>
+              ) : (
+                <button
+                  onClick={joinGroup}
+                  className="px-1 py-0 bg-blue-500 text-white rounded"
+                >
+                  Join Group
+                </button>
               )}
-              
               <span className="text-sm text-gray-600">
-                {members.length} member{members.length !== 1 ? 's' : ''}
+                {members.length} members
               </span>
             </div>
-            
-            {/* Management buttons */}
-            <div className="flex flex-wrap gap-3">
-              {canManageGroup && (
+            {isAdminOrMod && (
+              <div className="flex gap-3">
                 <button
                   onClick={() => setEditing(true)}
-                  className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
+                  className="px-1 py-0 bg-yellow-500 text-white rounded"
                 >
-                  Settings
+                  Edit Group
                 </button>
-              )}
-              
-              {canAssignAdmins && (
-                <button
-                  onClick={() => setShowRoleManager(true)}
-                  className="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
-                >
-                  Manage Roles
-                </button>
-              )}
-              
-              {(canManageGroup || isAdminOrMod) && (
                 <button
                   onClick={deleteGroup}
-                  className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                  className="px-1 py-0 bg-red-600 text-white rounded"
                 >
                   Delete Group
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* New Post - Only for members */}
-      {isMember && (
-        <GroupNewPost groupId={groupId} currentUser={user} />
-      )}
+      {/* New Post */}
+      <GroupNewPost groupId={groupId} currentUser={user} />
 
       {/* Posts list */}
       <div className="space-y-4 mt-4 p-4">
@@ -412,28 +332,14 @@ export default function GroupPage() {
                 className="w-8 h-8 rounded-full object-cover"
               />
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-semibold">{post.author}</p>
-                  <RoleBadge role={getUserRole ? getUserRole(post.uid) : null} size="xs" />
-                </div>
-                <p className="mb-2">{post.content}</p>
-                <div className="flex items-center gap-3">
-                  <Link
-                    to={`/groups/${groupId}/post/${post.id}`}
-                    className="text-blue-500 hover:text-blue-700 text-sm"
-                  >
-                    View Comments
-                  </Link>
-                  
-                  {canDeleteContent(post.uid) && (
-                    <button
-                      onClick={() => deletePost(post.id, post.uid)}
-                      className="text-red-500 hover:text-red-700 text-sm"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
+                <p className="font-semibold">{post.author}</p>
+                <p>{post.content}</p>
+                <Link
+                  to={`/groups/${groupId}/post/${post.id}`}
+                  className="text-blue-500"
+                >
+                  View Comments
+                </Link>
               </div>
             </div>
           ))
@@ -442,52 +348,24 @@ export default function GroupPage() {
 
       {/* Members list */}
       <div className="mt-8 p-4 border rounded">
-        <h2 className="text-lg font-semibold mb-3">Members ({members.length})</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {members
-            .sort((a, b) => {
-              // Sort by role hierarchy: creator > admin > moderator > member
-              const roleOrder = { creator: 0, admin: 1, moderator: 2, member: 3 };
-              return (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3);
-            })
-            .map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center gap-3 hover:bg-gray-100 p-2 rounded transition-colors"
-              >
-                <Link
-                  to={`/profile/${m.id}`}
-                  className="flex items-center gap-3 flex-1"
-                >
-                  <img
-                    src={m.photoURL || DEFAULT_AVATAR}
-                    alt={m.displayName || 'Member'}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{m.displayName || 'Unknown'}</span>
-                      {m.role === 'creator' && (
-                        <span className="text-xs text-yellow-600 font-medium">Creator</span>
-                      )}
-                    </div>
-                    <RoleBadge role={m.role} size="xs" />
-                  </div>
-                </Link>
-              </div>
-            ))}
+        <h2 className="text-lg font-semibold mb-3">Members</h2>
+        <div className="flex flex-wrap gap-4">
+          {members.map((m) => (
+            <Link
+              key={m.id}
+              to={`/profile/${m.id}`}
+              className="flex items-center gap-2 hover:bg-gray-100 p-2 rounded"
+            >
+              <img
+                src={m.photoURL || DEFAULT_AVATAR}
+                alt={m.displayName}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              <span>{m.displayName}</span>
+            </Link>
+          ))}
         </div>
       </div>
-      
-      {/* Role Manager Modal */}
-      {showRoleManager && (
-        <GroupRoleManager
-          groupId={groupId}
-          currentUser={user}
-          isOpen={showRoleManager}
-          onClose={() => setShowRoleManager(false)}
-        />
-      )}
     </div>
   );
 }

@@ -1,80 +1,90 @@
-// src/components/groups/RoleBadge.jsx
-import { ROLES } from "../../hooks/useGroupPermissions";
+import { Crown, Shield, Star, Wrench } from "lucide-react";
 
-const RoleBadge = ({ role, showSiteRoles = true, size = "sm" }) => {
-  if (!role) return null;
+const ROLE_CONFIG = {
+  creator: {
+    label: "Creator",
+    color: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    icon: Crown,
+  },
+  admin: {
+    label: "Admin", 
+    color: "bg-blue-100 text-blue-800 border-blue-200",
+    icon: Wrench,
+  },
+  moderator: {
+    label: "Mod",
+    color: "bg-green-100 text-green-800 border-green-200", 
+    icon: Shield,
+  },
+  member: {
+    label: "Member",
+    color: "bg-gray-100 text-gray-600 border-gray-200",
+    icon: null,
+  }
+};
 
-  const getRoleInfo = (role) => {
-    switch (role) {
-      case ROLES.SITE_ADMIN:
-        return {
-          label: "Site Admin",
-          className: "bg-red-100 text-red-800 border-red-200",
-          icon: "👑",
-        };
-      case ROLES.SITE_MODERATOR:
-        return {
-          label: "Site Moderator",
-          className: "bg-purple-100 text-purple-800 border-purple-200",
-          icon: "🛡️",
-        };
-      case ROLES.GROUP_CREATOR:
-        return {
-          label: "Creator",
-          className: "bg-yellow-100 text-yellow-800 border-yellow-200",
-          icon: "⭐",
-        };
-      case ROLES.GROUP_ADMIN:
-        return {
-          label: "Group Admin",
-          className: "bg-blue-100 text-blue-800 border-blue-200",
-          icon: "🔧",
-        };
-      case ROLES.GROUP_MODERATOR:
-        return {
-          label: "Moderator",
-          className: "bg-green-100 text-green-800 border-green-200",
-          icon: "🛡️",
-        };
-      case ROLES.MEMBER:
-        return null; // Don't show badge for regular members
-      default:
-        return null;
-    }
-  };
+const SITE_ROLE_CONFIG = {
+  isAdmin: {
+    label: "Site Admin",
+    color: "bg-red-100 text-red-800 border-red-200",
+    icon: Crown,
+  },
+  isModerator: {
+    label: "Site Mod",
+    color: "bg-purple-100 text-purple-800 border-purple-200",
+    icon: Shield,
+  }
+};
 
-  const roleInfo = getRoleInfo(role);
+const SIZE_CONFIG = {
+  xs: "px-1.5 py-0.5 text-xs",
+  sm: "px-2 py-1 text-xs", 
+  md: "px-2.5 py-1 text-sm",
+  lg: "px-3 py-1.5 text-sm"
+};
 
-  // Don't show site roles if disabled
-  if (
-    !showSiteRoles &&
-    (role === ROLES.SITE_ADMIN || role === ROLES.SITE_MODERATOR)
-  ) {
+const ICON_SIZES = {
+  xs: 10,
+  sm: 12,
+  md: 14,
+  lg: 16
+};
+
+export default function RoleBadge({ 
+  role, 
+  size = "sm", 
+  isAdmin = false, 
+  isModerator = false,
+  showIcon = true 
+}) {
+  // Don't render anything if no role
+  if (!role && !isAdmin && !isModerator) return null;
+  
+  // Prioritize site-wide roles
+  let config;
+  if (isAdmin) {
+    config = SITE_ROLE_CONFIG.isAdmin;
+  } else if (isModerator) {
+    config = SITE_ROLE_CONFIG.isModerator;
+  } else if (role && ROLE_CONFIG[role]) {
+    config = ROLE_CONFIG[role];
+  } else {
     return null;
   }
 
-  if (!roleInfo) return null;
-
-  const sizeClasses = {
-    xs: "text-xs px-1 py-0.5",
-    sm: "text-xs px-2 py-0.5",
-    md: "text-sm px-2 py-1",
-    lg: "text-base px-3 py-1",
-  };
+  const Icon = config.icon;
+  const iconSize = ICON_SIZES[size];
+  const sizeClasses = SIZE_CONFIG[size];
 
   return (
     <span
       className={`
         inline-flex items-center gap-1 rounded-full border font-medium
-        ${roleInfo.className}
-        ${sizeClasses[size]}
+        ${config.color} ${sizeClasses}
       `}
-      title={`Role: ${roleInfo.label}`}
     >
-      <span>{roleInfo.icon}</span>
-      <span>{roleInfo.label}</span>
+      {showIcon && Icon && <Icon size={iconSize} />}
+      {config.label}
     </span>
   );
-};
-
-export default RoleBadge;
+}

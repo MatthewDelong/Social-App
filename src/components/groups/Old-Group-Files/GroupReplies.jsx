@@ -17,36 +17,25 @@ import { formatDistanceToNow } from "date-fns";
 import { arrayUnion, arrayRemove } from "firebase/firestore";
 import EmojiPicker from "emoji-picker-react";
 import { ThumbsUp, X } from "lucide-react";
-import { useGroupPermissions } from "../../hooks/useGroupPermissions";
-import RoleBadge from "./RoleBadge";
 
 export default function GroupReplies({
   commentId,
   parentReplyId = null,
   currentUser,
-  groupId,
+  isAdmin,
+  isModerator,
   DEFAULT_AVATAR,
   depth = 0,
 }) {
   const [replies, setReplies] = useState([]);
   const [editReplyId, setEditReplyId] = useState(null);
   const [editContent, setEditContent] = useState("");
-  const [error, setError] = useState("");
   const INITIAL_VISIBLE = 3;
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [activeReplyBox, setActiveReplyBox] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(null);
   const [replyText, setReplyText] = useState("");
   const inputRef = useRef(null);
-
-  // Get group permissions
-  const {
-    isMember,
-    canEditContent,
-    canDeleteContent,
-    getUserRole,
-    loading: permissionsLoading,
-  } = useGroupPermissions(groupId, currentUser?.uid);
 
   // Optimized listener for replies
   useEffect(() => {
@@ -78,7 +67,6 @@ export default function GroupReplies({
         });
       } catch (err) {
         console.error("Replies listener error:", err);
-        setError("Failed to load replies. Please refresh the page.");
       }
     })();
 
@@ -86,6 +74,11 @@ export default function GroupReplies({
       if (unsub) unsub();
     };
   }, [commentId, parentReplyId, DEFAULT_AVATAR]);
+
+  const canEditOrDelete = (reply) => {
+    if (!currentUser) return false;
+    return reply.uid === currentUser.uid || isAdmin || isModerator;
+  };
 
   const formatReplyDate = (timestamp) => {
     if (!timestamp) return "";
@@ -98,23 +91,8 @@ export default function GroupReplies({
   };
 
   const handleAddReply = async (parentId, text, replyingTo = null) => {
-    if (!currentUser) {
-      setError("Please log in to reply.");
-      return;
-    }
-    
-    if (!isMember) {
-      setError("Only group members can reply.");
-      return;
-    }
-    
-    if (!text.trim()) {
-      setError("Reply cannot be empty.");
-      return;
-    }
-
+    if (!currentUser || !text.trim()) return;
     try {
-      setError("");
       console.log("Adding reply with parentId:", parentId);
       await addDoc(collection(db, "groupReplies"), {
         commentId,
@@ -132,16 +110,13 @@ export default function GroupReplies({
       setShowEmojiPicker(null);
     } catch (err) {
       console.error("Error adding reply:", err);
-      setError("Failed to add reply. Please try again.");
     }
   };
 
   const handleUpdateReply = async (e) => {
     e.preventDefault();
     if (!editContent.trim() || !editReplyId) return;
-    
     try {
-      setError("");
       await updateDoc(doc(db, "groupReplies", editReplyId), {
         content: editContent.trim(),
         editedAt: serverTimestamp(),
@@ -150,36 +125,13 @@ export default function GroupReplies({
       setEditContent("");
     } catch (err) {
       console.error("Error updating reply:", err);
-      setError("Failed to update reply. Please try again.");
-    }
-  };
-
-  const handleDeleteReply = async (replyId) => {
-    if (!window.confirm("Delete this reply?")) return;
-    
-    try {
-      setError("");
-      await deleteDoc(doc(db, "groupReplies", replyId));
-    } catch (err) {
-      console.error("Error deleting reply:", err);
-      setError("Failed to delete reply. Please try again.");
     }
   };
 
   const toggleLike = async (reply) => {
-    if (!currentUser) {
-      setError("Please log in to like replies.");
-      return;
-    }
-    
-    if (!isMember) {
-      setError("Only group members can like replies.");
-      return;
-    }
-
+    if (!currentUser) return;
     const replyRef = doc(db, "groupReplies", reply.id);
     try {
-      setError("");
       if (reply.likes?.includes(currentUser.uid)) {
         await updateDoc(replyRef, {
           likes: arrayRemove(currentUser.uid),
@@ -191,7 +143,6 @@ export default function GroupReplies({
       }
     } catch (err) {
       console.error("Error toggling like:", err);
-      setError("Failed to update like. Please try again.");
     }
   };
 
@@ -200,32 +151,10 @@ export default function GroupReplies({
     setShowEmojiPicker(null);
   };
 
-  const handleReplyClick = (replyId) => {
-    if (!currentUser) {
-      setError("Please log in to reply.");
-      return;
-    }
-    
-    if (!isMember) {
-      setError("Only group members can reply.");
-      return;
-    }
-    
-    setError("");
-    setActiveReplyBox(activeReplyBox === replyId ? null : replyId);
-  };
-
   const visibleReplies = replies.slice(0, visibleCount);
 
   return (
     <div className="mt-2" style={{ position: "relative", maxWidth: "90vw" }}>
-      {/* Error message */}
-      {error && (
-        <div className="mb-2 p-2 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
-          {error}
-        </div>
-      )}
-
       <div
         className="space-y-2 relative"
         style={{
@@ -268,17 +197,10 @@ export default function GroupReplies({
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-1">
                   <strong className="text-sm">{reply.author}</strong>
-                  <RoleBadge 
-                    role={getUserRole ? getUserRole(reply.uid) : null} 
-                    size="xs" 
-                  />
                   {reply.createdAt && (
                     <span className="text-xs text-gray-500">
                       {formatReplyDate(reply.createdAt)}
                     </span>
-                  )}
-                  {reply.editedAt && (
-                    <span className="text-xs text-gray-400">(edited)</span>
                   )}
                 </div>
 
@@ -300,7 +222,6 @@ export default function GroupReplies({
                       <button
                         type="submit"
                         className="px-2 py-1 bg-blue-600 text-white rounded text-xs sm:px-1 sm:py-0.5"
-                        disabled={!editContent.trim()}
                       >
                         Save
                       </button>
@@ -309,7 +230,6 @@ export default function GroupReplies({
                         onClick={() => {
                           setEditReplyId(null);
                           setEditContent("");
-                          setError("");
                         }}
                         className="px-2 py-1 bg-gray-400 text-white rounded text-xs sm:px-1 sm:py-0.5"
                       >
@@ -323,9 +243,12 @@ export default function GroupReplies({
 
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600 sm:mt-0.5 sm:gap-1 max-w-full">
                   <button
-                    onClick={() => handleReplyClick(reply.id)}
+                    onClick={() =>
+                      setActiveReplyBox(
+                        activeReplyBox === reply.id ? null : reply.id
+                      )
+                    }
                     className="text-blue-600 hover:underline"
-                    disabled={permissionsLoading}
                   >
                     Reply
                   </button>
@@ -337,7 +260,6 @@ export default function GroupReplies({
                         ? "text-blue-600 font-semibold"
                         : "text-gray-600"
                     }`}
-                    disabled={permissionsLoading}
                   >
                     <ThumbsUp size={14} />
                     {reply.likes?.includes(currentUser?.uid) ? "Liked" : "Like"}
@@ -350,26 +272,32 @@ export default function GroupReplies({
                     </span>
                   )}
 
-                  {canEditContent(reply.uid) && editReplyId !== reply.id && (
-                    <button
-                      onClick={() => {
-                        setEditReplyId(reply.id);
-                        setEditContent(reply.content);
-                        setError("");
-                      }}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Edit
-                    </button>
-                  )}
-
-                  {canDeleteContent(reply.uid) && editReplyId !== reply.id && (
-                    <button
-                      onClick={() => handleDeleteReply(reply.id)}
-                      className="text-red-600 hover:underline"
-                    >
-                      Delete
-                    </button>
+                  {canEditOrDelete(reply) && editReplyId !== reply.id && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditReplyId(reply.id);
+                          setEditContent(reply.content);
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (window.confirm("Delete this reply?")) {
+                            try {
+                              await deleteDoc(doc(db, "groupReplies", reply.id));
+                            } catch (err) {
+                              console.error("Error deleting reply:", err);
+                            }
+                          }
+                        }}
+                        className="text-red-600 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </>
                   )}
                 </div>
 
@@ -378,6 +306,9 @@ export default function GroupReplies({
                     onSubmit={(e) => {
                       e.preventDefault();
                       handleAddReply(reply.id, replyText, reply.author);
+                      setActiveReplyBox(null);
+                      setReplyText("");
+                      setShowEmojiPicker(null);
                     }}
                     className="flex flex-wrap gap-2 mt-2 sm:gap-1 sm:mt-1 relative"
                   >
@@ -423,7 +354,7 @@ export default function GroupReplies({
                             <button
                               type="button"
                               onClick={() => setShowEmojiPicker(null)}
-                              className="absolute top-2 right-2 z-60 bg-gray-200 rounded-full p-1 hover:bg-gray-300"
+                              className="absolute top-2 right-2 z-60 bg-#a71414-200 rounded-full p-1 hover:bg-gray-300"
                               title="Close emoji picker"
                             >
                               <X size={16} />
@@ -441,7 +372,6 @@ export default function GroupReplies({
                       <button
                         type="submit"
                         className="px-3 py-2 bg-gray-700 text-white rounded text-sm sm:px-2 sm:py-1"
-                        disabled={!replyText.trim()}
                       >
                         Reply
                       </button>
@@ -451,7 +381,6 @@ export default function GroupReplies({
                           setActiveReplyBox(null);
                           setReplyText("");
                           setShowEmojiPicker(null);
-                          setError("");
                         }}
                         className="px-3 py-2 bg-gray-400 text-white rounded text-sm sm:px-2 sm:py-1"
                       >
@@ -468,7 +397,8 @@ export default function GroupReplies({
                 commentId={commentId}
                 parentReplyId={reply.id}
                 currentUser={currentUser}
-                groupId={groupId}
+                isAdmin={isAdmin}
+                isModerator={isModerator}
                 DEFAULT_AVATAR={DEFAULT_AVATAR}
                 depth={depth + 1}
               />
