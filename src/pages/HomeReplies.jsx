@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp } from "firebase/firestore";
-import { db } from "../../firebase";
+import { db } from "../firebase"; // Correct path from src/pages/ to src/firebase.js
 import { formatDistanceToNow } from "date-fns";
 import { ThumbsUp } from "lucide-react";
 
