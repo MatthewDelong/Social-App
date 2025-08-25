@@ -1,4 +1,5 @@
-import { useEffect, useState, Fragment } from "react";
+import { useEffect, useState, Fragment, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   collection,
   addDoc,
@@ -14,7 +15,8 @@ import {
 import { db } from "../../firebase";
 import { formatDistanceToNow } from "date-fns";
 import { arrayUnion, arrayRemove } from "firebase/firestore";
-import { ThumbsUp } from "lucide-react";
+import EmojiPicker from "emoji-picker-react";
+import { ThumbsUp, X } from "lucide-react";
 
 export default function GroupReplies({
   commentId,
@@ -31,6 +33,9 @@ export default function GroupReplies({
   const INITIAL_VISIBLE = 3;
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [activeReplyBox, setActiveReplyBox] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const inputRef = useRef(null);
 
   // Optimized listener for replies
   useEffect(() => {
@@ -56,7 +61,7 @@ export default function GroupReplies({
               likes: data.likes || [],
             };
           });
-          console.log("Replies fetched for parentReplyId", parentReplyId, ":", docs); // Debug log
+          console.log("Replies fetched for parentReplyId", parentReplyId, ":", docs);
           setReplies(docs);
           setVisibleCount(INITIAL_VISIBLE);
         });
@@ -88,7 +93,7 @@ export default function GroupReplies({
   const handleAddReply = async (parentId, text, replyingTo = null) => {
     if (!currentUser || !text.trim()) return;
     try {
-      console.log("Adding reply with parentId:", parentId); // Debug log for parentId
+      console.log("Adding reply with parentId:", parentId);
       await addDoc(collection(db, "groupReplies"), {
         commentId,
         parentReplyId: parentId ?? null,
@@ -101,6 +106,8 @@ export default function GroupReplies({
         replyingTo,
       });
       setActiveReplyBox(null);
+      setReplyText("");
+      setShowEmojiPicker(null);
     } catch (err) {
       console.error("Error adding reply:", err);
     }
@@ -139,6 +146,11 @@ export default function GroupReplies({
     }
   };
 
+  const handleEmojiClick = (emojiObject, replyId) => {
+    setReplyText((prev) => prev + emojiObject.emoji);
+    setShowEmojiPicker(null);
+  };
+
   const visibleReplies = replies.slice(0, visibleCount);
 
   return (
@@ -149,14 +161,13 @@ export default function GroupReplies({
           marginLeft: depth * 20 + "px",
         }}
       >
-        {/* Continuous Vertical Line for the Thread (start at depth 0) */}
         {(depth === 0 || depth > 0) && (
           <div
             className="absolute left-[-20px] top-0 bottom-0"
             style={{
               borderLeft: "2px solid #b1aeae",
               marginLeft: "-1px",
-              zIndex: 0, // Behind content
+              zIndex: 0,
             }}
           />
         )}
@@ -166,7 +177,6 @@ export default function GroupReplies({
               className="border rounded bg-white flex items-start gap-2 relative"
               style={{ position: "relative", zIndex: 1 }}
             >
-              {/* Horizontal Connection Line (triggered by nested GroupReplies) */}
               {depth < 5 && (
                 <div
                   className="absolute left-[-20px] top-[50%]"
@@ -175,7 +185,7 @@ export default function GroupReplies({
                     borderBottom: "2px solid #b1aeae",
                     marginLeft: "-1px",
                     transform: "translateY(-50%)",
-                    zIndex: 0, // Ensure it’s behind content
+                    zIndex: 0,
                   }}
                 />
               )}
@@ -231,7 +241,7 @@ export default function GroupReplies({
                   <p className="mt-1 break-words sm:mt-0.5">{reply.content}</p>
                 )}
 
-                <div className="mt-1 flex items-center gap-4 text-xs text-gray-600 sm:mt-0.5 sm:gap-2">
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600 sm:mt-0.5 sm:gap-1 max-w-full">
                   <button
                     onClick={() =>
                       setActiveReplyBox(
@@ -295,32 +305,88 @@ export default function GroupReplies({
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const text = e.target.elements.replyText.value;
-                      handleAddReply(reply.id, text, reply.author);
+                      handleAddReply(reply.id, replyText, reply.author);
                       setActiveReplyBox(null);
-                      e.target.reset();
+                      setReplyText("");
+                      setShowEmojiPicker(null);
                     }}
-                    className="flex flex-wrap gap-2 mt-2 sm:gap-1 sm:mt-1"
+                    className="flex flex-wrap gap-2 mt-2 sm:gap-1 sm:mt-1 relative"
                   >
-                    <input
-                      name="replyText"
-                      placeholder={`Replying to ${reply.author}...`}
-                      className="flex-1 min-w-[150px] p-2 border rounded text-sm sm:p-1 sm:min-w-[100px]"
-                      autoFocus
-                    />
-                    <button
-                      type="submit"
-                      className="px-3 py-2 bg-gray-700 text-white rounded text-sm sm:px-2 sm:py-1"
-                    >
-                      Reply
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveReplyBox(null)}
-                      className="px-3 py-2 bg-gray-400 text-white rounded text-sm sm:px-2 sm:py-1"
-                    >
-                      Cancel
-                    </button>
+                    <div className="flex items-center w-full relative">
+                      <input
+                        ref={inputRef}
+                        name="replyText"
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder={`Replying to ${reply.author}...`}
+                        className="flex-1 min-w-[150px] p-2 pr-10 border rounded text-sm sm:p-1 sm:min-w-[100px]"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowEmojiPicker(
+                            showEmojiPicker === reply.id ? null : reply.id
+                          )
+                        }
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        😊
+                      </button>
+                    </div>
+                    {showEmojiPicker === reply.id &&
+                      createPortal(
+                        <div
+                          className="absolute z-50"
+                          style={{
+                            top: inputRef.current
+                              ? inputRef.current.getBoundingClientRect().bottom +
+                                window.scrollY +
+                                2
+                              : "auto",
+                            right: inputRef.current
+                              ? window.innerWidth -
+                                inputRef.current.getBoundingClientRect().right
+                              : "auto",
+                          }}
+                        >
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setShowEmojiPicker(null)}
+                              className="absolute top-2 right-2 z-60 bg-gray-200 rounded-full p-1 hover:bg-gray-300"
+                              title="Close emoji picker"
+                            >
+                              <X size={16} />
+                            </button>
+                            <EmojiPicker
+                              onEmojiClick={(emojiObject) =>
+                                handleEmojiClick(emojiObject, reply.id)
+                              }
+                            />
+                          </div>
+                        </div>,
+                        document.body
+                      )}
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        className="px-3 py-2 bg-gray-700 text-white rounded text-sm sm:px-2 sm:py-1"
+                      >
+                        Reply
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveReplyBox(null);
+                          setReplyText("");
+                          setShowEmojiPicker(null);
+                        }}
+                        className="px-3 py-2 bg-gray-400 text-white rounded text-sm sm:px-2 sm:py-1"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </form>
                 )}
               </div>

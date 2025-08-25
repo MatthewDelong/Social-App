@@ -1,5 +1,5 @@
-// src/components/groups/GroupComments.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, Fragment, useRef } from "react";
+import { createPortal } from "react-dom"; // Added for portal
 import {
   collection,
   addDoc,
@@ -17,7 +17,8 @@ import { db, storage } from "../../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
 import { formatDistanceToNow } from "date-fns";
 import { arrayUnion, arrayRemove } from "firebase/firestore";
-import { ThumbsUp } from "lucide-react";
+import EmojiPicker from "emoji-picker-react"; // Added for emoji picker
+import { ThumbsUp, X } from "lucide-react"; // Added X for close button
 import GroupReplies from "./GroupReplies";
 
 export default function GroupComments({ postId, currentUser }) {
@@ -27,6 +28,9 @@ export default function GroupComments({ postId, currentUser }) {
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editContent, setEditContent] = useState("");
   const [activeReplyBox, setActiveReplyBox] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(null); // State for emoji picker (both comment and reply)
+  const commentInputRef = useRef(null); // Ref for comment input
+  const replyInputRef = useRef(null); // Ref for reply input
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
@@ -64,8 +68,7 @@ export default function GroupComments({ postId, currentUser }) {
             if (userDoc.exists()) {
               return {
                 ...c,
-                authorPhotoURL:
-                  userDoc.data().photoURL || DEFAULT_AVATAR,
+                authorPhotoURL: userDoc.data().photoURL || DEFAULT_AVATAR,
                 likes: c.likes || [],
               };
             }
@@ -110,6 +113,7 @@ export default function GroupComments({ postId, currentUser }) {
       likes: [],
     });
     setContent("");
+    setShowEmojiPicker(null);
   };
 
   const handleDeleteComment = async (commentId) => {
@@ -163,19 +167,78 @@ export default function GroupComments({ postId, currentUser }) {
     }
   };
 
+  const handleEmojiClick = (emojiObject, inputType, commentId = null) => {
+    if (inputType === "comment") {
+      setContent((prev) => prev + emojiObject.emoji);
+    } else if (inputType === "reply") {
+      setReplyText((prev) => prev + emojiObject.emoji);
+    }
+    setShowEmojiPicker(null); // Close picker after selection
+  };
+
+  const [replyText, setReplyText] = useState(""); // State for controlled reply input
+
   return (
     <div className="mt-4">
       {/* Add Comment Form */}
       <form
         onSubmit={handleAddComment}
-        className="flex flex-wrap gap-2 mb-4"
+        className="flex flex-wrap gap-2 mb-4 relative"
       >
-        <input
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Write a comment..."
-          className="flex-1 min-w-[200px] p-2 border rounded"
-        />
+        <div className="flex items-center w-full relative">
+          <input
+            ref={commentInputRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Write a comment..."
+            className="flex-1 min-w-[200px] p-2 pr-10 border rounded"
+          />
+          <button
+            type="button"
+            onClick={() =>
+              setShowEmojiPicker(
+                showEmojiPicker === "comment" ? null : "comment"
+              )
+            }
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+          >
+            😊
+          </button>
+        </div>
+        {showEmojiPicker === "comment" &&
+          createPortal(
+            <div
+              className="absolute z-50"
+              style={{
+                top: commentInputRef.current
+                  ? commentInputRef.current.getBoundingClientRect().bottom +
+                    window.scrollY +
+                    2
+                  : "auto",
+                right: commentInputRef.current
+                  ? window.innerWidth -
+                    commentInputRef.current.getBoundingClientRect().right
+                  : "auto",
+              }}
+            >
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(null)}
+                  className="absolute top-2 right-2 z-60 bg-gray-200 rounded-full p-1 hover:bg-gray-300"
+                  title="Close emoji picker"
+                >
+                  <X size={16} />
+                </button>
+                <EmojiPicker
+                  onEmojiClick={(emojiObject) =>
+                    handleEmojiClick(emojiObject, "comment")
+                  }
+                />
+              </div>
+            </div>,
+            document.body
+          )}
         <button
           type="submit"
           className="px-3 py-1 bg-blue-500 text-white rounded"
@@ -205,7 +268,7 @@ export default function GroupComments({ postId, currentUser }) {
                   </span>
                 )}
               </div>
-              
+
               {editingCommentId === comment.id ? (
                 <>
                   <textarea
@@ -237,7 +300,6 @@ export default function GroupComments({ postId, currentUser }) {
               )}
 
               <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
-                {/* Reply button */}
                 <button
                   onClick={() =>
                     setActiveReplyBox(
@@ -249,7 +311,6 @@ export default function GroupComments({ postId, currentUser }) {
                   Reply
                 </button>
 
-                {/* Like button */}
                 <button
                   onClick={() => toggleLike(comment)}
                   className={`flex items-center gap-1 hover:underline ${
@@ -262,7 +323,6 @@ export default function GroupComments({ postId, currentUser }) {
                   {comment.likes?.includes(currentUser?.uid) ? "Liked" : "Like"}
                 </button>
 
-                {/* Like count */}
                 {comment.likes?.length > 0 && (
                   <span className="text-gray-500">
                     {comment.likes.length}{" "}
@@ -270,7 +330,6 @@ export default function GroupComments({ postId, currentUser }) {
                   </span>
                 )}
 
-                {/* Edit/Delete */}
                 {canEditOrDeleteComment(comment) &&
                   editingCommentId !== comment.id && (
                     <>
@@ -298,32 +357,90 @@ export default function GroupComments({ postId, currentUser }) {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    const text = e.target.elements.replyText.value;
-                    handleAddReply(comment.id, text);
+                    handleAddReply(comment.id, replyText);
                     setActiveReplyBox(null);
-                    e.target.reset();
+                    setReplyText("");
+                    setShowEmojiPicker(null);
                   }}
-                  className="flex flex-wrap gap-2 mt-2"
+                  className="flex flex-wrap gap-2 mt-2 relative"
                 >
-                  <input
-                    name="replyText"
-                    placeholder="Write a reply..."
-                    className="flex-1 min-w-[150px] p-2 border rounded text-sm"
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    className="px-3 py-2 bg-gray-700 text-white rounded text-sm"
-                  >
-                    Reply
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveReplyBox(null)}
-                    className="px-3 py-2 bg-gray-400 text-white rounded text-sm"
-                  >
-                    Cancel
-                  </button>
+                  <div className="flex items-center w-full relative">
+                    <input
+                      ref={replyInputRef}
+                      name="replyText"
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="Write a reply..."
+                      className="flex-1 min-w-[150px] p-2 pr-10 border rounded text-sm"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowEmojiPicker(
+                          showEmojiPicker === `reply-${comment.id}`
+                            ? null
+                            : `reply-${comment.id}`
+                        )
+                      }
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                      😊
+                    </button>
+                  </div>
+                  {showEmojiPicker === `reply-${comment.id}` &&
+                    createPortal(
+                      <div
+                        className="absolute z-50"
+                        style={{
+                          top: replyInputRef.current
+                            ? replyInputRef.current.getBoundingClientRect().bottom +
+                              window.scrollY +
+                              2
+                            : "auto",
+                          right: replyInputRef.current
+                            ? window.innerWidth -
+                              replyInputRef.current.getBoundingClientRect().right
+                            : "auto",
+                        }}
+                      >
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setShowEmojiPicker(null)}
+                            className="absolute top-2 right-2 z-60 bg-gray-200 rounded-full p-1 hover:bg-gray-300"
+                            title="Close emoji picker"
+                          >
+                            <X size={16} />
+                          </button>
+                          <EmojiPicker
+                            onEmojiClick={(emojiObject) =>
+                              handleEmojiClick(emojiObject, "reply", comment.id)
+                            }
+                          />
+                        </div>
+                      </div>,
+                      document.body
+                    )}
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      className="px-3 py-2 bg-gray-700 text-white rounded text-sm"
+                    >
+                      Reply
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveReplyBox(null);
+                        setReplyText("");
+                        setShowEmojiPicker(null);
+                      }}
+                      className="px-3 py-2 bg-gray-400 text-white rounded text-sm"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </form>
               )}
 
