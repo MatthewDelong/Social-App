@@ -105,10 +105,10 @@ export default function Home({ user, usersMap, goToProfile, safeFormatDate }) {
     <div className="container mx-auto p-4">
       {posts.length > 0 ? (
         posts.map((post) => {
-          const postUser = usersMap[post.uid] || {};
+          console.log("Processing post:", post, "usersMap:", usersMap); // Debug post and usersMap
+          const postUser = usersMap[post.uid] || {}; // Fallback to empty object if undefined
           const isEditable =
             user && (user.uid === post.uid || user.isAdmin || user.isModerator);
-          console.log("Rendering post:", post, "postUser:", postUser); // Debug post and user data
           return (
             <div
               key={post.id}
