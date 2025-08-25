@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp } from "firebase/firestore";
-import { db } from "../../firebase";
+import { db } from "../firebase";
 import { ThumbsUp } from "lucide-react";
 import HomeReplies from "./HomeReplies";
 
