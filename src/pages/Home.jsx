@@ -17,7 +17,8 @@ import HomeComments from "./HomeComments";
 import { formatDistanceToNow } from "date-fns";
 import { ThumbsUp } from "lucide-react";
 
-export default function Home({ user, usersMap, goToProfile, safeFormatDate }) {
+export default function Home({ user, usersMap = {}, goToProfile, safeFormatDate }) {
+  console.log("Home props:", { user, usersMap, goToProfile, safeFormatDate }); // Debug all props
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastVisible, setLastVisible] = useState(null);
