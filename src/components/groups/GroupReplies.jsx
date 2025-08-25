@@ -91,7 +91,10 @@ export default function GroupReplies({
     if (!timestamp) return "";
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return formatDistanceToNow(date, { addSuffix: true }).replace("about ", "");
+      return formatDistanceToNow(date, { addSuffix: true })
+        .replace("about ", "")
+        .replace("minutes ago", "mins ago")
+        .replace("minute ago", "min ago");
     } catch {
       return "";
     }
