@@ -119,7 +119,7 @@ export default function Home({ user, usersMap = {}, goToProfile, safeFormatDate 
     <div className="container mx-auto p-4">
       {posts.length > 0 ? (
         posts.map((post) => {
-          console.log("Processing post:", post, "usersMap:", usersMap); // Debug post and usersMap
+          console.log("Processing post:", post, "postUser:", usersMap[post.uid] || {}); // Debug post and postUser
           const postUser = usersMap[post.uid] || {};
           const isEditable =
             user && (user.uid === post.uid || user.isAdmin || user.isModerator);
@@ -153,7 +153,7 @@ export default function Home({ user, usersMap = {}, goToProfile, safeFormatDate 
                     )}
                   </strong>
                   <p className="text-sm text-gray-500">
-                    {safeFormatDateFn(post.createdAt)} {/* Use fallback function */}
+                    {safeFormatDateFn(post.createdAt)}
                     {post.editedAt && " (edited)"}
                   </p>
                 </div>
@@ -230,7 +230,7 @@ export default function Home({ user, usersMap = {}, goToProfile, safeFormatDate 
                 usersMap={usersMap}
                 handleDeletePost={handleDeletePost}
                 goToProfile={goToProfile}
-                safeFormatDate={safeFormatDateFn} // Pass fallback to child
+                safeFormatDate={safeFormatDateFn}
               />
             </div>
           );
