@@ -1,10 +1,7 @@
-import { useState } from "react";
-import { updateDoc, doc, arrayUnion } from "firebase/firestore";
-import { db, storage } from "../firebase";
-import { getDownloadURL, ref } from "firebase/storage";
-import EmojiPicker from "emoji-picker-react";
+import { useState, useEffect } from "react";
+import { doc, updateDoc, arrayUnion, arrayRemove, serverTimestamp } from "firebase/firestore";
+import { db } from "../../firebase";
 import { ThumbsUp } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import HomeReplies from "./HomeReplies";
 
 export default function HomeComments({
@@ -17,18 +14,24 @@ export default function HomeComments({
   goToProfile,
   safeFormatDate,
 }) {
-  const [commentMap, setCommentMap] = useState({});
-  const [editCommentMap, setEditCommentMap] = useState({});
-  const [editingPostId, setEditingPostId] = useState(null);
-  const [editedContent, setEditedContent] = useState("");
-  const [showEmojiPicker, setShowEmojiPicker] = useState({});
+  const [content, setContent] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editContent, setEditContent] = useState("");
+  const [activeReplyBox, setActiveReplyBox] = useState(null);
+  const DEFAULT_AVATAR =
+    "https://firebasestorage.googleapis.com/v0/b/social-app-8a28d.firebasestorage.app/o/default-avatar.png?alt=media&token=78165d2b-f095-496c-9de2-5e143bfc41cc";
 
-  const handleComment = async (id) => {
-    const comment = commentMap[id];
-    if (!comment?.trim()) return;
-    const postRef = doc(db, "posts", id);
+  const canEditOrDeleteComment = (comment) => {
+    if (!user) return false;
+    if (user.isAdmin || user.isModerator) return true;
+    return comment.uid === user.uid;
+  };
+
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!content.trim()) return;
     const newComment = {
-      text: comment,
+      text: content.trim(),
       author: user.displayName || user.email || "Unknown User",
       uid: user.uid,
       role: user.role || "user",
@@ -36,226 +39,261 @@ export default function HomeComments({
       likes: [],
       replies: [],
     };
-    const updatedComments = [...(post.comments || []), newComment];
+    const postRef = doc(db, "posts", post.id);
+    await updateDoc(postRef, { comments: [...(post.comments || []), newComment] });
+    setContent("");
+  };
+
+  const handleDeleteComment = async (commentIndex) => {
+    if (!window.confirm("Are you sure you want to delete this comment?")) return;
+    const postRef = doc(db, "posts", post.id);
+    const updatedComments = [...post.comments];
+    updatedComments.splice(commentIndex, 1);
     await updateDoc(postRef, { comments: updatedComments });
-    setCommentMap((prev) => ({ ...prev, [id]: "" }));
   };
 
-  const handleEditPost = async (postId) => {
-    await updateDoc(doc(db, "posts", postId), { content: editedContent });
-    setEditingPostId(null);
-    setEditedContent("");
-  };
-
-  const addEmoji = (key, emoji) => {
-    setCommentMap((prev) => ({
-      ...prev,
-      [key]: (prev[key] || "") + emoji.emoji,
-    }));
-    setShowEmojiPicker((prev) => ({ ...prev, [key]: false }));
-  };
-
-  const handleDeleteComment = async (postId, index) => {
+  const saveEditedComment = async (commentIndex) => {
+    if (!editContent.trim()) return;
+    const postRef = doc(db, "posts", post.id);
     const updatedComments = [...post.comments];
-    updatedComments.splice(index, 1);
-    await updateDoc(doc(db, "posts", postId), { comments: updatedComments });
+    updatedComments[commentIndex] = {
+      ...updatedComments[commentIndex],
+      text: editContent.trim(),
+      editedAt: serverTimestamp(),
+    };
+    await updateDoc(postRef, { comments: updatedComments });
+    setEditingCommentId(null);
+    setEditContent("");
   };
 
-  const handleEditComment = async (postId, index) => {
-    const newText = editCommentMap[`${postId}-${index}`];
-    if (!newText?.trim()) return;
+  const toggleLike = async (commentIndex) => {
+    if (!user) return;
+    const postRef = doc(db, "posts", post.id);
     const updatedComments = [...post.comments];
-    updatedComments[index].text = newText;
-    await updateDoc(doc(db, "posts", postId), { comments: updatedComments });
-    setEditCommentMap((prev) => ({ ...prev, [`${postId}-${index}`]: "" }));
+    const comment = updatedComments[commentIndex];
+    if (comment.likes?.includes(user.uid)) {
+      updatedComments[commentIndex] = {
+        ...comment,
+        likes: comment.likes.filter((uid) => uid !== user.uid),
+      };
+    } else {
+      updatedComments[commentIndex] = {
+        ...comment,
+        likes: [...(comment.likes || []), user.uid],
+      };
+    }
+    await updateDoc(postRef, { comments: updatedComments });
   };
 
-  const handleLikeComment = async (postId, commentIndex) => {
-    const postRef = doc(db, "posts", postId);
-    const comment = post.comments[commentIndex];
-    const likes = new Set(comment.likes || []);
-    likes.has(user.uid) ? likes.delete(user.uid) : likes.add(user.uid);
-    const updatedComments = post.comments.map((c, i) =>
-      i === commentIndex ? { ...c, likes: Array.from(likes) } : c
-    );
+  const handleAddReply = async (commentIndex, text) => {
+    if (!user || !text.trim()) return;
+    const postRef = doc(db, "posts", post.id);
+    const updatedComments = [...post.comments];
+    updatedComments[commentIndex] = {
+      ...updatedComments[commentIndex],
+      replies: [
+        ...(updatedComments[commentIndex].replies || []),
+        {
+          text: text.trim(),
+          author: user.displayName || user.email || "Unknown User",
+          uid: user.uid,
+          role: user.role || "user",
+          createdAt: new Date().toISOString(),
+          likes: [],
+        },
+      ],
+    };
     await updateDoc(postRef, { comments: updatedComments });
   };
 
   return (
-    <>
-      {/* New Comment input at top */}
-      <div className="flex items-start space-x-2 mt-4 sm:space-x-1 sm:mt-2">
-        <textarea
+    <div className="mt-4">
+      {/* Add Comment Form */}
+      <form onSubmit={handleAddComment} className="flex flex-wrap gap-2 mb-4">
+        <input
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
           placeholder="Write a comment..."
-          value={commentMap[post.id] || ""}
-          onChange={(e) =>
-            setCommentMap((prev) => ({
-              ...prev,
-              [post.id]: e.target.value,
-            }))
-          }
-          className="border p-1 flex-1 rounded sm:p-0.5"
+          className="flex-1 min-w-[200px] p-2 border rounded"
         />
-        <button
-          onClick={() => handleComment(post.id)}
-          className="text-xs bg-yellow-100 text-black-800 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
-        >
-          Comment
+        <button type="submit" className="px-3 py-1 bg-blue-500 text-white rounded">
+          Post
         </button>
-        <button
-          onClick={() =>
-            setShowEmojiPicker((prev) => ({
-              ...prev,
-              [post.id]: !prev[post.id],
-            }))
-          }
-          className="text-xs bg-yellow-400 px-2 py-0.5 rounded sm:px-1 sm:py-0.5"
-        >
-          😀
-        </button>
-      </div>
-      {showEmojiPicker[post.id] && (
-        <div className="fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-auto z-50 md:z-auto">
-          <div className="relative max-w-[350px] mx-auto md:mx-0">
-            <button
-              onClick={() =>
-                setShowEmojiPicker((prev) => ({
-                  ...prev,
-                  [post.id]: false,
-                }))
-              }
-              className="absolute -top-3 -right-3 z-10 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-            >
-              X
-            </button>
-            <EmojiPicker
-              width="100%"
-              height={350}
-              onEmojiClick={(emoji) => addEmoji(post.id, emoji)}
-            />
-          </div>
-        </div>
-      )}
+      </form>
 
-      {/* Comments */}
-      <div className="mt-4 space-y-4 sm:mt-2">
-        {(post.comments || []).map((comment, i) => {
-          const commentUser = usersMap[comment.uid];
-          const commentAvatar = commentUser?.photoURL || DEFAULT_AVATAR;
+      {/* Comments List */}
+      <div className="space-y-3">
+        {post.comments.map((comment, index) => {
+          const commentUser = usersMap[comment.uid] || {};
+          const commentAvatar = commentUser.photoURL || DEFAULT_AVATAR;
           return (
-            <div key={i} className="ml-5 sm:ml-2.5">
-              <div className="flex items-start space-x-2 bg-white p-2 rounded">
-                <img
-                  src={commentAvatar}
-                  alt="avatar"
-                  className="w-6 h-6 rounded-full object-cover cursor-pointer sm:w-5 sm:h-5"
-                  onClick={() => goToProfile(comment.uid)}
-                />
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 sm:space-x-1">
-                    <p
-                      className="font-semibold text-gray-800 cursor-pointer"
-                      onClick={() => goToProfile(comment.uid)}
-                    >
-                      {commentUser?.displayName || comment.author}
-                      {commentUser?.isAdmin && (
-                        <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
-                          Admin
-                        </span>
-                      )}
-                      {commentUser?.isModerator && (
-                        <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">
-                          Moderator
-                        </span>
-                      )}
-                    </p>
+            <div
+              key={index}
+              className="border p-2 rounded flex flex-wrap sm:flex-nowrap items-start gap-2"
+            >
+              <img
+                src={commentAvatar}
+                alt={comment.author}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                onClick={() => goToProfile(comment.uid)}
+              />
+              <div className="flex-1 break-words">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <strong className="cursor-pointer" onClick={() => goToProfile(comment.uid)}>
+                    {commentUser.displayName || comment.author}
+                    {commentUser.isAdmin && (
+                      <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                        Admin
+                      </span>
+                    )}
+                    {commentUser.isModerator && (
+                      <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">
+                        Moderator
+                      </span>
+                    )}
+                  </strong>
+                  {comment.createdAt && (
                     <span className="text-xs text-gray-500">
                       {safeFormatDate(comment.createdAt)}
                     </span>
-                  </div>
+                  )}
+                </div>
 
-                  {editCommentMap[`${post.id}-${i}`] !== undefined ? (
-                    <div>
-                      <textarea
-                        value={editCommentMap[`${post.id}-${i}`]}
-                        onChange={(e) =>
-                          setEditCommentMap((prev) => ({
-                            ...prev,
-                            [`${post.id}-${i}`]: e.target.value,
-                          }))
-                        }
-                        className="border p-1 w-full rounded sm:p-0.5"
-                      />
+                {editingCommentId === index ? (
+                  <>
+                    <textarea
+                      className="w-full p-2 border rounded my-1"
+                      rows={3}
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                    />
+                    <div className="space-x-2">
                       <button
-                        onClick={() => handleEditComment(post.id, i)}
-                        className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded mt-1 sm:mt-0.5 sm:px-1 sm:py-0.5"
+                        onClick={() => saveEditedComment(index)}
+                        className="text-green-600 hover:underline"
                       >
                         Save
                       </button>
+                      <button
+                        onClick={() => {
+                          setEditingCommentId(null);
+                          setEditContent("");
+                        }}
+                        className="text-red-600 hover:underline"
+                      >
+                        Cancel
+                      </button>
                     </div>
-                  ) : (
-                    <p className="text-gray-900">{comment.text}</p>
+                  </>
+                ) : (
+                  <p>{comment.text}</p>
+                )}
+
+                <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
+                  {/* Reply button */}
+                  <button
+                    onClick={() =>
+                      setActiveReplyBox(activeReplyBox === index ? null : index)
+                    }
+                    className="text-blue-600 hover:underline"
+                  >
+                    Reply
+                  </button>
+
+                  {/* Like button */}
+                  <button
+                    onClick={() => toggleLike(index)}
+                    className={`flex items-center gap-1 hover:underline ${
+                      comment.likes?.includes(user?.uid)
+                        ? "text-blue-600 font-semibold"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    <ThumbsUp size={14} />
+                    {comment.likes?.includes(user?.uid) ? "Liked" : "Like"}
+                  </button>
+
+                  {/* Like count */}
+                  {comment.likes?.length > 0 && (
+                    <span className="text-gray-500">
+                      {comment.likes.length}{" "}
+                      {comment.likes.length === 1 ? "Like" : "Likes"}
+                    </span>
                   )}
 
-                  <div className="mt-1 flex items-center gap-4 text-xs text-gray-600 sm:mt-0.5 sm:gap-2">
+                  {/* Edit/Delete */}
+                  {canEditOrDeleteComment(comment) && editingCommentId !== index && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditingCommentId(index);
+                          setEditContent(comment.text);
+                        }}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteComment(index)}
+                        className="text-red-600 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Inline reply input */}
+                {activeReplyBox === index && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const text = e.target.elements.replyText.value;
+                      handleAddReply(index, text);
+                      setActiveReplyBox(null);
+                      e.target.reset();
+                    }}
+                    className="flex flex-wrap gap-2 mt-2"
+                  >
+                    <input
+                      name="replyText"
+                      placeholder="Write a reply..."
+                      className="flex-1 min-w-[150px] p-2 border rounded text-sm"
+                      autoFocus
+                    />
                     <button
-                      className="text-blue-600 hover:underline"
+                      type="submit"
+                      className="px-3 py-2 bg-gray-700 text-white rounded text-sm"
                     >
                       Reply
                     </button>
                     <button
-                      onClick={() => handleLikeComment(post.id, i)}
-                      className={`flex items-center gap-1 hover:underline ${
-                        comment.likes?.includes(user?.uid)
-                          ? "text-blue-600 font-semibold"
-                          : "text-gray-600"
-                      }`}
+                      type="button"
+                      onClick={() => setActiveReplyBox(null)}
+                      className="px-3 py-2 bg-gray-400 text-white rounded text-sm"
                     >
-                      <ThumbsUp size={14} />
-                      {comment.likes?.includes(user?.uid) ? "Liked" : "Like"}
-                      {comment.likes?.length > 0 && ` (${comment.likes.length})`}
+                      Cancel
                     </button>
-                    {comment.uid === user.uid &&
-                      editCommentMap[`${post.id}-${i}`] === undefined && (
-                        <div className="space-x-2">
-                          <button
-                            onClick={() =>
-                              setEditCommentMap((prev) => ({
-                                ...prev,
-                                [`${post.id}-${i}`]: comment.text,
-                              }))
-                            }
-                            className="text-xs text-blue-600 hover:underline"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteComment(post.id, i)}
-                            className="text-xs text-red-500 hover:underline"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                  </div>
+                  </form>
+                )}
 
-                  <HomeReplies
-                    postId={post.id}
-                    comment={comment}
-                    commentIndex={i}
-                    commentUser={commentUser}
-                    commentAvatar={commentAvatar}
-                    user={user}
-                    usersMap={usersMap}
-                    goToProfile={goToProfile}
-                    safeFormatDate={safeFormatDate}
-                  />
-                </div>
+                {/* Nested Replies */}
+                <HomeReplies
+                  postId={post.id}
+                  comment={post}
+                  commentIndex={index}
+                  commentUser={commentUser}
+                  commentAvatar={commentAvatar}
+                  user={user}
+                  usersMap={usersMap}
+                  goToProfile={goToProfile}
+                  safeFormatDate={safeFormatDate}
+                />
               </div>
             </div>
-          );
-        })}
+          ))
+        }
       </div>
-    </>
+    </div>
   );
 }

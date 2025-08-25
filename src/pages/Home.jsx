@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, orderBy, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAppContext } from "../context/AppContext";
 import { formatDistanceToNow } from "date-fns";
@@ -10,6 +10,8 @@ import HomeComments from "./HomeComments";
 export default function Home() {
   const [posts, setPosts] = useState([]);
   const [usersMap, setUsersMap] = useState({});
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editedContent, setEditedContent] = useState("");
   const { user, theme } = useAppContext();
   const navigate = useNavigate();
 
@@ -19,17 +21,10 @@ export default function Home() {
   const safeFormatDate = (dateValue) => {
     if (!dateValue) return "";
     try {
-      let date;
-      if (typeof dateValue.toDate === "function") {
-        date = dateValue.toDate();
-      } else if (dateValue?.seconds) {
-        date = new Date(dateValue.seconds * 1000);
-      } else {
-        date = new Date(dateValue);
-      }
-      if (isNaN(date.getTime())) return "";
-      return formatDistanceToNow(date, { addSuffix: true });
-    } catch {
+      const date = dateValue.toDate ? dateValue.toDate() : new Date(dateValue);
+      return formatDistanceToNow(date, { addSuffix: true }).replace("about ", "");
+    } catch (err) {
+      console.error("Error formatting date:", err);
       return "";
     }
   };
@@ -47,27 +42,44 @@ export default function Home() {
     fetchUsers();
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map((d) => ({
-        id: d.id,
-        likes: d.data().likes || [],
-        comments: d.data().comments || [],
-        ...d.data(),
-      }));
+      const docs = snapshot.docs.map((d) => {
+        let data = { id: d.id, likes: d.data().likes || [], comments: d.data().comments || [], ...d.data() };
+        if (!data.authorPhotoURL && data.uid) {
+          const userData = usersMap[data.uid] || {};
+          data.authorPhotoURL = userData.photoURL || DEFAULT_AVATAR;
+        }
+        return data;
+      });
       setPosts(docs);
     });
     return () => unsub();
-  }, []);
+  }, [usersMap]);
 
   const handleLikePost = async (id) => {
     const postRef = doc(db, "posts", id);
     const post = posts.find((p) => p.id === id);
     const likes = new Set(post.likes || []);
-    likes.has(user.uid) ? likes.delete(user.uid) : likes.add(user.uid);
+    likes.has(user?.uid) ? likes.delete(user?.uid) : likes.add(user?.uid);
     await updateDoc(postRef, { likes: Array.from(likes) });
   };
 
   const handleDeletePost = async (postId) => {
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
     await deleteDoc(doc(db, "posts", postId));
+  };
+
+  const handleEditPost = async (postId) => {
+    if (!editedContent.trim()) return;
+    const postRef = doc(db, "posts", postId);
+    await updateDoc(postRef, {
+      content: editedContent.trim(),
+      editedAt: new Date(),
+    });
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, content: editedContent.trim() } : p))
+    );
+    setEditingPostId(null);
+    setEditedContent("");
   };
 
   const goToProfile = (uid) => {
@@ -76,110 +88,95 @@ export default function Home() {
   };
 
   return (
-    <div
-      className="max-w-xl mx-auto mt-10"
-      style={{ backgroundColor: theme.backgroundColor, color: theme.textColor }}
-    >
+    <div className="max-w-xl mx-auto mt-10" style={{ backgroundColor: theme.backgroundColor, color: theme.textColor }}>
       {posts.map((post) => {
-        const postUser = usersMap[post.uid];
-        const postAvatar = postUser?.photoURL || DEFAULT_AVATAR;
+        const postUser = usersMap[post.uid] || {};
+        const isOwner = user && post.uid === user.uid;
+        const canEditOrDelete = isOwner || user?.isAdmin || user?.isModerator;
+
         return (
-          <div
-            key={post.id}
-            className="border p-4 rounded mb-4 bg-white shadow-sm sm:p-2"
-          >
-            <div className="flex justify-between">
-              <div className="flex items-center space-x-2">
-                <img
-                  src={postAvatar}
-                  alt="avatar"
-                  className="w-8 h-8 rounded-full object-cover cursor-pointer sm:w-6 sm:h-6"
-                  onClick={() => goToProfile(post.uid)}
-                />
-                <p
-                  className="font-bold text-gray-800 cursor-pointer"
-                  onClick={() => goToProfile(post.uid)}
-                >
-                  {postUser?.displayName || post.author || "Unknown User"}
-                  {usersMap[post.uid]?.isAdmin && (
-                    <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
-                      Admin
-                    </span>
-                  )}
-                  {usersMap[post.uid]?.isModerator && (
-                    <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">
-                      Moderator
-                    </span>
-                  )}
-                </p>
+          <div key={post.id} className="border p-4 rounded mb-4 bg-white shadow-sm">
+            <div className="flex items-center space-x-3 mb-4">
+              <img
+                src={post.authorPhotoURL || DEFAULT_AVATAR}
+                alt={post.author}
+                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+              />
+              <div className="flex-1">
+                <h2 className="text-xl font-bold break-words">
+                  {postUser.displayName || post.author || "Unknown User"}
+                  {postUser.isAdmin && <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">Admin</span>}
+                  {postUser.isModerator && <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded">Moderator</span>}
+                </h2>
+                {post.createdAt && <p className="text-sm text-gray-500">{safeFormatDate(post.createdAt)}</p>}
               </div>
-              {(post.uid === user.uid ||
-                user.role === "admin" ||
-                user.role === "moderator") && (
-                <div className="space-x-2">
+              {canEditOrDelete && !editingPostId && (
+                <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => {
                       setEditingPostId(post.id);
                       setEditedContent(post.content);
                     }}
-                    className="text-xs text-blue-600 hover:underline"
+                    className="text-xs bg-yellow-500 text-black px-2 py-0.5 rounded"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeletePost(post.id)}
-                    className="text-xs text-red-500 hover:underline"
+                    className="text-xs bg-red-500 text-black px-2 py-0.5 rounded"
                   >
                     Delete
                   </button>
                 </div>
               )}
             </div>
-            <div className="mt-2 text-gray-900 sm:mt-1">
+
+            <div className="mb-4">
               {editingPostId === post.id ? (
                 <div>
                   <textarea
                     value={editedContent}
                     onChange={(e) => setEditedContent(e.target.value)}
-                    className="border p-2 w-full rounded sm:p-1"
+                    rows={4}
+                    className="w-full p-2 border rounded resize-none break-words"
                   />
-                  <button
-                    onClick={() => handleEditPost(post.id)}
-                    className="mt-1 text-sm bg-blue-500 text-white px-2 py-1 rounded sm:mt-0.5 sm:px-1 sm:py-0.5"
-                  >
-                    Save
-                  </button>
+                  <div className="mt-2 space-x-2">
+                    <button
+                      onClick={() => handleEditPost(post.id)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingPostId(null);
+                        setEditedContent("");
+                      }}
+                      className="px-4 py-2 bg-gray-400 text-white rounded"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <p>{post.content}</p>
+                <p className="whitespace-pre-wrap break-words">{post.content}</p>
               )}
             </div>
 
-            <div className="flex items-center space-x-4 mt-2 sm:space-x-2 sm:mt-1">
+            <div className="flex items-center space-x-4">
               <button
                 onClick={() => handleLikePost(post.id)}
-                className={`flex items-center gap-1 text-sm text-gray-600 hover:underline ${
-                  post.likes.includes(user?.uid) ? "text-blue-600 font-semibold" : ""
-                }`}
+                className={`flex items-center gap-1 text-sm text-gray-600 hover:underline ${post.likes.includes(user?.uid) ? "text-blue-600 font-semibold" : ""}`}
               >
                 <ThumbsUp size={14} />
-                {post.likes.includes(user?.uid) ? "Liked" : "Like"}
-                {post.likes.length > 0 && ` (${post.likes.length})`}
+                {post.likes.includes(user?.uid) ? "Liked" : "Like"} {post.likes.length > 0 && `(${post.likes.length})`}
               </button>
-              <span className="text-xs text-gray-500">
-                {safeFormatDate(post.createdAt)}
-              </span>
             </div>
-
             <HomeComments
-              post={post}
-              postUser={postUser}
-              postAvatar={postAvatar}
-              user={user}
-              usersMap={usersMap}
-              handleDeletePost={handleDeletePost}
-              goToProfile={goToProfile}
-              safeFormatDate={safeFormatDate}
+              postId={post.id}
+              currentUser={user}
+              isAdmin={user?.isAdmin}
+              isModerator={user?.isModerator}
             />
           </div>
         );
