@@ -291,8 +291,8 @@ export default function HomeComments({
                 />;
               </div>
             </div>
-          ))
-        }
+          );
+        })}
       </div>
     </div>
   );
