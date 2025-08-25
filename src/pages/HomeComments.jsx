@@ -288,7 +288,7 @@ export default function HomeComments({
                   usersMap={usersMap}
                   goToProfile={goToProfile}
                   safeFormatDate={safeFormatDate}
-                />
+                />;
               </div>
             </div>
           ))
