@@ -354,7 +354,7 @@ export default function GroupReplies({
                             <button
                               type="button"
                               onClick={() => setShowEmojiPicker(null)}
-                              className="absolute top-2 right-2 z-60 bg-gray-200 rounded-full p-1 hover:bg-gray-300"
+                              className="absolute top-2 right-2 z-60 bg-#a71414-200 rounded-full p-1 hover:bg-gray-300"
                               title="Close emoji picker"
                             >
                               <X size={16} />
