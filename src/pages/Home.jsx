@@ -13,12 +13,25 @@ import {
   arrayRemove,
   serverTimestamp,
 } from "firebase/firestore";
+import { formatDistanceToNow } from "date-fns"; // Ensure this import is active
 import HomeComments from "./HomeComments";
-import { formatDistanceToNow } from "date-fns";
 import { ThumbsUp } from "lucide-react";
 
 export default function Home({ user, usersMap = {}, goToProfile, safeFormatDate }) {
   console.log("Home props:", { user, usersMap, goToProfile, safeFormatDate }); // Debug all props
+
+  // Fallback safeFormatDate if not provided
+  const formatDateFallback = (date) => {
+    if (!date) return "Unknown date";
+    try {
+      return formatDistanceToNow(date, { addSuffix: true }).replace("about ", "");
+    } catch (error) {
+      console.error("Date formatting error:", error);
+      return "Invalid date";
+    }
+  };
+  const safeFormatDateFn = safeFormatDate || formatDateFallback;
+
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastVisible, setLastVisible] = useState(null);
@@ -107,7 +120,7 @@ export default function Home({ user, usersMap = {}, goToProfile, safeFormatDate 
       {posts.length > 0 ? (
         posts.map((post) => {
           console.log("Processing post:", post, "usersMap:", usersMap); // Debug post and usersMap
-          const postUser = usersMap[post.uid] || {}; // Fallback to empty object if undefined
+          const postUser = usersMap[post.uid] || {};
           const isEditable =
             user && (user.uid === post.uid || user.isAdmin || user.isModerator);
           return (
@@ -140,7 +153,7 @@ export default function Home({ user, usersMap = {}, goToProfile, safeFormatDate 
                     )}
                   </strong>
                   <p className="text-sm text-gray-500">
-                    {safeFormatDate(post.createdAt)}
+                    {safeFormatDateFn(post.createdAt)} {/* Use fallback function */}
                     {post.editedAt && " (edited)"}
                   </p>
                 </div>
@@ -217,7 +230,7 @@ export default function Home({ user, usersMap = {}, goToProfile, safeFormatDate 
                 usersMap={usersMap}
                 handleDeletePost={handleDeletePost}
                 goToProfile={goToProfile}
-                safeFormatDate={safeFormatDate}
+                safeFormatDate={safeFormatDateFn} // Pass fallback to child
               />
             </div>
           );
