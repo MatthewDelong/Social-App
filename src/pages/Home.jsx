@@ -95,6 +95,12 @@ export default function Home({ user, usersMap, goToProfile, safeFormatDate }) {
     setEditContent("");
   };
 
+  // Debug wrapper for goToProfile
+  const debugGoToProfile = (uid) => {
+    console.log("goToProfile called with UID:", uid); // Log the UID being passed
+    if (uid) goToProfile(uid); // Only call if uid is valid
+  };
+
   return (
     <div className="container mx-auto p-4">
       {posts.length > 0 ? (
@@ -102,6 +108,7 @@ export default function Home({ user, usersMap, goToProfile, safeFormatDate }) {
           const postUser = usersMap[post.uid] || {};
           const isEditable =
             user && (user.uid === post.uid || user.isAdmin || user.isModerator);
+          console.log("Rendering post:", post, "postUser:", postUser); // Debug post and user data
           return (
             <div
               key={post.id}
@@ -110,16 +117,16 @@ export default function Home({ user, usersMap, goToProfile, safeFormatDate }) {
               <div className="flex items-center mb-2">
                 <img
                   src={postUser.photoURL || DEFAULT_AVATAR}
-                  alt={postUser.displayName || post.author}
+                  alt={postUser.displayName || post.author || "Unknown User"}
                   className="w-10 h-10 rounded-full mr-2"
-                  onClick={() => goToProfile(post.uid)}
+                  onClick={() => post.uid && debugGoToProfile(post.uid)} // Use debug wrapper
                 />
                 <div>
                   <strong
                     className="cursor-pointer"
-                    onClick={() => goToProfile(post.uid)}
+                    onClick={() => post.uid && debugGoToProfile(post.uid)} // Use debug wrapper
                   >
-                    {postUser.displayName || post.author}
+                    {usersMap[post.uid]?.displayName || post.author || "Unknown User"}
                     {postUser.isAdmin && (
                       <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
                         Admin
