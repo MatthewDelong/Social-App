@@ -273,7 +273,7 @@ export default function GroupPostPage() {
           <img
             src={post.authorPhotoURL || DEFAULT_AVATAR}
             alt={post.author}
-            className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+            className="w-10 h-10 border-2 border-white rounded-full object-cover flex-shrink-0"
           />
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">

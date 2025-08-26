@@ -63,7 +63,12 @@ export default function Navbar() {
             {user.isAdmin && (
               <Link to="/admin" className="text-sm hover:underline">Admin Dashboard</Link>
             )}
-            <span className="text-sm hidden sm:inline">{user.displayName || user.email}</span>
+
+            {/* Username now links to UserProfile.jsx */}
+            <Link to="/user-profile" className="text-sm hidden sm:inline hover:underline">
+              {user.displayName || user.email}
+            </Link>
+
             <button onClick={logout} className="text-sm hover:underline">Logout</button>
           </div>
         )}
@@ -79,8 +84,18 @@ export default function Navbar() {
           {user.isAdmin && (
             <Link to="/admin" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>
           )}
-          <span className="text-sm">{user.displayName || user.email}</span>
-          <button onClick={() => { logout(); setMenuOpen(false); }} className="text-sm hover:underline">Logout</button>
+
+          {/* Username now links to UserProfile.jsx */}
+          <Link to="/user-profile" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>
+            {user.displayName || user.email}
+          </Link>
+
+          <button 
+            onClick={() => { logout(); setMenuOpen(false); }} 
+            className="text-sm hover:underline"
+          >
+            Logout
+          </button>
         </div>
       )}
     </nav>

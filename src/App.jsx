@@ -73,11 +73,22 @@ function AppRoutes() {
           path="/signup"
           element={!user ? <Signup /> : <Navigate to="/" replace />}
         />
+
+        {/* Your own profile page */}
         <Route
           path="/profile"
           element={user ? <Profile /> : <Navigate to="/login" replace />}
         />
+
+        {/* ✅ New route for logged-in user's UserProfile.jsx */}
+        <Route
+          path="/user-profile"
+          element={user ? <UserProfile /> : <Navigate to="/login" replace />}
+        />
+
+        {/* ✅ Other users' profile pages by UID */}
         <Route path="/profile/:uid" element={<UserProfile />} />
+
         <Route
           path="/new"
           element={user ? <NewPost /> : <Navigate to="/login" replace />}
@@ -123,9 +134,9 @@ export default function App() {
   return (
     <AppProvider>
       <Layout>
-      <Router>
-        <AppRoutes />
-      </Router>
+        <Router>
+          <AppRoutes />
+        </Router>
       </Layout>
     </AppProvider>
   );

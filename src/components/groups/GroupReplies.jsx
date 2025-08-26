@@ -248,7 +248,7 @@ export default function GroupReplies({
         {visibleReplies.map((reply, index) => (
           <Fragment key={reply.id}>
             <div
-              className="border rounded bg-white flex items-start gap-2 relative"
+              className="border rounded-xl bg-white flex items-start gap-2 relative"
               style={{ position: "relative", zIndex: 1 }}
             >
               {depth < 5 && (

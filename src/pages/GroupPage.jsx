@@ -409,7 +409,7 @@ export default function GroupPage() {
               <img
                 src={post.authorPhotoURL || DEFAULT_AVATAR}
                 alt={post.author}
-                className="w-8 h-8 rounded-full object-cover"
+                className="w-8 h-8 border-2 border-white rounded-full object-cover"
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
@@ -462,7 +462,7 @@ export default function GroupPage() {
                   <img
                     src={m.photoURL || DEFAULT_AVATAR}
                     alt={m.displayName || 'Member'}
-                    className="w-10 h-10 rounded-full object-cover"
+                    className="w-10 h-10 border-2 border-white rounded-full object-cover"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">

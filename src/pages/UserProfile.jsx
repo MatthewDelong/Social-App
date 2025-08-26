@@ -1,17 +1,23 @@
+// src/pages/UserProfile.jsx
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { getDownloadURL, ref } from "firebase/storage";
 import Card from "../components/ui/card";
+import { useAppContext } from "../context/AppContext"; // ✅ import context to get current user
 
 export default function UserProfile() {
   const { uid } = useParams();
+  const { user } = useAppContext(); // ✅ logged-in user
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
+
+  // ✅ choose which uid to load: param OR logged-in user
+  const userId = uid || user?.uid;
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
@@ -28,9 +34,11 @@ export default function UserProfile() {
 
   useEffect(() => {
     const loadUserProfile = async () => {
+      if (!userId) return;
+
       try {
         // Load user profile
-        const userRef = doc(db, "users", uid);
+        const userRef = doc(db, "users", userId);
         const snap = await getDoc(userRef);
         if (snap.exists()) {
           setProfile(snap.data());
@@ -40,29 +48,27 @@ export default function UserProfile() {
 
         // Load user posts
         const postsRef = collection(db, "posts");
-        const qPosts = query(postsRef, where("uid", "==", uid));
+        const qPosts = query(postsRef, where("uid", "==", userId));
         const postSnap = await getDocs(qPosts);
         setPosts(postSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
 
-        // Load groups the user belongs to - FIXED QUERY
+        // Load groups the user belongs to
         const allGroupsRef = collection(db, "groups");
         const allGroupsSnap = await getDocs(allGroupsRef);
-        
+
         const userGroups = [];
-        
-        // Check each group to see if user is a member
+
         for (const groupDoc of allGroupsSnap.docs) {
           const groupData = { id: groupDoc.id, ...groupDoc.data() };
-          
-          // Check if user is a member of this group
-          const memberRef = doc(db, "groups", groupDoc.id, "members", uid);
+
+          const memberRef = doc(db, "groups", groupDoc.id, "members", userId);
           const memberSnap = await getDoc(memberRef);
-          
+
           if (memberSnap.exists()) {
             userGroups.push(groupData);
           }
         }
-        
+
         setGroups(userGroups);
       } catch (err) {
         console.error("Error loading user profile:", err);
@@ -70,8 +76,8 @@ export default function UserProfile() {
       setLoading(false);
     };
 
-    if (uid) loadUserProfile();
-  }, [uid]);
+    loadUserProfile();
+  }, [userId]);
 
   if (loading) return <p>Loading profile...</p>;
   if (!profile) return <p>User not found.</p>;
@@ -83,7 +89,7 @@ export default function UserProfile() {
         <img
           src={profile.photoURL || DEFAULT_AVATAR}
           alt={profile.displayName}
-          className="w-20 h-20 rounded-full object-cover"
+          className="w-20 h-20 border-4 border-white rounded-full object-cover"
         />
         <div>
           <h2 className="text-2xl font-bold">{profile.displayName}</h2>
@@ -102,11 +108,9 @@ export default function UserProfile() {
         </div>
       </div>
 
-      {/* Groups Section - FIXED TEXT AND QUERY */}
+      {/* Groups Section */}
       <div>
-        <h3 className="text-xl w-auto font-bold mb-4">
-          Groups I'm part of
-        </h3>
+        <h3 className="text-xl w-auto font-bold mb-4">Groups I'm part of</h3>
         {groups.length === 0 && <p className="text-gray-500">Not a member of any groups yet.</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {groups.map((group) => (
@@ -136,7 +140,7 @@ export default function UserProfile() {
               <img
                 src={post.authorPhotoURL || DEFAULT_AVATAR}
                 alt="Author"
-                className="w-8 h-8 rounded-full"
+                className="w-8 h-8 border-2 border-white rounded-full"
               />
               <p className="font-bold">{post.author}</p>
             </div>

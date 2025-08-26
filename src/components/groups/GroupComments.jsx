@@ -308,7 +308,7 @@ export default function GroupComments({ postId, currentUser, groupId }) {
             <img
               src={comment.authorPhotoURL || DEFAULT_AVATAR}
               alt={comment.author}
-              className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              className="w-8 h-8 border-2 border-white rounded-full object-cover flex-shrink-0"
             />
             <div className="flex-1 break-words">
               <div className="flex flex-wrap items-center gap-2 mb-1">
