@@ -408,33 +408,22 @@ export default function GroupReplies({
                     </div>
                     {showEmojiPicker === reply.id &&
                       createPortal(
-                        <div
-                          className="absolute z-50"
-                          style={{
-                            top: inputRef.current
-                              ? inputRef.current.getBoundingClientRect().bottom +
-                                window.scrollY +
-                                2
-                              : "auto",
-                            right: inputRef.current
-                              ? window.innerWidth -
-                                inputRef.current.getBoundingClientRect().right
-                              : "auto",
-                          }}
-                        >
-                          <div className="relative">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                          <div className="bg-white shadow-lg rounded-lg p-2 border max-w-sm w-full mx-4 relative">
                             <button
                               type="button"
                               onClick={() => setShowEmojiPicker(null)}
-                              className="absolute top-2 right-2 z-60 bg-gray-200 rounded-full p-1 hover:bg-gray-300"
+                              className="absolute top-2 right-2 z-10 bg-gray-100 hover:bg-gray-200 w-8 h-8 rounded-full flex items-center justify-center text-gray-600 font-bold"
                               title="Close emoji picker"
                             >
-                              <X size={16} />
+                              ×
                             </button>
                             <EmojiPicker
                               onEmojiClick={(emojiObject) =>
                                 handleEmojiClick(emojiObject, reply.id)
                               }
+                              width={280}
+                              height={350}
                             />
                           </div>
                         </div>,

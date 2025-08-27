@@ -33,11 +33,14 @@ export default function Profile() {
     bio: '',
     location: '',
     website: '',
-    photoURL: user.photoURL || ''
+    photoURL: user.photoURL || '',
+    bannerURL: ''
   });
 
   const [newAvatarFile, setNewAvatarFile] = useState(null);
   const [newAvatarPreview, setNewAvatarPreview] = useState(null);
+  const [newBannerFile, setNewBannerFile] = useState(null);
+  const [newBannerPreview, setNewBannerPreview] = useState(null);
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
@@ -70,7 +73,8 @@ export default function Profile() {
           bio: data.bio || '',
           location: data.location || '',
           website: data.website || '',
-          photoURL: data.photoURL || user.photoURL || DEFAULT_AVATAR
+          photoURL: data.photoURL || user.photoURL || DEFAULT_AVATAR,
+          bannerURL: data.bannerURL || ''
         });
       } else {
         await setDoc(refUser, {
@@ -78,7 +82,8 @@ export default function Profile() {
           bio: '',
           location: '',
           website: '',
-          photoURL: user.photoURL || DEFAULT_AVATAR
+          photoURL: user.photoURL || DEFAULT_AVATAR,
+          bannerURL: ''
         });
       }
     };
@@ -212,6 +217,81 @@ export default function Profile() {
     setUploading(false);
   };
 
+  // ✅ Banner file selection with resize + compression
+  const handleBannerSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage('File is too large. Please select an image under 2MB.');
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      const maxWidth = 1200;
+      const maxHeight = 400;
+      let { width, height } = img;
+
+      // Maintain aspect ratio but fit within banner dimensions
+      if (width > maxWidth || height > maxHeight) {
+        const scale = Math.min(maxWidth / width, maxHeight / height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Convert to JPEG @ 80% quality for compression
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            setMessage('Error processing banner image.');
+            return;
+          }
+          const resizedFile = new File([blob], 'banner.jpg', { type: 'image/jpeg' });
+          setNewBannerFile(resizedFile);
+          setNewBannerPreview(URL.createObjectURL(resizedFile));
+        },
+        'image/jpeg',
+        0.8 // compression quality
+      );
+    };
+
+    img.src = URL.createObjectURL(file);
+  };
+
+  const handleCancelBanner = () => {
+    setNewBannerFile(null);
+    setNewBannerPreview(null);
+  };
+
+  const handleBannerSave = async () => {
+    if (!newBannerFile) return;
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `banners/${user.uid}`);
+      await uploadBytes(storageRef, newBannerFile);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      await updateDoc(doc(db, 'users', user.uid), { bannerURL: downloadURL });
+
+      setProfileData((prev) => ({ ...prev, bannerURL: downloadURL }));
+      setMessage('Banner updated!');
+      setNewBannerFile(null);
+      setNewBannerPreview(null);
+    } catch (error) {
+      console.error('Error uploading banner:', error);
+      setMessage('Failed to upload banner.');
+    }
+    setUploading(false);
+  };
+
   return (
     <div className="max-w-2xl mx-auto mt-10 px-4 space-y-10">
       <h2 className="text-2xl font-bold">Edit Profile</h2>
@@ -275,6 +355,47 @@ export default function Profile() {
         </div>
       )}
 
+      {/* Banner Upload Section */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Profile Banner</h3>
+        
+        {(newBannerPreview || profileData.bannerURL) && (
+          <div className="relative w-full h-32 bg-gray-200 rounded-lg overflow-hidden">
+            <img
+              src={newBannerPreview || profileData.bannerURL}
+              alt="Profile Banner"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+        
+        <div className="flex items-center space-x-4">
+          <label className="cursor-pointer bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
+            {profileData.bannerURL ? 'Change Banner' : 'Add Banner'}
+            <input type="file" accept="image/*" hidden onChange={handleBannerSelect} />
+          </label>
+          <span className="text-xs text-gray-500">Max: 1200×400px 2MB</span>
+        </div>
+
+        {newBannerPreview && (
+          <div className="flex space-x-2 mt-2">
+            <button
+              onClick={handleBannerSave}
+              disabled={uploading}
+              className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600"
+            >
+              {uploading ? 'Saving...' : 'Save Banner'}
+            </button>
+            <button
+              onClick={handleCancelBanner}
+              className="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+
       <button
         onClick={handleUpdate}
         className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4"
@@ -284,24 +405,45 @@ export default function Profile() {
 
       {message && <p className="text-green-600 text-sm">{message}</p>}
 
-      <div className="bg-white border rounded p-4 shadow mt-6">
-        <h2 className="text-xl font-semibold mb-4">Profile Preview</h2>
-        <img
-          src={profileData.photoURL || DEFAULT_AVATAR}
-          alt="Profile Avatar"
-          className="w-24 h-24 rounded-full object-cover mb-4"
-        />
-        <p><span className="font-bold">Name:</span> {profileData.displayName}</p>
-        {profileData.bio && <p className="mt-1"><span className="font-bold">Bio:</span> {profileData.bio}</p>}
-        {profileData.location && <p className="mt-1"><span className="font-bold">Location:</span> {profileData.location}</p>}
-        {profileData.website && (
-          <p className="mt-1">
-            <span className="font-bold">Website:</span>{' '}
-            <a href={profileData.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+      <div className="bg-white border rounded shadow mt-6 overflow-hidden">
+        <h2 className="text-xl font-semibold mb-4 p-4 pb-0">Profile Preview</h2>
+        
+        {/* Banner and Avatar Section */}
+        <div className="relative">
+          {/* Banner */}
+          {profileData.bannerURL && (
+            <div className="w-full h-40 sm:h-56 md:h-64 bg-gradient-to-r from-blue-400 to-purple-600 overflow-hidden">
+              <img
+                src={profileData.bannerURL}
+                alt="Profile Banner"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          
+          {/* Avatar overhang - positioned like group logo */}
+          <div className={`${profileData.bannerURL ? 'absolute -bottom-12 left-4' : 'p-4'}`}>
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden shadow-lg">
+              <img
+                src={profileData.photoURL || DEFAULT_AVATAR}
+                alt="Profile Avatar"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+        </div>
+        
+        {/* Profile Info */}
+        <div className={`p-4 ${profileData.bannerURL ? 'mt-20 sm:mt-16' : 'mt-0'}`}>
+          <h3 className="text-2xl font-bold">{profileData.displayName}</h3>
+          {profileData.bio && <p className="mt-2 text-gray-700">{profileData.bio}</p>}
+          {profileData.location && <p className="mt-1 text-gray-600">{profileData.location}</p>}
+          {profileData.website && (
+            <a href={profileData.website} target="_blank" rel="noopener noreferrer" className="mt-1 block text-blue-500 hover:underline">
               {profileData.website}
             </a>
-          </p>
-        )}
+          )}
+        </div>
       </div>
 
       <div>
@@ -310,7 +452,7 @@ export default function Profile() {
         {posts.map((post) => (
           <Card key={post.id}>
             <div className="flex items-center space-x-2">
-              <img src={post.authorPhotoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 rounded-full" />
+              <img src={profileData.photoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 rounded-full" />
               <p className="font-bold">{post.author}</p>
             </div>
             <p>{post.content}</p>

@@ -84,28 +84,46 @@ export default function UserProfile() {
 
   return (
     <div className="max-w-2xl mx-auto mt-10 px-4 space-y-8">
-      {/* Profile Header */}
-      <div className="flex items-center space-x-4">
-        <img
-          src={profile.photoURL || DEFAULT_AVATAR}
-          alt={profile.displayName}
-          className="w-20 h-20 border-4 border-white rounded-full object-cover"
-        />
-        <div>
-          <h2 className="text-2xl font-bold">{profile.displayName}</h2>
-          {profile.bio && <p>{profile.bio}</p>}
-          {profile.location && <p className="text-gray-600">{profile.location}</p>}
-          {profile.website && (
-            <a
-              href={profile.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
-            >
-              {profile.website}
-            </a>
-          )}
+      {/* Profile Header with Banner */}
+      <div className="relative">
+        {/* Banner */}
+        {profile.bannerURL && (
+          <div className="w-full h-40 sm:h-56 md:h-64 overflow-hidden">
+            <img
+              src={profile.bannerURL}
+              alt="Profile Banner"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+        
+        {/* Avatar overhang - positioned like group logo */}
+        <div className={`${profile.bannerURL ? 'absolute -bottom-12 left-4' : 'mb-4'}`}>
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden shadow-lg">
+            <img
+              src={profile.photoURL || DEFAULT_AVATAR}
+              alt={profile.displayName}
+              className="w-full h-full object-cover"
+            />
+          </div>
         </div>
+      </div>
+
+      {/* Profile Info */}
+      <div className={`bg-white border rounded-lg shadow-lg p-6 ${profile.bannerURL ? 'mt-20 sm:mt-16' : 'mt-0'}`}>
+        <h2 className="text-2xl font-bold">{profile.displayName}</h2>
+        {profile.bio && <p className="mt-2 text-gray-700">{profile.bio}</p>}
+        {profile.location && <p className="mt-1 text-gray-600">{profile.location}</p>}
+        {profile.website && (
+          <a
+            href={profile.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 block text-blue-500 hover:underline"
+          >
+            {profile.website}
+          </a>
+        )}
       </div>
 
       {/* Groups Section */}
@@ -138,7 +156,7 @@ export default function UserProfile() {
           <Card key={post.id}>
             <div className="flex items-center space-x-2">
               <img
-                src={post.authorPhotoURL || DEFAULT_AVATAR}
+                src={profile.photoURL || DEFAULT_AVATAR}
                 alt="Author"
                 className="w-8 h-8 border-2 border-white rounded-full"
               />
