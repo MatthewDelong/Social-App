@@ -258,7 +258,7 @@ export default function Home() {
                 <img
                   src={postUser?.photoURL || DEFAULT_AVATAR}
                   alt="avatar"
-                  className="w-8 h-8 rounded-full object-cover cursor-pointer"
+                  className="w-10 h-10 border border-2 rounded-full object-cover cursor-pointer"
                   onClick={() => navigate(`/profile/${post.uid}`)}
                 />
                 <div>
@@ -400,10 +400,10 @@ export default function Home() {
                 const commentUser = usersMap[comment.uid];
                 return (
                   <div key={i} className="ml-4">
-                    <div className="flex items-start space-x-2">
+                    <div className="flex border border-2 items-start space-x-2">
                       <img
                         src={commentUser?.photoURL || DEFAULT_AVATAR}
-                        className="w-6 h-6 rounded-full"
+                        className="w-8 h-8 border border-2 rounded-full"
                       />
                       <div className="flex-1 p-2 rounded ">
                         {editCommentMap[`${post.id}-${i}`] !== undefined ? (
