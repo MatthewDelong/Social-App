@@ -71,6 +71,7 @@
 │   ├── favicon-ico
 │   ├── favicon-32x32.png
 │   └── images/
+│       ├── login&signup.png
 │       └── logo.png
 └── src/
     ├── App.jsx
