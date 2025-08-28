@@ -88,7 +88,7 @@ export default function UserProfile() {
       <div className="relative">
         {/* Banner */}
         {profile.bannerURL && (
-          <div className="w-full h-40 sm:h-56 md:h-64 overflow-hidden">
+          <div className="w-full h-40  border-4 border-white sm:h-56 md:h-64 overflow-hidden">
             <img
               src={profile.bannerURL}
               alt="Profile Banner"
@@ -97,7 +97,7 @@ export default function UserProfile() {
           </div>
         )}
         
-        {/* Avatar overhang - positioned like group logo */}
+        {/* Avatar overhang */}
         <div className={`${profile.bannerURL ? 'absolute -bottom-12 left-4' : 'mb-4'}`}>
           <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden shadow-lg">
             <img

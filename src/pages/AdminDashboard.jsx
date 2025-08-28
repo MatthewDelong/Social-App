@@ -157,6 +157,32 @@ export default function AdminDashboard() {
     return 'Unknown';
   };
 
+  const sortUsers = (usersList) => {
+    return [...usersList].sort((a, b) => {
+      // Get display names for comparison
+      const aName = (a.displayName || a.email || 'Unknown').toLowerCase();
+      const bName = (b.displayName || b.email || 'Unknown').toLowerCase();
+      
+      // Assign priority: Admin = 0, Moderator = 1, Regular = 2
+      const getPriority = (user) => {
+        if (user.isAdmin) return 0;
+        if (user.isModerator) return 1;
+        return 2;
+      };
+      
+      const aPriority = getPriority(a);
+      const bPriority = getPriority(b);
+      
+      // Sort by priority first
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+      
+      // Within same priority group, sort alphabetically
+      return aName.localeCompare(bName);
+    });
+  };
+
   if (loading) {
     return (
       <div className="p-6 max-w-5xl mx-auto">
@@ -251,7 +277,7 @@ export default function AdminDashboard() {
       <section>
         <h3 className="text-xl font-semibold mb-2">Users</h3>
         {users.length === 0 && <p className="text-gray-500">No users found.</p>}
-        {users.map((u) => (
+        {sortUsers(users).map((u) => (
           <div key={u.id} className="border p-3 mb-3 rounded bg-white flex items-center gap-4">
             <img
               src={u.photoURL || defaultAvatar}
