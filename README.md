@@ -12,7 +12,7 @@
 - Replace placeholders in firebase.js and .firebaserc
 
 # Install dependencies
-- npm install react react-dom react-router-dom firebase
+- npm install react react-dom react-router-dom react-icons firebase
 - npm install -D vite @vitejs/plugin-react tailwindcss postcss autoprefixer
 - npm install -g firebase-tools
 - npm install date-fns
