@@ -34,6 +34,12 @@
 - npm run build
 - firebase deploy
 
+# Firebase Functions
+- istall NVM for Windows https://github.com/coreybutler/nvm-windows
+- nvm install 20.18.0
+- nvm use 20.18.0
+- firebase deploy --only "functions:adminDeleteUser"
+
 ---
 
 ## Run Development Server
@@ -66,6 +72,14 @@
 ├── postcss.config.js
 ├── tailwind.config.js
 ├── vite.config.js
+├── functions/
+│   ├── .eslint.js
+│   ├── .gcloudignore
+│   ├── .gitignore
+│   ├── functions.yaml
+│   ├── index.js
+│   ├── package-lock.json
+│   └── package.json
 ├── public/
 │   ├── apple-touch-icon.png
 │   ├── favicon-ico

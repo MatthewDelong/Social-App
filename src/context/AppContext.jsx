@@ -1,7 +1,7 @@
 // src/context/AppContext.jsx
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
-import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
 const AppContext = createContext();
@@ -11,11 +11,7 @@ export function AppProvider({ children }) {
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingTheme, setLoadingTheme] = useState(true);
 
-  const defaultTheme = {
-    navbarColor: '#ffffff',
-    backgroundColor: '#f9fafb'
-  };
-
+  const defaultTheme = { navbarColor: '#ffffff', backgroundColor: '#f9fafb' };
   const [theme, setTheme] = useState(defaultTheme);
 
   const saveTheme = async (newTheme) => {
@@ -28,79 +24,82 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Load theme
   useEffect(() => {
     const themeRef = doc(db, 'settings', 'theme');
-
     (async () => {
       try {
-        const docSnap = await getDoc(themeRef);
-        if (docSnap.exists()) {
-          const newTheme = docSnap.data();
-          setTheme(newTheme);
-          document.body.style.backgroundColor = newTheme.backgroundColor;
-        } else {
-          setTheme(defaultTheme);
-          document.body.style.backgroundColor = defaultTheme.backgroundColor;
-        }
-      } catch (err) {
-        console.error('Error loading theme:', err);
+        const snap = await getDoc(themeRef);
+        const t = snap.exists() ? snap.data() : defaultTheme;
+        setTheme(t);
+        document.body.style.backgroundColor = t.backgroundColor;
+      } catch {
         setTheme(defaultTheme);
         document.body.style.backgroundColor = defaultTheme.backgroundColor;
       } finally {
         setLoadingTheme(false);
       }
     })();
-
-    const unsubTheme = onSnapshot(themeRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const newTheme = snapshot.data();
-        setTheme(newTheme);
-        document.body.style.backgroundColor = newTheme.backgroundColor;
+    const unsub = onSnapshot(themeRef, (snap) => {
+      if (snap.exists()) {
+        const t = snap.data();
+        setTheme(t);
+        document.body.style.backgroundColor = t.backgroundColor;
       }
     });
-
-    return () => unsubTheme();
+    return () => unsub();
   }, []);
 
-  // Load auth state
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      try {
-        if (currentUser) {
-          if (!currentUser.displayName) {
-            await updateProfile(currentUser, { displayName: 'Matthew Delong' });
-            await currentUser.reload();
-          }
-
-          let isAdmin = false;
-          let isModerator = false;
-
-          const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            isAdmin = data.isAdmin || false;
-            isModerator = data.isModerator || false;
-          }
-
-          setUser({
-            ...auth.currentUser,
-            isAdmin,
-            isModerator,
-            role: isAdmin ? 'admin' : isModerator ? 'moderator' : 'user'
-          });
-        } else {
-          setUser(null);
-        }
-      } catch (e) {
-        console.error('Error loading user roles:', e);
+    let unsubProfile = null;
+    const unsubAuth = onAuthStateChanged(auth, async (currentUser) => {
+      setLoadingUser(true);
+      if (!currentUser) {
+        if (unsubProfile) unsubProfile();
         setUser(null);
-      } finally {
         setLoadingUser(false);
+        return;
       }
+
+      const userRef = doc(db, 'users', currentUser.uid);
+      try {
+        const snap = await getDoc(userRef);
+        if (!snap.exists()) {
+          await setDoc(
+            userRef,
+            {
+              uid: currentUser.uid,
+              email: currentUser.email || '',
+              displayName: currentUser.displayName || '',
+              photoURL: currentUser.photoURL || '',
+            },
+            { merge: true }
+          );
+        }
+      } catch {}
+
+      if (unsubProfile) unsubProfile();
+      unsubProfile = onSnapshot(userRef, (s) => {
+        const data = s.data() || {};
+        const isAdmin = !!data.isAdmin;
+        const isModerator = !!data.isModerator;
+        setUser({
+          uid: currentUser.uid,
+          email: currentUser.email || '',
+          displayName: data.displayName ?? currentUser.displayName ?? currentUser.email ?? '',
+          photoURL: data.photoURL ?? currentUser.photoURL ?? '',
+          bannerURL: data.bannerURL ?? '',
+          isAdmin,
+          isModerator,
+          role: isAdmin ? 'admin' : isModerator ? 'moderator' : 'user',
+        });
+        setLoadingUser(false);
+      });
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubProfile) unsubProfile();
+      unsubAuth();
+    };
   }, []);
 
   const logout = () => signOut(auth);
@@ -110,9 +109,9 @@ export function AppProvider({ children }) {
       value={{
         user,
         logout,
-        loading: loadingUser || loadingTheme, // ✅ stays true until both are done
+        loading: loadingUser || loadingTheme,
         theme,
-        saveTheme
+        saveTheme,
       }}
     >
       {children}

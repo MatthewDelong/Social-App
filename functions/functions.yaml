@@ -1,0 +1,8 @@
+specVersion: v1alpha1
+endpoints:
+  adminDeleteUser:
+    platform: gcfv1
+    region:
+    - europe-west2
+    entryPoint: adminDeleteUser
+    callableTrigger: {}

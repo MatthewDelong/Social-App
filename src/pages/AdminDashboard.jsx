@@ -6,10 +6,15 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  updateDoc
+  updateDoc,
+  query,
+  where
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { useAppContext } from '../context/AppContext';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+
+const FUNCTIONS_REGION = 'europe-west2';
 
 export default function AdminDashboard() {
   const { theme, saveTheme } = useAppContext();
@@ -18,11 +23,11 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [usersMap, setUsersMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState({});
 
   const defaultAvatar =
     'https://firebasestorage.googleapis.com/v0/b/social-app-8a28d.firebasestorage.app/o/default-avatar.png?alt=media&token=78165d2b-f095-496c-9de2-5e143bfc41cc';
 
-  // Local form state for theme colors
   const [navbarColor, setNavbarColor] = useState(theme?.navbarColor || '#ffffff');
   const [backgroundColor, setBackgroundColor] = useState(theme?.backgroundColor || '#f9fafb');
 
@@ -46,6 +51,30 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('safeFormatDate error', err);
       return '';
+    }
+  };
+
+  const refreshData = async () => {
+    setLoading(true);
+    try {
+      const [postSnapshot, userSnapshot] = await Promise.all([
+        getDocs(collection(db, 'posts')),
+        getDocs(collection(db, 'users')),
+      ]);
+      const fetchedPosts = postSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const fetchedUsers = userSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setPosts(fetchedPosts);
+      setUsers(fetchedUsers);
+      const map = {};
+      fetchedUsers.forEach((u) => {
+        const key = u.id || u.uid;
+        map[key] = u;
+      });
+      setUsersMap(map);
+    } catch (err) {
+      console.error('Error refreshing admin data:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,16 +124,41 @@ export default function AdminDashboard() {
   };
 
   const deleteUser = async (userId) => {
+    const ok = window.confirm('Delete this user and all their posts/memberships? This cannot be undone.');
+    if (!ok) return;
+    setDeleting((prev) => ({ ...prev, [userId]: true }));
     try {
-      await deleteDoc(doc(db, 'users', userId));
+      const functions = getFunctions(undefined, FUNCTIONS_REGION);
+      const adminDeleteUser = httpsCallable(functions, 'adminDeleteUser');
+      const res = await adminDeleteUser({ uid: userId });
+
+      // Optimistic UI removal of the user and their posts across common id fields
       setUsers((prev) => prev.filter((u) => u.id !== userId));
       setUsersMap((prev) => {
         const copy = { ...prev };
         delete copy[userId];
         return copy;
       });
+      setPosts((prev) => prev.filter(
+        (p) => p.uid !== userId && p.authorUid !== userId && p.authorId !== userId && p.userId !== userId
+      ));
+
+      // Re-fetch from server to reflect server-side cascade deletes
+      await refreshData();
+
+      // Optional: show counts in console (hook up your toast system if you have one)
+      if (res?.data) {
+        console.log('Delete counts:', res.data);
+      }
     } catch (err) {
-      console.error('Error deleting user:', err);
+      console.error('Error deleting user via function:', err);
+      alert(err?.message || 'Failed to delete user');
+    } finally {
+      setDeleting((prev) => {
+        const copy = { ...prev };
+        delete copy[userId];
+        return copy;
+      });
     }
   };
 
@@ -159,26 +213,18 @@ export default function AdminDashboard() {
 
   const sortUsers = (usersList) => {
     return [...usersList].sort((a, b) => {
-      // Get display names for comparison
       const aName = (a.displayName || a.email || 'Unknown').toLowerCase();
       const bName = (b.displayName || b.email || 'Unknown').toLowerCase();
-      
-      // Assign priority: Admin = 0, Moderator = 1, Regular = 2
       const getPriority = (user) => {
         if (user.isAdmin) return 0;
         if (user.isModerator) return 1;
         return 2;
       };
-      
       const aPriority = getPriority(a);
       const bPriority = getPriority(b);
-      
-      // Sort by priority first
       if (aPriority !== bPriority) {
         return aPriority - bPriority;
       }
-      
-      // Within same priority group, sort alphabetically
       return aName.localeCompare(bName);
     });
   };
@@ -315,9 +361,10 @@ export default function AdminDashboard() {
                 {!u.isAdmin && (
                   <button
                     onClick={() => deleteUser(u.id)}
-                    className="text-sm text-red-600 hover:underline"
+                    disabled={!!deleting[u.id]}
+                    className="text-sm text-red-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Delete User
+                    {deleting[u.id] ? 'Deleting…' : 'Delete User'}
                   </button>
                 )}
               </div>
