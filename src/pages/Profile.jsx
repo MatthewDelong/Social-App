@@ -13,12 +13,21 @@ import {
 } from 'firebase/firestore';
 import { db, auth, storage } from '../firebase';
 import { useAppContext } from '../context/AppContext';
-import { updateProfile } from 'firebase/auth';
+import {
+  updateProfile,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  reauthenticateWithPopup,
+  GoogleAuthProvider
+} from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useNavigate } from 'react-router-dom';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Card from '../components/ui/card';
 
 export default function Profile() {
-  const { user } = useAppContext();
+  const { user, logout } = useAppContext();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
@@ -41,6 +50,12 @@ export default function Profile() {
   const [newAvatarPreview, setNewAvatarPreview] = useState(null);
   const [newBannerFile, setNewBannerFile] = useState(null);
   const [newBannerPreview, setNewBannerPreview] = useState(null);
+
+  // Self-delete state
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     const loadDefaultAvatar = async () => {
@@ -128,7 +143,6 @@ export default function Profile() {
     }
   };
 
-  // ✅ File selection with resize + compression
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -156,7 +170,6 @@ export default function Profile() {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Convert to JPEG @ 80% quality for compression
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -168,7 +181,7 @@ export default function Profile() {
           setNewAvatarPreview(URL.createObjectURL(resizedFile));
         },
         'image/jpeg',
-        0.8 // compression quality
+        0.8
       );
     };
 
@@ -217,7 +230,6 @@ export default function Profile() {
     setUploading(false);
   };
 
-  // ✅ Banner file selection with resize + compression
   const handleBannerSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -233,7 +245,6 @@ export default function Profile() {
       const maxHeight = 400;
       let { width, height } = img;
 
-      // Maintain aspect ratio but fit within banner dimensions
       if (width > maxWidth || height > maxHeight) {
         const scale = Math.min(maxWidth / width, maxHeight / height);
         width = Math.round(width * scale);
@@ -247,7 +258,6 @@ export default function Profile() {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Convert to JPEG @ 80% quality for compression
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -259,7 +269,7 @@ export default function Profile() {
           setNewBannerPreview(URL.createObjectURL(resizedFile));
         },
         'image/jpeg',
-        0.8 // compression quality
+        0.8
       );
     };
 
@@ -290,6 +300,53 @@ export default function Profile() {
       setMessage('Failed to upload banner.');
     }
     setUploading(false);
+  };
+
+  const handleSelfDelete = async () => {
+    if (!auth.currentUser) return;
+    const confirm = window.confirm('This will permanently delete your account and all content. Continue?');
+    if (!confirm) return;
+
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      // Reauthenticate
+      const providerId = auth.currentUser.providerData?.[0]?.providerId || 'password';
+      if (providerId === 'password') {
+        if (!deletePassword) {
+          setDeleteError('Please enter your password.');
+          setDeleting(false);
+          return;
+        }
+        const cred = EmailAuthProvider.credential(auth.currentUser.email || '', deletePassword);
+        await reauthenticateWithCredential(auth.currentUser, cred);
+      } else if (providerId === 'google.com') {
+        const provider = new GoogleAuthProvider();
+        await reauthenticateWithPopup(auth.currentUser, provider);
+      } else {
+        // Generic fallback
+        alert('Please sign out and sign in again to continue with account deletion.');
+        setDeleting(false);
+        return;
+      }
+
+      // Call server cascade delete (self allowed)
+      const functions = getFunctions(undefined, 'europe-west2');
+      const adminDeleteUser = httpsCallable(functions, 'adminDeleteUser');
+      const res = await adminDeleteUser({ uid: auth.currentUser.uid });
+      console.log('Delete counts:', res?.data);
+
+      // Sign out and redirect
+      await logout();
+      navigate('/');
+    } catch (e) {
+      console.error('Self-delete error', e);
+      setDeleteError(e?.message || 'Failed to delete account.');
+    } finally {
+      setDeleting(false);
+      setDeletePassword('');
+      setDeleteOpen(false);
+    }
   };
 
   return (
@@ -358,17 +415,11 @@ export default function Profile() {
       {/* Banner Upload Section */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Profile Banner</h3>
-        
         {(newBannerPreview || profileData.bannerURL) && (
           <div className="relative w-full h-32 bg-gray-200 rounded-lg overflow-hidden">
-            <img
-              src={newBannerPreview || profileData.bannerURL}
-              alt="Profile Banner"
-              className="w-full h-full object-cover"
-            />
+            <img src={newBannerPreview || profileData.bannerURL} alt="Profile Banner" className="w-full h-full object-cover" />
           </div>
         )}
-        
         <div className="flex items-center space-x-4">
           <label className="cursor-pointer bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
             {profileData.bannerURL ? 'Change Banner' : 'Add Banner'}
@@ -376,64 +427,33 @@ export default function Profile() {
           </label>
           <span className="text-xs text-gray-500">Max: 1200×400px 2MB</span>
         </div>
-
         {newBannerPreview && (
           <div className="flex space-x-2 mt-2">
-            <button
-              onClick={handleBannerSave}
-              disabled={uploading}
-              className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600"
-            >
+            <button onClick={handleBannerSave} disabled={uploading} className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600">
               {uploading ? 'Saving...' : 'Save Banner'}
             </button>
-            <button
-              onClick={handleCancelBanner}
-              className="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400"
-            >
-              Cancel
-            </button>
+            <button onClick={handleCancelBanner} className="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400">Cancel</button>
           </div>
         )}
       </div>
 
-      <button
-        onClick={handleUpdate}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4"
-      >
-        Save Profile Details
-      </button>
-
+      <button onClick={handleUpdate} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Save Profile Details</button>
       {message && <p className="text-green-600 text-sm">{message}</p>}
 
       <div className="bg-white border rounded shadow mt-6 overflow-hidden">
         <h2 className="text-xl font-semibold mb-4 p-4 pb-0">Profile Preview</h2>
-        
-        {/* Banner and Avatar Section */}
         <div className="relative">
-          {/* Banner */}
           {profileData.bannerURL && (
             <div className="w-full h-40 sm:h-56 md:h-64 bg-gradient-to-r from-blue-400 to-purple-600 overflow-hidden">
-              <img
-                src={profileData.bannerURL}
-                alt="Profile Banner"
-                className="w-full h-full object-cover"
-              />
+              <img src={profileData.bannerURL} alt="Profile Banner" className="w-full h-full object-cover" />
             </div>
           )}
-          
-          {/* Avatar overhang - positioned like group logo */}
           <div className={`${profileData.bannerURL ? 'absolute -bottom-12 left-4' : 'p-4'}`}>
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white overflow-hidden shadow-lg">
-              <img
-                src={profileData.photoURL || DEFAULT_AVATAR}
-                alt="Profile Avatar"
-                className="w-full h-full object-cover"
-              />
+              <img src={profileData.photoURL || DEFAULT_AVATAR} alt="Profile Avatar" className="w-full h-full object-cover" />
             </div>
           </div>
         </div>
-        
-        {/* Profile Info */}
         <div className={`p-4 ${profileData.bannerURL ? 'mt-20 sm:mt-16' : 'mt-0'}`}>
           <h3 className="text-2xl font-bold">{profileData.displayName}</h3>
           {profileData.bio && <p className="mt-2 text-gray-700">{profileData.bio}</p>}
@@ -458,6 +478,29 @@ export default function Profile() {
             <p>{post.content}</p>
           </Card>
         ))}
+      </div>
+
+      {/* Danger zone */}
+      <div className="border border-red-200 bg-red-50 rounded p-4 mt-8">
+        <h3 className="text-lg font-semibold text-red-700 mb-2">Delete my account</h3>
+        <p className="text-sm text-red-700 mb-3">This permanently deletes your account and all of your content. This action cannot be undone.</p>
+        {auth.currentUser?.providerData?.[0]?.providerId === 'password' && (
+          <input
+            type="password"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            placeholder="Confirm password to proceed"
+            className="w-full border border-red-200 p-2 rounded mb-2 bg-white"
+          />
+        )}
+        {deleteError && <p className="text-sm text-red-600 mb-2">{deleteError}</p>}
+        <button
+          onClick={handleSelfDelete}
+          disabled={deleting}
+          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
+        >
+          {deleting ? 'Deleting…' : 'Delete my account'}
+        </button>
       </div>
     </div>
   );

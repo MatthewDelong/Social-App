@@ -29,7 +29,6 @@ async function deleteRepliesUnderCommentId(db, commentId) {
 
 async function deleteGroupCommentsByAuthor(db, uid, displayName) {
   let removed = 0;
-  // Primary: by uid
   const byUid = await db
     .collection(GROUP_TOP_COMMENTS)
     .where("uid", "==", uid)
@@ -39,7 +38,6 @@ async function deleteGroupCommentsByAuthor(db, uid, displayName) {
     await c.ref.delete();
     removed++;
   }
-  // Fallback: by author displayName (in case older docs lack uid or mismatch)
   if (removed === 0 && displayName) {
     const byName = await db
       .collection(GROUP_TOP_COMMENTS)
@@ -56,7 +54,6 @@ async function deleteGroupCommentsByAuthor(db, uid, displayName) {
 
 async function deleteGroupRepliesByAuthor(db, uid, displayName) {
   let removed = 0;
-  // Primary: by uid
   const byUid = await db
     .collection(GROUP_TOP_REPLIES)
     .where("uid", "==", uid)
@@ -65,7 +62,6 @@ async function deleteGroupRepliesByAuthor(db, uid, displayName) {
     await r.ref.delete();
     removed++;
   }
-  // Fallback: by author displayName
   if (removed === 0 && displayName) {
     const byName = await db
       .collection(GROUP_TOP_REPLIES)
@@ -111,7 +107,6 @@ async function deleteTopLevelPostsByAuthor(db, uid) {
 
 async function deleteGroupPostsByAuthor(db, uid, displayName) {
   let deleted = 0;
-  // Delete authored group posts and their associated groupComments/groupReplies
   for (const field of AUTHOR_FIELDS) {
     const qs = await db
       .collection(GROUP_TOP_POSTS)
@@ -131,7 +126,6 @@ async function deleteGroupPostsByAuthor(db, uid, displayName) {
       deleted++;
     }
   }
-  // Fallback: if none matched by uid, try by author displayName
   if (deleted === 0 && displayName) {
     const byName = await db
       .collection(GROUP_TOP_POSTS)
@@ -158,7 +152,6 @@ async function cascadeDeleteUserData(uid) {
   const db = admin.firestore();
   const bucket = admin.storage().bucket();
   const FieldValue = admin.firestore.FieldValue;
-
   const counts = {
     deletedPosts: 0,
     deletedGroupPosts: 0,
@@ -174,10 +167,8 @@ async function cascadeDeleteUserData(uid) {
     deletedStoragePrefixes: 0,
   };
 
-  // Resolve displayName for fallback matching
   const displayName = await getUserDisplayName(db, uid);
 
-  // 1) Delete authored group comments and replies (top-level collections)
   try {
     counts.removedComments += await deleteGroupCommentsByAuthor(
       db,
@@ -197,7 +188,6 @@ async function cascadeDeleteUserData(uid) {
     console.error("deleteGroupRepliesByAuthor", e);
   }
 
-  // 2) Remove likes and inline arrays from top-level posts
   try {
     const liked = await db
       .collection("posts")
@@ -255,7 +245,6 @@ async function cascadeDeleteUserData(uid) {
     console.error("inline arrays filter (top-level)", e);
   }
 
-  // 3) Group posts: remove likes/inline arrays
   try {
     const gpAll = await db.collection(GROUP_TOP_POSTS).get();
     for (const d of gpAll.docs) {
@@ -301,7 +290,6 @@ async function cascadeDeleteUserData(uid) {
     console.error("inline arrays filter (groupPosts)", e);
   }
 
-  // 4) Delete authored top-level posts and group posts (and their related group comments)
   try {
     counts.deletedPosts += await deleteTopLevelPostsByAuthor(db, uid);
   } catch (e) {
@@ -317,7 +305,6 @@ async function cascadeDeleteUserData(uid) {
     console.error("deleteGroupPostsByAuthor", e);
   }
 
-  // 5) Remove group memberships
   try {
     const groups = await db.collection("groups").get();
     for (const g of groups.docs) {
@@ -329,7 +316,7 @@ async function cascadeDeleteUserData(uid) {
         .catch(() => {});
       counts.removedGroupMemberships++;
       await groupRef
-        .update({ members: FieldValue.arrayRemove(uid) })
+        .update({ members: admin.firestore.FieldValue.arrayRemove(uid) })
         .catch(() => {});
       counts.removedGroupArrayEntries++;
     }
@@ -337,7 +324,6 @@ async function cascadeDeleteUserData(uid) {
     console.error("group membership removal", e);
   }
 
-  // 6) Delete user profile doc
   try {
     await db.collection("users").doc(uid).delete();
     counts.deletedProfile = 1;
@@ -345,7 +331,6 @@ async function cascadeDeleteUserData(uid) {
     console.error("delete profile", e);
   }
 
-  // 7) Storage cleanup
   try {
     const prefixes = [
       `avatars/${uid}`,
@@ -387,14 +372,16 @@ exports.adminDeleteUser = functions
 
       const db = admin.firestore();
       let isAdmin = context.auth.token && context.auth.token.admin === true;
-      if (!isAdmin) {
+      const isSelf = requesterUid === uid;
+      if (!isAdmin && !isSelf) {
         const snap = await db.collection("users").doc(requesterUid).get();
-        isAdmin = snap.exists && !!(snap.data() && snap.data().isAdmin);
+        const byRole = snap.exists && !!(snap.data() && snap.data().isAdmin);
+        isAdmin = byRole;
       }
-      if (!isAdmin)
+      if (!isAdmin && !isSelf)
         throw new functions.https.HttpsError(
           "permission-denied",
-          "Admin only."
+          "Not allowed"
         );
 
       const counts = await cascadeDeleteUserData(uid);
@@ -424,7 +411,6 @@ exports.adminDeleteUser = functions
     }
   });
 
-// Optional background trigger
 exports.onUserDeleted = functions
   .region("europe-west2")
   .auth.user()
