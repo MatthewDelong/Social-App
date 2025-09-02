@@ -266,7 +266,7 @@ export default function GroupReplies({
               <img
                 src={reply.authorPhotoURL || DEFAULT_AVATAR}
                 alt={reply.author}
-                className="w-7 h-7 border-2 border-white rounded-full object-cover flex-shrink-0 sm:w-6 sm:h-6"
+                className="w-7 h-7 border-2 border-white bg-gray-100 rounded-full object-cover flex-shrink-0 sm:w-6 sm:h-6"
               />
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-1">

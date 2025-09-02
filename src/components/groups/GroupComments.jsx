@@ -582,7 +582,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                       const rLikeCount = replyLikeCounts[r.id] || 0;
 
                       return (
-                        <div key={r.id} className="space-y-1">
+                        <div key={r.id} className="space-y-1 bg-gray-100 ">
                           <div className="flex items-start gap-2">
                             <img
                               src={r.authorPhotoURL || "/api/placeholder/24/24"}

@@ -113,9 +113,21 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if true;
 
-      // Allow only the 'comments' and 'likes' fields to be modified (supports embedded likes in arrays)
-      allow update: if isSignedIn()
-        && resource.data.diff(request.resource.data).changedKeys().hasOnly(['comments', 'likes']);
+      // Allow creating standalone posts from Home.jsx
+      allow create: if isSignedIn();
+
+      // Allow author edits OR limited embedded comments/likes updates by any signed-in user
+      allow update: if isSignedIn() && (
+        // Author can edit entire post
+        request.auth.uid == resource.data.uid
+        // Anyone can update only embedded comments/likes fields (for Home.jsx likes)
+        || resource.data.diff(request.resource.data).changedKeys().hasOnly(['comments', 'likes'])
+      );
+
+      // Author (or site admin) can delete post
+      allow delete: if isSignedIn() && (
+        request.auth.uid == resource.data.uid || isSiteAdmin()
+      );
     }
 
     // Top-level posts
