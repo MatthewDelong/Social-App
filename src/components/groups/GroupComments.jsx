@@ -397,7 +397,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
       <img
         src={avatar || "/api/placeholder/32/32"}
         alt={name}
-        className="w-8 h-8 rounded-full object-cover"
+        className="w-8 h-8 border-2 border-white rounded-full object-cover"
       />
       <div>
         <div className="text-sm font-medium">
@@ -587,7 +587,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                             <img
                               src={r.authorPhotoURL || "/api/placeholder/24/24"}
                               alt={r.author}
-                              className="w-6 h-6 rounded-full object-cover mt-0.5"
+                              className="w-6 h-6 border-2 border-white rounded-full object-cover mt-0.5"
                             />
                             <div className="flex-1">
                               <div className="text-xs">

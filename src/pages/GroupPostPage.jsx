@@ -183,7 +183,7 @@ export default function GroupPostPage() {
         <div className="relative">
           {/* Banner */}
           <div 
-            className="w-full h-40 sm:h-56 md:h-64 overflow-hidden cursor-pointer relative group"
+            className="w-full border-4 border-white  h-40 sm:h-56 md:h-64 overflow-hidden cursor-pointer relative group"
             onClick={() => isAdminOrMod && handleImageUpload("bannerURL")}
           >
             <img
