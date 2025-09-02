@@ -35,7 +35,7 @@
 - firebase deploy
 
 # Firebase Functions
-- istall NVM for Windows https://github.com/coreybutler/nvm-windows
+- install NVM for Windows https://github.com/coreybutler/nvm-windows
 - nvm install 20.18.0
 - nvm use 20.18.0
 - firebase deploy --only "functions:adminDeleteUser"
