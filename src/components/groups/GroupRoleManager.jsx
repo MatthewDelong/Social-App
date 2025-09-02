@@ -1,13 +1,14 @@
+// src/components/groups/GroupRoleManager.jsx
 import { useState, useEffect } from "react";
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  deleteDoc, 
+import {
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
   updateDoc,
   query,
   where,
-  getDocs 
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { X, UserPlus, Trash2 } from "lucide-react";
@@ -20,11 +21,11 @@ const ROLE_OPTIONS = [
   { value: "admin", label: "Admin" },
 ];
 
-export default function GroupRoleManager({ 
-  groupId, 
-  currentUser, 
-  isOpen, 
-  onClose 
+export default function GroupRoleManager({
+  groupId,
+  currentUser, // { uid, ... optionally { isAdmin: true } }
+  isOpen,
+  onClose,
 }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -32,33 +33,27 @@ export default function GroupRoleManager({
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [selectedRole, setSelectedRole] = useState("member");
 
+  // If your currentUser includes an isAdmin boolean from users/{uid}, pass it to avoid an extra read.
   const {
     canAssignAdmins,
     canAssignModerators,
     canRemoveMember,
     canAssignRole,
     getUserRole,
-    members: memberData
-  } = useGroupPermissions(groupId, currentUser?.uid);
+    members: memberData,
+    isSiteAdmin,
+  } = useGroupPermissions(groupId, currentUser?.uid, currentUser?.isAdmin === true);
 
-  // Load members when component opens
+  // Load members when component opens or member data changes
   useEffect(() => {
-    if (isOpen && groupId) {
-      loadMembers();
+    if (isOpen && groupId && memberData) {
+      const memberArray = Object.values(memberData).sort((a, b) => {
+        const roleOrder = { creator: 4, admin: 3, moderator: 2, member: 1 };
+        return (roleOrder[b.role] || 1) - (roleOrder[a.role] || 1);
+      });
+      setMembers(memberArray);
     }
   }, [isOpen, groupId, memberData]);
-
-  const loadMembers = () => {
-    if (!memberData) return;
-    
-    // Convert members object to array and sort by role hierarchy
-    const memberArray = Object.values(memberData).sort((a, b) => {
-      const roleOrder = { creator: 4, admin: 3, moderator: 2, member: 1 };
-      return (roleOrder[b.role] || 1) - (roleOrder[a.role] || 1);
-    });
-    
-    setMembers(memberArray);
-  };
 
   const handleAddMember = async (e) => {
     e.preventDefault();
@@ -91,7 +86,7 @@ export default function GroupRoleManager({
 
       // Add to group members
       await setDoc(doc(db, "groups", groupId, "members", userId), {
-        role: selectedRole,
+        role: selectedRole, // rules enforce who can assign which roles
         displayName: userData.displayName || userData.email,
         photoURL: userData.photoURL || "",
         joinedAt: new Date(),
@@ -154,44 +149,45 @@ export default function GroupRoleManager({
   };
 
   const getAvailableRoles = (memberId) => {
-    const currentRole = getUserRole ? getUserRole(memberId) : null;
-    
-    return ROLE_OPTIONS.filter(option => {
-      // Creator can assign any role except creator
-      if (canAssignAdmins) return option.value !== "creator";
-      
-      // Admins can only assign moderator and member roles
-      if (canAssignModerators) return ["moderator", "member"].includes(option.value);
-      
-      return false;
-    });
+    if (isSiteAdmin || canAssignAdmins) {
+      // Site Admins and creators: any role except creator
+      return ROLE_OPTIONS.filter((r) => r.value !== "creator");
+    }
+    if (canAssignModerators) {
+      // Admins: moderator or member only
+      return ROLE_OPTIONS.filter((r) =>
+        ["moderator", "member"].includes(r.value)
+      );
+    }
+    return [];
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-semibold">Manage Group Roles</h2>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
             <X size={20} />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {/* Error message */}
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded">
               {error}
             </div>
           )}
 
-          {/* Add new member */}
-          {(canAssignAdmins || canAssignModerators) && (
+          {(canAssignAdmins || canAssignModerators || isSiteAdmin) && (
             <div className="border rounded-lg p-4">
               <h3 className="font-medium mb-3 flex items-center gap-2">
                 <UserPlus size={18} />
@@ -214,7 +210,7 @@ export default function GroupRoleManager({
                     onChange={(e) => setSelectedRole(e.target.value)}
                     className="px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    {getAvailableRoles("").map(role => (
+                    {getAvailableRoles("").map((role) => (
                       <option key={role.value} value={role.value}>
                         {role.label}
                       </option>
@@ -232,12 +228,16 @@ export default function GroupRoleManager({
             </div>
           )}
 
-          {/* Member list */}
           <div className="border rounded-lg">
-            <h3 className="font-medium p-3 border-b">Current Members ({members.length})</h3>
+            <h3 className="font-medium p-3 border-b">
+              Current Members ({members.length})
+            </h3>
             <div className="max-h-80 overflow-y-auto">
               {members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 border-b last:border-b-0">
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-3 border-b last:border-b-0"
+                >
                   <div className="flex items-center gap-3">
                     <img
                       src={member.photoURL || "/api/placeholder/32/32"}
@@ -249,30 +249,33 @@ export default function GroupRoleManager({
                       <div className="flex items-center gap-2">
                         <RoleBadge role={member.role} size="xs" />
                         {member.role === "creator" && (
-                          <span className="text-xs text-gray-500">(Cannot be changed)</span>
+                          <span className="text-xs text-gray-500">
+                            (Cannot be changed)
+                          </span>
                         )}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Role selector */}
-                    {member.role !== "creator" && canAssignRole(member.id, "member") && (
-                      <select
-                        value={member.role}
-                        onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                        disabled={loading}
-                        className="text-sm px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        {getAvailableRoles(member.id).map(role => (
-                          <option key={role.value} value={role.value}>
-                            {role.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    {member.role !== "creator" &&
+                      canAssignRole(member.id, "member") && (
+                        <select
+                          value={member.role}
+                          onChange={(e) =>
+                            handleRoleChange(member.id, e.target.value)
+                          }
+                          disabled={loading}
+                          className="text-sm px-2 py-1 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          {getAvailableRoles(member.id).map((role) => (
+                            <option key={role.value} value={role.value}>
+                              {role.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
 
-                    {/* Remove button */}
                     {member.role !== "creator" && canRemoveMember(member.id) && (
                       <button
                         onClick={() => handleRemoveMember(member.id)}
@@ -289,12 +292,21 @@ export default function GroupRoleManager({
             </div>
           </div>
 
-          {/* Role descriptions */}
           <div className="text-sm text-gray-600 space-y-1">
-            <div><strong>Creator:</strong> Full control over the group (cannot be changed)</div>
-            <div><strong>Admin:</strong> Can assign moderators and manage group settings</div>
-            <div><strong>Moderator:</strong> Can moderate content and comments</div>
-            <div><strong>Member:</strong> Can participate in discussions</div>
+            <div>
+              <strong>Creator:</strong> Full control over the group (cannot be
+              changed)
+            </div>
+            <div>
+              <strong>Admin:</strong> Can assign moderators and manage group
+              settings
+            </div>
+            <div>
+              <strong>Moderator:</strong> Can moderate content and comments
+            </div>
+            <div>
+              <strong>Member:</strong> Can participate in discussions
+            </div>
           </div>
         </div>
 

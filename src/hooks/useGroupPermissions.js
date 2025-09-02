@@ -1,5 +1,10 @@
+// src/hooks/useGroupPermissions.jsx
 import { useEffect, useState, useMemo } from "react";
-import { doc, onSnapshot, collection, query, where } from "firebase/firestore";
+import {
+  doc,
+  onSnapshot,
+  collection,
+} from "firebase/firestore";
 import { db } from "../firebase";
 
 // Role hierarchy levels for easy comparison
@@ -10,11 +15,35 @@ const ROLE_LEVELS = {
   creator: 4,
 };
 
-export function useGroupPermissions(groupId, userId) {
+export function useGroupPermissions(groupId, userId, injectedIsSiteAdmin = undefined) {
   const [groupData, setGroupData] = useState(null);
   const [members, setMembers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Site Admin flag (from users/{uid}.isAdmin) unless explicitly injected
+  const [siteAdminFromDoc, setSiteAdminFromDoc] = useState(false);
+  const isSiteAdmin = injectedIsSiteAdmin ?? siteAdminFromDoc;
+
+  // Listen to current user profile to get isAdmin (site-wide admin)
+  useEffect(() => {
+    if (!userId || injectedIsSiteAdmin !== undefined) return; // skip if injected is provided
+
+    const userRef = doc(db, "users", userId);
+    const unsub = onSnapshot(
+      userRef,
+      (snap) => {
+        if (snap.exists()) {
+          setSiteAdminFromDoc(Boolean(snap.data()?.isAdmin));
+        } else {
+          setSiteAdminFromDoc(false);
+        }
+      },
+      () => setSiteAdminFromDoc(false)
+    );
+
+    return () => unsub();
+  }, [userId, injectedIsSiteAdmin]);
 
   // Listen to group data
   useEffect(() => {
@@ -26,9 +55,9 @@ export function useGroupPermissions(groupId, userId) {
     const groupRef = doc(db, "groups", groupId);
     const unsubscribe = onSnapshot(
       groupRef,
-      (doc) => {
-        if (doc.exists()) {
-          setGroupData({ id: doc.id, ...doc.data() });
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setGroupData({ id: docSnap.id, ...docSnap.data() });
         } else {
           setError("Group not found");
         }
@@ -53,8 +82,8 @@ export function useGroupPermissions(groupId, userId) {
       membersRef,
       (snapshot) => {
         const membersData = {};
-        snapshot.docs.forEach((doc) => {
-          membersData[doc.id] = { id: doc.id, ...doc.data() };
+        snapshot.docs.forEach((d) => {
+          membersData[d.id] = { id: d.id, ...d.data() };
         });
         setMembers(membersData);
       },
@@ -67,26 +96,24 @@ export function useGroupPermissions(groupId, userId) {
     return () => unsubscribe();
   }, [groupId]);
 
-  // Get current user's role in the group
+  // Current user's in-group role (null if not a member)
   const getCurrentUserRole = useMemo(() => {
     if (!userId || !members[userId]) return null;
     return members[userId].role || "member";
   }, [userId, members]);
 
-  // Get effective role (considers site-wide permissions)
+  // Effective role: if site admin, treat as top-level override
   const getEffectiveRole = useMemo(() => {
-    // This would need to be passed from your auth context
-    // For now, assuming site-wide admin/moderator status is available
-    // You should pass these as additional parameters to the hook
+    if (isSiteAdmin) return "site_admin";
     return getCurrentUserRole;
-  }, [getCurrentUserRole]);
+  }, [isSiteAdmin, getCurrentUserRole]);
 
-  // Check if user is a member
+  // Is member: site admin should be treated as member for UI availability
   const isMember = useMemo(() => {
-    return Boolean(userId && members[userId]);
-  }, [userId, members]);
+    return Boolean(userId && members[userId]) || Boolean(isSiteAdmin);
+  }, [userId, members, isSiteAdmin]);
 
-  // Get any user's role
+  // Get a specific user's role in the group
   const getUserRole = useMemo(
     () => (targetUserId) => {
       if (!targetUserId || !members[targetUserId]) return null;
@@ -95,85 +122,90 @@ export function useGroupPermissions(groupId, userId) {
     [members]
   );
 
-  // Permission functions
+  // Permission helpers with Site Admin override (short-circuit)
   const canEditContent = useMemo(
     () => (authorId) => {
+      if (isSiteAdmin) return true;
       if (!userId || !isMember) return false;
-      // Own content
       if (authorId === userId) return true;
-      // Moderators and above can edit any content
       const userRole = getCurrentUserRole;
       return userRole && ROLE_LEVELS[userRole] >= ROLE_LEVELS.moderator;
     },
-    [userId, isMember, getCurrentUserRole]
+    [isSiteAdmin, userId, isMember, getCurrentUserRole]
   );
 
   const canDeleteContent = useMemo(
     () => (authorId) => {
+      if (isSiteAdmin) return true;
       if (!userId || !isMember) return false;
-      // Own content
       if (authorId === userId) return true;
-      // Moderators and above can delete any content
       const userRole = getCurrentUserRole;
       return userRole && ROLE_LEVELS[userRole] >= ROLE_LEVELS.moderator;
     },
-    [userId, isMember, getCurrentUserRole]
+    [isSiteAdmin, userId, isMember, getCurrentUserRole]
   );
 
   const canManageGroup = useMemo(() => {
+    if (isSiteAdmin) return true;
     const userRole = getCurrentUserRole;
     return userRole && ROLE_LEVELS[userRole] >= ROLE_LEVELS.admin;
-  }, [getCurrentUserRole]);
+  }, [isSiteAdmin, getCurrentUserRole]);
 
   const canAssignAdmins = useMemo(() => {
+    if (isSiteAdmin) return true;
     return getCurrentUserRole === "creator";
-  }, [getCurrentUserRole]);
+  }, [isSiteAdmin, getCurrentUserRole]);
 
   const canAssignModerators = useMemo(() => {
+    if (isSiteAdmin) return true;
     const userRole = getCurrentUserRole;
     return userRole && ROLE_LEVELS[userRole] >= ROLE_LEVELS.admin;
-  }, [getCurrentUserRole]);
+  }, [isSiteAdmin, getCurrentUserRole]);
 
   const canRemoveMember = useMemo(
     () => (targetUserId) => {
-      if (!userId || !isMember) return false;
-      if (targetUserId === userId) return true; // Can always leave
-      
-      const userRole = getCurrentUserRole;
       const targetRole = getUserRole(targetUserId);
-      
+      if (isSiteAdmin) return targetRole !== "creator";
+      if (!userId || !isMember) return false;
+      if (targetUserId === userId) return true; // self-leave
+      const userRole = getCurrentUserRole;
       if (!userRole || !targetRole) return false;
-      
-      // Can only remove members with lower roles
-      return ROLE_LEVELS[userRole] > ROLE_LEVELS[targetRole];
+      return ROLE_LEVELS[userRole] > ROLE_LEVELS[targetRole]; // only lower roles
     },
-    [userId, isMember, getCurrentUserRole, getUserRole]
+    [isSiteAdmin, userId, isMember, getCurrentUserRole, getUserRole]
   );
 
   const canAssignRole = useMemo(
     () => (targetUserId, newRole) => {
-      if (!userId || !isMember) return false;
-      
-      const userRole = getCurrentUserRole;
       const targetRole = getUserRole(targetUserId);
-      
-      if (!userRole) return false;
-      
-      // Can't change creator role
+
+      // Never allow creating/demoting a "creator" from client
       if (targetRole === "creator" || newRole === "creator") return false;
-      
+
+      if (isSiteAdmin) {
+        // Site Admin can set any non-creator role
+        return true;
+      }
+
+      if (!userId || !isMember) return false;
+
+      const userRole = getCurrentUserRole;
+      if (!userRole) return false;
+
       // Only creator can assign admin roles
       if (newRole === "admin" && userRole !== "creator") return false;
-      
+
       // Admins and creators can assign moderator roles
-      if (newRole === "moderator" && ROLE_LEVELS[userRole] < ROLE_LEVELS.admin) return false;
-      
+      if (newRole === "moderator" && ROLE_LEVELS[userRole] < ROLE_LEVELS.admin)
+        return false;
+
       // Can only manage users with lower roles
-      if (targetRole && ROLE_LEVELS[userRole] <= ROLE_LEVELS[targetRole]) return false;
-      
+      if (targetRole && ROLE_LEVELS[userRole] <= ROLE_LEVELS[targetRole])
+        return false;
+
       return true;
     },
-    [userId, isMember, getCurrentUserRole, getUserRole]
+    [isSiteAdmin, userId, isMember, getCurrentUserRole, getUserRole]
   );
 
   return {
@@ -182,15 +214,16 @@ export function useGroupPermissions(groupId, userId) {
     members,
     loading,
     error,
-    
+
     // Current user status
     isMember,
+    isSiteAdmin,
     getCurrentUserRole,
     getEffectiveRole,
-    
+
     // User role functions
     getUserRole,
-    
+
     // Permission functions
     canEditContent,
     canDeleteContent,
