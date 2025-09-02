@@ -109,6 +109,15 @@ service cloud.firestore {
       }
     }
 
+    // Home.jsx embedded posts (array-based comments/likes)
+    match /posts/{postId} {
+      allow read: if true;
+
+      // Allow only the 'comments' and 'likes' fields to be modified (supports embedded likes in arrays)
+      allow update: if isSignedIn()
+        && resource.data.diff(request.resource.data).changedKeys().hasOnly(['comments', 'likes']);
+    }
+
     // Top-level posts
     match /groupPosts/{postId} {
       allow read: if true;
@@ -131,6 +140,25 @@ service cloud.firestore {
               && hasGroupRoleAtLeast(resource.data.groupId, 'moderator'))
           || request.auth.uid == resource.data.uid
         );
+
+      // Likes subcollection for posts (NEW)
+      match /likes/{uid} {
+        allow read: if true;
+        allow create: if isSignedIn()
+          && uid == request.auth.uid
+          && (
+            isSiteAdmin()
+            || (
+              exists(/databases/$(database)/documents/groupPosts/$(postId))
+              && hasGroupRoleAtLeast(
+                   get(/databases/$(database)/documents/groupPosts/$(postId)).data.groupId,
+                   'member'
+                 )
+            )
+          );
+        allow delete: if isSignedIn() && uid == request.auth.uid;
+        allow update: if false;
+      }
     }
 
     // Top-level comments
