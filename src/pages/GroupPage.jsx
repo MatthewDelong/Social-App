@@ -447,8 +447,8 @@ export default function GroupPage() {
           {members
             .sort((a, b) => {
               // Sort by role hierarchy: creator > admin > moderator > member
-              const roleOrder = { creator: 0, admin: 1, moderator: 2, member: 3 };
-              return (roleOrder[a.role] || 3) - (roleOrder[b.role] || 3);
+              const roleOrder = { creator: 1, admin: 2, moderator: 3, member: 4 };
+              return (roleOrder[a.role] || 4) - (roleOrder[b.role] || 4);
             })
             .map((m) => (
               <div

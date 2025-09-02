@@ -25,15 +25,21 @@ export default function GroupPostPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
 
-  // Group permissions
+  // Group permissions (viewer)
   const {
     canManageGroup,
     canEditContent,
     canDeleteContent,
-    getCurrentUserRole,
+    getCurrentUserRole: viewerRole,
     isMember,
     loading: permissionsLoading
   } = useGroupPermissions(groupId, user?.uid);
+
+  // Group permissions (author) - to show author's role to all viewers
+  const {
+    getCurrentUserRole: authorRole,
+    loading: authorPermissionsLoading
+  } = useGroupPermissions(groupId, post?.uid);
 
   // Keep backward compatibility for banner/logo editing
   const isAdminOrMod = user?.isAdmin || user?.isModerator || canManageGroup;
@@ -88,13 +94,12 @@ export default function GroupPostPage() {
     fetchData();
   }, [postId, groupId]);
 
-  if (loading || permissionsLoading) return <p className="p-4">Loading post...</p>;
+  if (loading || permissionsLoading || authorPermissionsLoading) return <p className="p-4">Loading post...</p>;
   if (!post) return <p className="p-4">Post not found</p>;
 
   // Determine permissions using group system
   const canEditThisPost = canEditContent(post.uid);
   const canDeleteThisPost = canDeleteContent(post.uid);
-  const currentUserRole = getCurrentUserRole;
 
   // Format post date
   const formatPostDate = (timestamp) => {
@@ -239,7 +244,7 @@ export default function GroupPostPage() {
                         strokeLinecap="round" 
                         strokeLinejoin="round" 
                         strokeWidth={2} 
-                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
+                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
                       />
                       <path 
                         strokeLinecap="round" 
@@ -278,9 +283,7 @@ export default function GroupPostPage() {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-xl font-bold break-words">{post.author}</h2>
-              {post.uid === user?.uid && (
-                <RoleBadge role={currentUserRole} size="xs" />
-              )}
+              {authorRole && <RoleBadge role={authorRole} size="xs" />}
             </div>
             {post.createdAt && (
               <p className="text-sm text-gray-500">

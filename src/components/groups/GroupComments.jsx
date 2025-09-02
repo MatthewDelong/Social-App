@@ -135,7 +135,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     return () => unsub();
   }, [groupId, postId]);
 
-  // “Liked by me” flags (non-blocking)
+  // “Liked by me” flags (non-blocking, initial)
   useEffect(() => {
     async function loadLikes() {
       if (!currentUser?.uid) return;
@@ -172,6 +172,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     );
     return () => unsubs.forEach((u) => u && u());
   }, [comments]);
+
   const allReplies = useMemo(() => Object.values(repliesByComment).flat(), [repliesByComment]);
   useEffect(() => {
     const unsubs = allReplies.map((r) =>
@@ -182,11 +183,11 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     return () => unsubs.forEach((u) => u && u());
   }, [allReplies]);
 
-  // Emoji open/close (Home.jsx style)
+  // Emoji modal controls (Home.jsx style)
   const openEmoji = (key) => setEmojiFor(key);
   const closeEmoji = () => setEmojiFor(null);
 
-  // Insert emoji like Home.jsx's addReplyEmoji/addCommentEmoji
+  // Insert emoji (matches Home.jsx behavior)
   const insertEmoji = (key, data) => {
     const ch = data?.emoji || data?.native || "";
     if (!ch) return;
@@ -208,7 +209,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     }
   };
 
-  // Comment create
+  // Create comment
   async function handleAddComment(e) {
     e.preventDefault();
     setError("");
@@ -236,7 +237,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     }
   }
 
-  // Reply create
+  // Create reply
   async function handleAddReply(commentId) {
     setError("");
     const text = (replyText[commentId] || "").trim();
@@ -265,7 +266,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     }
   }
 
-  // Reply to a reply (open parent comment reply box, prefill @mention)
+  // Reply to a reply (open parent’s reply box, prefill @mention)
   function replyToReply(reply) {
     const at = reply?.author ? `@${reply.author} ` : "";
     setReplyOpen((s) => ({ ...s, [reply.commentId]: true }));
@@ -403,7 +404,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
           <span className="inline-flex items-center gap-1 align-middle whitespace-nowrap">
             {name}
             {role && (
-              <span className="shrink-0">
+              <span className="shrink-0 inline-flex items-center leading-none align-middle">
                 <RoleBadge role={role} size="xs" />
               </span>
             )}
@@ -414,7 +415,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     </div>
   );
 
-  // Render
   return (
     <div className="space-y-4">
       {error && (
@@ -594,8 +594,8 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                                 <span className="inline-flex items-center gap-1 align-middle whitespace-nowrap">
                                   <span className="font-medium">{r.author}</span>
                                   {rRole && (
-                                    <span className="shrink-0">
-                                      <RoleBadge role={rRole} size="2xs" />
+                                    <span className="shrink-0 inline-flex items-center leading-none align-middle">
+                                      <RoleBadge role={rRole} size="xs" />
                                     </span>
                                   )}
                                 </span>
@@ -692,7 +692,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                     })
                   )}
 
-                  {/* Reply composer (Home.jsx emoji modal style) */}
+                  {/* Reply composer */}
                   {canPost && replyOpen[c.id] && (
                     <div className="mt-1">
                       <div className="relative">
