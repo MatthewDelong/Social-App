@@ -47,7 +47,6 @@ export default function Home() {
       }
       if (isNaN(date.getTime())) return "";
       let result = formatDistanceToNow(date, { addSuffix: true });
-      // Replace "minutes" with "mins" and remove "about"
       result = result.replace(/about /g, "").replace(/minutes/g, "mins");
       return result;
     } catch {
@@ -419,7 +418,7 @@ export default function Home() {
                     <div className="flex border items-start space-x-2">
                       <img
                         src={commentUser?.photoURL || DEFAULT_AVATAR}
-                        className="w-8 h-8 border-2 border-white rounded-full object-cover flex-shrink-0"
+                        className="w-8 h-8 border-2 border-white rounded-full object-cover flex-shrink-0 cursor-pointer" onClick={() => navigate(`/profile/${comment.uid}`)} alt="avatar"
                       />
                       <div className="flex-1 p-2 rounded ">
                         {editCommentMap[`${post.id}-${i}`] !== undefined ? (
@@ -444,7 +443,7 @@ export default function Home() {
                         ) : (
                           <>
                             <p className="font-semibold text-sm">
-                              <span>
+                              <span className="cursor-pointer" onClick={() => navigate(`/profile/${comment.uid}`)}>
                                 {commentUser?.displayName || comment.author}
                               </span>
                               {commentUser?.isAdmin && (
@@ -614,7 +613,7 @@ export default function Home() {
                               >
                                 <img
                                   src={replyUser?.photoURL || DEFAULT_AVATAR}
-                                  className="w-5 h-5 rounded-full"
+                                  className="w-5 h-5 rounded-full cursor-pointer" onClick={() => navigate(`/profile/${reply.uid}`)} alt="avatar"
                                 />
                                 <div className="flex-1">
                                   {editingReplyIndexMap[replyKey] ? (
@@ -641,7 +640,7 @@ export default function Home() {
                                   ) : (
                                     <>
                                       <p className="font-semibold text-sm">
-                                        <span>
+                                        <span className="cursor-pointer" onClick={() => navigate(`/profile/${reply.uid}`)}>
                                           {replyUser?.displayName ||
                                             reply.author}
                                         </span>
