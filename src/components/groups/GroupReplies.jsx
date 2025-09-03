@@ -56,18 +56,20 @@ export default function GroupReplies({
       try {
         const snap = await getDocs(collection(db, "users"));
         const map = {};
-        snap.forEach(d => { map[d.id] = d.data(); });
+        snap.forEach((d) => {
+          map[d.id] = d.data();
+        });
         setUsersMap(map);
       } catch {}
     })();
   }, []);
 
   const resolveHandleToUid = (handle) => {
-    const lower = (handle || '').toLowerCase();
+    const lower = (handle || "").toLowerCase();
     for (const [uid, u] of Object.entries(usersMap || {})) {
-      const dn = (u?.displayName || '').toLowerCase().trim();
-      const un = (u?.username || '').toLowerCase().trim();
-      const first = dn.split(' ')[0];
+      const dn = (u?.displayName || "").toLowerCase().trim();
+      const un = (u?.username || "").toLowerCase().trim();
+      const first = dn.split(" ")[0];
       if (un && un === lower) return uid;
       if (dn && dn === lower) return uid;
       if (first && first === lower) return uid;
@@ -85,7 +87,16 @@ export default function GroupReplies({
       const uid = resolveHandleToUid(handle);
       if (uid) {
         parts.push(
-          <span key={index} className="text-blue-600 hover:underline cursor-pointer" onClick={(e) => { e.stopPropagation?.(); navigate(`/profile/${uid}`); }}>{match}</span>
+          <span
+            key={index}
+            className="text-blue-600 hover:underline cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation?.();
+              navigate(`/profile/${uid}`);
+            }}
+          >
+            {match}
+          </span>
         );
       } else {
         parts.push(match);
@@ -121,7 +132,12 @@ export default function GroupReplies({
               likes: data.likes || [],
             };
           });
-          console.log("Replies fetched for parentReplyId", parentReplyId, ":", docs);
+          console.log(
+            "Replies fetched for parentReplyId",
+            parentReplyId,
+            ":",
+            docs
+          );
           setReplies(docs);
           setVisibleCount(INITIAL_VISIBLE);
         });
@@ -154,12 +170,12 @@ export default function GroupReplies({
       setError("Please log in to reply.");
       return;
     }
-    
+
     if (!isMember) {
       setError("Only group members can reply.");
       return;
     }
-    
+
     if (!text.trim()) {
       setError("Reply cannot be empty.");
       return;
@@ -191,7 +207,7 @@ export default function GroupReplies({
   const handleUpdateReply = async (e) => {
     e.preventDefault();
     if (!editContent.trim() || !editReplyId) return;
-    
+
     try {
       setError("");
       await updateDoc(doc(db, "groupReplies", editReplyId), {
@@ -208,7 +224,7 @@ export default function GroupReplies({
 
   const handleDeleteReply = async (replyId) => {
     if (!window.confirm("Delete this reply?")) return;
-    
+
     try {
       setError("");
       await deleteDoc(doc(db, "groupReplies", replyId));
@@ -223,7 +239,7 @@ export default function GroupReplies({
       setError("Please log in to like replies.");
       return;
     }
-    
+
     if (!isMember) {
       setError("Only group members can like replies.");
       return;
@@ -257,12 +273,12 @@ export default function GroupReplies({
       setError("Please log in to reply.");
       return;
     }
-    
+
     if (!isMember) {
       setError("Only group members can reply.");
       return;
     }
-    
+
     setError("");
     setActiveReplyBox(activeReplyBox === replyId ? null : replyId);
   };
@@ -320,9 +336,9 @@ export default function GroupReplies({
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-1">
                   <strong className="text-sm">{reply.author}</strong>
-                  <RoleBadge 
-                    role={getUserRole ? getUserRole(reply.uid) : null} 
-                    size="xs" 
+                  <RoleBadge
+                    role={getUserRole ? getUserRole(reply.uid) : null}
+                    size="xs"
                   />
                   {reply.createdAt && (
                     <span className="text-xs text-gray-500">
@@ -370,21 +386,23 @@ export default function GroupReplies({
                     </div>
                   </form>
                 ) : (
-                  <p className="mt-1 break-words sm:mt-0.5">{renderWithMentions(reply.content)}</p>
+                  <p className="mt-1 break-words sm:mt-0.5">
+                    {renderWithMentions(reply.content)}
+                  </p>
                 )}
 
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600 sm:mt-0.5 sm:gap-1 max-w-full">
                   <button
                     onClick={() => {
-const name = (reply.author || '').trim();
-if (activeReplyBox !== reply.id && name) {
-setReplyText((prev) => {
-const at = @${name} ;
-return prev.startsWith(at) ? prev : at + prev;
-});
-}
-handleReplyClick(reply.id);
-}}
+                      const first = (reply.author || "").split(" ")[0] || "";
+                      if (activeReplyBox !== reply.id && first) {
+                        setReplyText((prev) => {
+                          const at = `@${first}: `;
+                          return prev.startsWith(at) ? prev : at + prev;
+                        });
+                      }
+                      handleReplyClick(reply.id);
+                    }}
                     className="text-blue-600 hover:underline"
                     disabled={permissionsLoading}
                   >
