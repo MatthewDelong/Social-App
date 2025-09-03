@@ -346,7 +346,7 @@ export default function Home() {
             <div className="mt-3">
               <button
                 onClick={() => {
-                  const atName = postUser?.username || "";
+                  const atName = (postUser?.username || "").trim();
                   setCommentMap((prev) => {
                     const prefix = atName ? `@${atName} ` : "";
                     const prevText = prev[post.id] || "";
@@ -528,7 +528,7 @@ export default function Home() {
                           <button
                             onClick={() => {
                               const key = `reply-${post.id}-${i}`;
-                              const atName = commentUser?.username || "";
+                              const atName = (commentUser?.username || "").trim();
                               setShowReplyBoxMap((prev) => ({ ...prev, [key]: !prev[key] }));
                               if (!showReplyBoxMap[key]) {
                                 setCommentMap((prev) => {
@@ -730,7 +730,7 @@ export default function Home() {
                                     <button
                                       onClick={() => {
                                         const key = `reply-${post.id}-${i}-${ri}`;
-                                        const atName = replyUser?.username || "";
+                                        const atName = (replyUser?.username || "").trim();
                                         setShowReplyBoxMap((prev) => ({ ...prev, [key]: !prev[key] }));
                                         if (!showReplyBoxMap[key]) {
                                           setCommentMap((prev) => {
