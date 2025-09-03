@@ -244,6 +244,44 @@ export default function Home() {
     }));
     setShowReplyEmojiPicker((prev) => ({ ...prev, [key]: false }));
   };
+
+  const resolveHandleToUid = (handle) => {
+    const lower = (handle || '').toLowerCase();
+    for (const [uid, u] of Object.entries(usersMap || {})) {
+      const un = (u?.username || '').toLowerCase().trim();
+      if (un && un === lower) return uid;
+    }
+    return null;
+  };
+
+  const renderWithMentions = (text) => {
+    if (!text) return null;
+    const parts = [];
+    let last = 0;
+    const regex = /@([A-Za-z0-9_]+)/g;
+    text.replace(regex, (match, handle, index) => {
+      if (index > last) parts.push(text.slice(last, index));
+      const uid = resolveHandleToUid(handle);
+      if (uid) {
+        parts.push(
+          <span
+            key={index}
+            className="text-blue-600 hover:underline cursor-pointer"
+            onClick={(e) => { e.stopPropagation?.(); navigate(`/profile/${uid}`); }}
+          >
+            {match}
+          </span>
+        );
+      } else {
+        parts.push(match);
+      }
+      last = index + match.length;
+      return match;
+    });
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  };
+
   return (
     <div
       className="max-w-xl mx-auto mt-10"
@@ -300,7 +338,7 @@ export default function Home() {
                   </button>
                 </div>
               ) : (
-                <p className="text-gray-800">{post.content}</p>
+                <p className="text-gray-800">{renderWithMentions(post.content)}</p>
               )}
             </div>
 
@@ -482,7 +520,7 @@ export default function Home() {
                                 {safeFormatDate(comment.createdAt)}
                               </span>
                             </p>
-                            <p>{comment.text}</p>
+                            <p>{renderWithMentions(comment.text)}</p>
                           </>
                         )}
 
@@ -685,7 +723,7 @@ export default function Home() {
                                           {safeFormatDate(reply.createdAt)}
                                         </span>
                                       </p>
-                                      <p>{reply.text}</p>
+                                      <p>{renderWithMentions(reply.text)}</p>
                                     </>
                                   )}
                                   <div className="flex items-center space-x-3 mt-1">
