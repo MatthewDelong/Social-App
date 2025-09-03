@@ -47,7 +47,6 @@ export default function Home() {
       }
       if (isNaN(date.getTime())) return "";
       let result = formatDistanceToNow(date, { addSuffix: true });
-      // Replace "minutes" with "mins" and remove "about"
       result = result.replace(/about /g, "").replace(/minutes/g, "mins");
       return result;
     } catch {
@@ -248,8 +247,12 @@ export default function Home() {
   const resolveHandleToUid = (handle) => {
     const lower = (handle || '').toLowerCase();
     for (const [uid, u] of Object.entries(usersMap || {})) {
+      const dn = (u?.displayName || '').toLowerCase().trim();
       const un = (u?.username || '').toLowerCase().trim();
+      const first = dn.split(' ')[0];
       if (un && un === lower) return uid;
+      if (dn && dn === lower) return uid;
+      if (first && first === lower) return uid;
     }
     return null;
   };
@@ -346,7 +349,7 @@ export default function Home() {
             <div className="mt-3">
               <button
                 onClick={() => {
-                  const atName = (postUser?.username || "").trim();
+                  const atName = postUser?.displayName || post.author;
                   setCommentMap((prev) => {
                     const prefix = atName ? `@${atName} ` : "";
                     const prevText = prev[post.id] || "";
@@ -528,7 +531,7 @@ export default function Home() {
                           <button
                             onClick={() => {
                               const key = `reply-${post.id}-${i}`;
-                              const atName = (commentUser?.username || "").trim();
+                              const atName = commentUser?.displayName || comment.author;
                               setShowReplyBoxMap((prev) => ({ ...prev, [key]: !prev[key] }));
                               if (!showReplyBoxMap[key]) {
                                 setCommentMap((prev) => {
@@ -730,7 +733,7 @@ export default function Home() {
                                     <button
                                       onClick={() => {
                                         const key = `reply-${post.id}-${i}-${ri}`;
-                                        const atName = (replyUser?.username || "").trim();
+                                        const atName = replyUser?.displayName || reply.author;
                                         setShowReplyBoxMap((prev) => ({ ...prev, [key]: !prev[key] }));
                                         if (!showReplyBoxMap[key]) {
                                           setCommentMap((prev) => {
