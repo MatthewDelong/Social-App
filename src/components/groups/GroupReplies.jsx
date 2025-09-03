@@ -79,7 +79,7 @@ export default function GroupReplies({
     if (!text) return null;
     const parts = [];
     let last = 0;
-    const regex = /@([A-Za-z0-9_]+)/g;
+    const regex = /@([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)?)/g;
     text.replace(regex, (match, handle, index) => {
       if (index > last) parts.push(text.slice(last, index));
       const uid = resolveHandleToUid(handle);
