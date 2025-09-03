@@ -324,6 +324,30 @@ export default function GroupPostPage() {
           <p className="mb-4 whitespace-pre-wrap break-words">{post.content}</p>
         )}
 
+        {/* Post Reply */}
+        <div className="mb-4">
+          <button
+            onClick={() => {
+              const atName = post.author;
+              const el = document.querySelector('textarea[placeholder="Write a comment..."]');
+              if (el) {
+                const prefix = atName ? `@${atName} ` : '';
+                const current = el.value || '';
+                const next = prefix && !current.startsWith(prefix) ? prefix + current : current;
+                try {
+                  el.value = next;
+                  el.dispatchEvent(new Event('input', { bubbles: true }));
+                } catch {}
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.focus();
+              }
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded"
+          >
+            Reply
+          </button>
+        </div>
+
         {/* Edit/Delete buttons */}
         {(canEditThisPost || canDeleteThisPost) && !isEditing && (
           <div className="mb-4 flex flex-wrap gap-2">

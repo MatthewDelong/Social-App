@@ -47,6 +47,7 @@ export default function Home() {
       }
       if (isNaN(date.getTime())) return "";
       let result = formatDistanceToNow(date, { addSuffix: true });
+      // Replace "minutes" with "mins" and remove "about"
       result = result.replace(/about /g, "").replace(/minutes/g, "mins");
       return result;
     } catch {
@@ -303,6 +304,27 @@ export default function Home() {
               )}
             </div>
 
+            {/* Post Reply */}
+            <div className="mt-3">
+              <button
+                onClick={() => {
+                  const atName = postUser?.displayName || post.author;
+                  setCommentMap((prev) => {
+                    const prefix = atName ? `@${atName} ` : "";
+                    const prevText = prev[post.id] || "";
+                    return { ...prev, [post.id]: prefix && !prevText.startsWith(prefix) ? prefix + prevText : prevText };
+                  });
+                  setTimeout(() => {
+                    const el = document.querySelector('textarea[placeholder="Write a comment..."]');
+                    if (el) el.focus();
+                  }, 0);
+                }}
+                className="bg-blue-500 text-white px-3 py-1 text-sm rounded font-semibold hover:bg-blue-600"
+              >
+                Reply
+              </button>
+            </div>
+
             {/* Edit/Delete Buttons */}
             {(post.uid === user.uid ||
               user.isAdmin ||
@@ -466,13 +488,18 @@ export default function Home() {
 
                         <div className="flex items-center space-x-3 mt-1">
                           <button
-                            onClick={() =>
-                              setShowReplyBoxMap((prev) => ({
-                                ...prev,
-                                [`reply-${post.id}-${i}`]:
-                                  !prev[`reply-${post.id}-${i}`],
-                              }))
-                            }
+                            onClick={() => {
+                              const key = `reply-${post.id}-${i}`;
+                              const atName = commentUser?.displayName || comment.author;
+                              setShowReplyBoxMap((prev) => ({ ...prev, [key]: !prev[key] }));
+                              if (!showReplyBoxMap[key]) {
+                                setCommentMap((prev) => {
+                                  const prefix = atName ? `@${atName} ` : "";
+                                  const prevText = prev[key] || "";
+                                  return { ...prev, [key]: prefix && !prevText.startsWith(prefix) ? prefix + prevText : prevText };
+                                });
+                              }
+                            }}
                             className="text-xs text-gray-600 hover:underline"
                           >
                             Reply
@@ -613,7 +640,7 @@ export default function Home() {
                               >
                                 <img
                                   src={replyUser?.photoURL || DEFAULT_AVATAR}
-                                  className="w-6 h-6 border-2 border-black rounded-full cursor-pointer" onClick={() => navigate(`/profile/${reply.uid}`)} alt="avatar"
+                                  className="w-5 h-5 rounded-full cursor-pointer" onClick={() => navigate(`/profile/${reply.uid}`)} alt="avatar"
                                 />
                                 <div className="flex-1">
                                   {editingReplyIndexMap[replyKey] ? (
@@ -663,15 +690,18 @@ export default function Home() {
                                   )}
                                   <div className="flex items-center space-x-3 mt-1">
                                     <button
-                                      onClick={() =>
-                                        setShowReplyBoxMap((prev) => ({
-                                          ...prev,
-                                          [`reply-${post.id}-${i}-${ri}`]:
-                                            !prev[
-                                              `reply-${post.id}-${i}-${ri}`
-                                            ],
-                                        }))
-                                      }
+                                      onClick={() => {
+                                        const key = `reply-${post.id}-${i}-${ri}`;
+                                        const atName = replyUser?.displayName || reply.author;
+                                        setShowReplyBoxMap((prev) => ({ ...prev, [key]: !prev[key] }));
+                                        if (!showReplyBoxMap[key]) {
+                                          setCommentMap((prev) => {
+                                            const prefix = atName ? `@${atName} ` : "";
+                                            const prevText = prev[key] || "";
+                                            return { ...prev, [key]: prefix && !prevText.startsWith(prefix) ? prefix + prevText : prevText };
+                                          });
+                                        }
+                                      }}
                                       className="text-xs text-gray-600 hover:underline"
                                     >
                                       Reply
