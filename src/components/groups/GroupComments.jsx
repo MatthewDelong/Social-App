@@ -590,7 +590,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                             <img
                               src={r.authorPhotoURL || "/api/placeholder/24/24"}
                               alt={r.author}
-                              className="w-6 h-6 border-2 border-white rounded-full object-cover mt-0.5 cursor-pointer" onClick={() => navigate(`/profile/${r.uid}`)}
+                              className="w-6 h-6 border-2 border-black rounded-full object-cover mt-0.5 cursor-pointer" onClick={() => navigate(`/profile/${r.uid}`)}
                             />
                             <div className="flex-1">
                               <div className="text-xs">

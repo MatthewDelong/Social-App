@@ -613,7 +613,7 @@ export default function Home() {
                               >
                                 <img
                                   src={replyUser?.photoURL || DEFAULT_AVATAR}
-                                  className="w-5 h-5 rounded-full cursor-pointer" onClick={() => navigate(`/profile/${reply.uid}`)} alt="avatar"
+                                  className="w-6 h-6 border-2 border-black rounded-full cursor-pointer" onClick={() => navigate(`/profile/${reply.uid}`)} alt="avatar"
                                 />
                                 <div className="flex-1">
                                   {editingReplyIndexMap[replyKey] ? (

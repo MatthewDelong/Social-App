@@ -1,4 +1,3 @@
-// src/components/groups/GroupReplies.jsx
 import { useEffect, useState, Fragment, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -20,7 +19,6 @@ import EmojiPicker from "emoji-picker-react";
 import { ThumbsUp, X } from "lucide-react";
 import { useGroupPermissions } from "../../hooks/useGroupPermissions";
 import RoleBadge from "./RoleBadge";
-import { useNavigate } from "react-router-dom";
 
 export default function GroupReplies({
   commentId,
@@ -30,7 +28,6 @@ export default function GroupReplies({
   DEFAULT_AVATAR,
   depth = 0,
 }) {
-  const navigate = useNavigate();
   const [replies, setReplies] = useState([]);
   const [editReplyId, setEditReplyId] = useState(null);
   const [editContent, setEditContent] = useState("");
@@ -269,11 +266,11 @@ export default function GroupReplies({
               <img
                 src={reply.authorPhotoURL || DEFAULT_AVATAR}
                 alt={reply.author}
-                className="w-7 h-7 border-2 border-white bg-gray-100 rounded-full object-cover flex-shrink-0 sm:w-6 sm:h-6 cursor-pointer" onClick={() => navigate(`/profile/${reply.uid}`)}
+                className="w-7 h-7 border-2 border-white bg-gray-100 rounded-full object-cover flex-shrink-0 sm:w-6 sm:h-6"
               />
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 sm:gap-1">
-                  <strong className="text-sm cursor-pointer" onClick={() => navigate(`/profile/${reply.uid}`)}>{reply.author}</strong>
+                  <strong className="text-sm">{reply.author}</strong>
                   <RoleBadge 
                     role={getUserRole ? getUserRole(reply.uid) : null} 
                     size="xs" 
