@@ -375,7 +375,16 @@ export default function GroupReplies({
 
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600 sm:mt-0.5 sm:gap-1 max-w-full">
                   <button
-                    onClick={() => { const first = (reply.author || '').split(' ')[0] || ''; if (activeReplyBox !== reply.id && first) { setReplyText((prev) => { const at = `@${first}: `; return prev.startsWith(at) ? prev : at + prev; }); } handleReplyClick(reply.id); }}
+                    onClick={() => {
+const name = (reply.author || '').trim();
+if (activeReplyBox !== reply.id && name) {
+setReplyText((prev) => {
+const at = @${name} ;
+return prev.startsWith(at) ? prev : at + prev;
+});
+}
+handleReplyClick(reply.id);
+}}
                     className="text-blue-600 hover:underline"
                     disabled={permissionsLoading}
                   >
