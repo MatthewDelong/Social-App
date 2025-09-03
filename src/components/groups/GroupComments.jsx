@@ -20,8 +20,10 @@ import { ThumbsUp, X } from "lucide-react";
 import { db } from "../../firebase";
 import { useGroupPermissions } from "../../hooks/useGroupPermissions";
 import RoleBadge from "./RoleBadge";
+import { useNavigate } from "react-router-dom";
 
 export default function GroupComments({ groupId, postId, currentUser }) {
+  const navigate = useNavigate();
   // Data
   const [comments, setComments] = useState([]);
   const [repliesByComment, setRepliesByComment] = useState({});
@@ -392,17 +394,17 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     }
   }
 
-  const Author = ({ avatar, name, role, createdAt }) => (
+  const Author = ({ avatar, name, role, createdAt, uid }) => (
     <div className="flex items-center gap-2">
       <img
         src={avatar || "/api/placeholder/32/32"}
         alt={name}
-        className="w-8 h-8 border-2 border-white rounded-full object-cover"
+        className="w-8 h-8 border-2 border-white rounded-full object-cover cursor-pointer" onClick={() => navigate(`/profile/${uid}`)}
       />
       <div>
         <div className="text-sm font-medium">
           <span className="inline-flex items-center gap-1 align-middle whitespace-nowrap">
-            {name}
+            <span className="cursor-pointer" onClick={() => navigate(`/profile/${uid}`)}>{name}</span>
             {role && (
               <span className="shrink-0 inline-flex items-center leading-none align-middle">
                 <RoleBadge role={role} size="xs" />
@@ -479,6 +481,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                     name={c.author}
                     role={role}
                     createdAt={c.createdAt}
+                    uid={c.uid}
                   />
                 </div>
 
@@ -587,12 +590,12 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                             <img
                               src={r.authorPhotoURL || "/api/placeholder/24/24"}
                               alt={r.author}
-                              className="w-6 h-6 border-2 border-white rounded-full object-cover mt-0.5"
+                              className="w-6 h-6 border-2 border-white rounded-full object-cover mt-0.5 cursor-pointer" onClick={() => navigate(`/profile/${r.uid}`)}
                             />
                             <div className="flex-1">
                               <div className="text-xs">
                                 <span className="inline-flex items-center gap-1 align-middle whitespace-nowrap">
-                                  <span className="font-medium">{r.author}</span>
+                                  <span className="font-medium cursor-pointer" onClick={() => navigate(`/profile/${r.uid}`)}>{r.author}</span>
                                   {rRole && (
                                     <span className="shrink-0 inline-flex items-center leading-none align-middle">
                                       <RoleBadge role={rRole} size="xs" />

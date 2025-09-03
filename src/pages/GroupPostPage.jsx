@@ -278,11 +278,11 @@ export default function GroupPostPage() {
           <img
             src={post.authorPhotoURL || DEFAULT_AVATAR}
             alt={post.author}
-            className="w-10 h-10 border-2 border-white rounded-full object-cover flex-shrink-0"
+            className="w-10 h-10 border-2 border-white rounded-full object-cover flex-shrink-0 cursor-pointer" onClick={() => navigate(`/profile/${post.uid}`)}
           />
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xl font-bold break-words">{post.author}</h2>
+              <h2 className="text-xl font-bold break-words cursor-pointer" onClick={() => navigate(`/profile/${post.uid}`)}>{post.author}</h2>
               {authorRole && <RoleBadge role={authorRole} size="xs" />}
             </div>
             {post.createdAt && (
