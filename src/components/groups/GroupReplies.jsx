@@ -394,10 +394,9 @@ export default function GroupReplies({
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600 sm:mt-0.5 sm:gap-1 max-w-full">
                   <button
                     onClick={() => {
-                      const first = (reply.author || "").split(" ")[0] || "";
-                      if (activeReplyBox !== reply.id && first) {
+                      if (activeReplyBox !== reply.id && reply.author) {
                         setReplyText((prev) => {
-                          const at = `@${first}: `;
+                          const at = `@${reply.author}: `;
                           return prev.startsWith(at) ? prev : at + prev;
                         });
                       }
