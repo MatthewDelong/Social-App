@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import GroupComments from "../components/groups/GroupComments";
 import { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { formatDistanceToNow } from "date-fns";
@@ -17,6 +17,7 @@ export default function GroupPostPage() {
 
   const [post, setPost] = useState(null);
   const [group, setGroup] = useState(null);
+  const [usersMap, setUsersMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [DEFAULT_AVATAR, setDEFAULT_AVATAR] = useState("");
   const [DEFAULT_BANNER, setDEFAULT_BANNER] = useState("");
@@ -43,6 +44,18 @@ export default function GroupPostPage() {
 
   // Keep backward compatibility for banner/logo editing
   const isAdminOrMod = user?.isAdmin || user?.isModerator || canManageGroup;
+
+  // Load users for mentions
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, "users"));
+        const map = {};
+        snap.forEach(d => { map[d.id] = d.data(); });
+        setUsersMap(map);
+      } catch {}
+    })();
+  }, []);
 
   // Load default images from storage
   useEffect(() => {
@@ -100,6 +113,41 @@ export default function GroupPostPage() {
   // Determine permissions using group system
   const canEditThisPost = canEditContent(post.uid);
   const canDeleteThisPost = canDeleteContent(post.uid);
+
+  const resolveHandleToUid = (handle) => {
+    const lower = (handle || '').toLowerCase();
+    for (const [uid, u] of Object.entries(usersMap || {})) {
+      const dn = (u?.displayName || '').toLowerCase().trim();
+      const un = (u?.username || '').toLowerCase().trim();
+      const first = dn.split(' ')[0];
+      if (un && un === lower) return uid;
+      if (dn && dn === lower) return uid;
+      if (first && first === lower) return uid;
+    }
+    return null;
+  };
+
+  const renderWithMentions = (text) => {
+    if (!text) return null;
+    const parts = [];
+    let last = 0;
+    const regex = /@([A-Za-z0-9_]+)/g;
+    text.replace(regex, (match, handle, index) => {
+      if (index > last) parts.push(text.slice(last, index));
+      const uid = resolveHandleToUid(handle);
+      if (uid) {
+        parts.push(
+          <span key={index} className="text-blue-600 hover:underline cursor-pointer" onClick={(e) => { e.stopPropagation?.(); navigate(`/profile/${uid}`); }}>{match}</span>
+        );
+      } else {
+        parts.push(match);
+      }
+      last = index + match.length;
+      return match;
+    });
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  };
 
   // Format post date
   const formatPostDate = (timestamp) => {

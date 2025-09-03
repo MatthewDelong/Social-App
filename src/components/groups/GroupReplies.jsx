@@ -1,4 +1,5 @@
 import { useEffect, useState, Fragment, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
   collection,
@@ -15,6 +16,7 @@ import {
 import { db } from "../../firebase";
 import { formatDistanceToNow } from "date-fns";
 import { arrayUnion, arrayRemove } from "firebase/firestore";
+import { getDocs } from "firebase/firestore";
 import EmojiPicker from "emoji-picker-react";
 import { ThumbsUp, X } from "lucide-react";
 import { useGroupPermissions } from "../../hooks/useGroupPermissions";
@@ -31,6 +33,7 @@ export default function GroupReplies({
   const [replies, setReplies] = useState([]);
   const [editReplyId, setEditReplyId] = useState(null);
   const [editContent, setEditContent] = useState("");
+  const [usersMap, setUsersMap] = useState({});
   const [error, setError] = useState("");
   const INITIAL_VISIBLE = 3;
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
@@ -47,6 +50,52 @@ export default function GroupReplies({
     getUserRole,
     loading: permissionsLoading,
   } = useGroupPermissions(groupId, currentUser?.uid);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, "users"));
+        const map = {};
+        snap.forEach(d => { map[d.id] = d.data(); });
+        setUsersMap(map);
+      } catch {}
+    })();
+  }, []);
+
+  const resolveHandleToUid = (handle) => {
+    const lower = (handle || '').toLowerCase();
+    for (const [uid, u] of Object.entries(usersMap || {})) {
+      const dn = (u?.displayName || '').toLowerCase().trim();
+      const un = (u?.username || '').toLowerCase().trim();
+      const first = dn.split(' ')[0];
+      if (un && un === lower) return uid;
+      if (dn && dn === lower) return uid;
+      if (first && first === lower) return uid;
+    }
+    return null;
+  };
+
+  const renderWithMentions = (text) => {
+    if (!text) return null;
+    const parts = [];
+    let last = 0;
+    const regex = /@([A-Za-z0-9_]+)/g;
+    text.replace(regex, (match, handle, index) => {
+      if (index > last) parts.push(text.slice(last, index));
+      const uid = resolveHandleToUid(handle);
+      if (uid) {
+        parts.push(
+          <span key={index} className="text-blue-600 hover:underline cursor-pointer" onClick={(e) => { e.stopPropagation?.(); navigate(`/profile/${uid}`); }}>{match}</span>
+        );
+      } else {
+        parts.push(match);
+      }
+      last = index + match.length;
+      return match;
+    });
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  };
 
   // Optimized listener for replies
   useEffect(() => {
@@ -321,12 +370,12 @@ export default function GroupReplies({
                     </div>
                   </form>
                 ) : (
-                  <p className="mt-1 break-words sm:mt-0.5">{reply.content}</p>
+                  <p className="mt-1 break-words sm:mt-0.5">{renderWithMentions(reply.content)}</p>
                 )}
 
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600 sm:mt-0.5 sm:gap-1 max-w-full">
                   <button
-                    onClick={() => handleReplyClick(reply.id)}
+                    onClick={() => { const first = (reply.author || '').split(' ')[0] || ''; if (activeReplyBox !== reply.id && first) { setReplyText((prev) => { const at = `@${first} `; return prev.startsWith(at) ? prev : at + prev; }); } handleReplyClick(reply.id); }}
                     className="text-blue-600 hover:underline"
                     disabled={permissionsLoading}
                   >

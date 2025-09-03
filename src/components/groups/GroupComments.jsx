@@ -6,6 +6,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -67,6 +68,54 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     useGroupPermissions(groupId, currentUser?.uid, currentUser?.isAdmin === true);
   const canPost = useMemo(() => isSiteAdmin || isMember, [isSiteAdmin, isMember]);
   const roleOf = useCallback((uid) => (uid ? getUserRole?.(uid) : null), [getUserRole]);
+
+  // Users for mentions
+  const [usersMap, setUsersMap] = useState({});
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, "users"));
+        const map = {};
+        snap.forEach(d => { map[d.id] = d.data(); });
+        setUsersMap(map);
+      } catch {}
+    })();
+  }, []);
+
+  const resolveHandleToUid = (handle) => {
+    const lower = (handle || '').toLowerCase();
+    for (const [uid, u] of Object.entries(usersMap || {})) {
+      const dn = (u?.displayName || '').toLowerCase().trim();
+      const un = (u?.username || '').toLowerCase().trim();
+      const first = dn.split(' ')[0];
+      if (un && un === lower) return uid;
+      if (dn && dn === lower) return uid;
+      if (first && first === lower) return uid;
+    }
+    return null;
+  };
+
+  const renderWithMentions = (text) => {
+    if (!text) return null;
+    const parts = [];
+    let last = 0;
+    const regex = /@([A-Za-z0-9_]+)/g;
+    text.replace(regex, (match, handle, index) => {
+      if (index > last) parts.push(text.slice(last, index));
+      const uid = resolveHandleToUid(handle);
+      if (uid) {
+        parts.push(
+          <span key={index} className="text-blue-600 hover:underline cursor-pointer" onClick={(e) => { e.stopPropagation?.(); navigate(`/profile/${uid}`); }}>{match}</span>
+        );
+      } else {
+        parts.push(match);
+      }
+      last = index + match.length;
+      return match;
+    });
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  };
 
   // Helpers
   const toDate = (v) => (v?.toDate ? v.toDate() : v instanceof Date ? v : v ? new Date(v) : null);
@@ -270,10 +319,11 @@ export default function GroupComments({ groupId, postId, currentUser }) {
 
   // Reply to a reply (open parent’s reply box, prefill @mention)
   function replyToReply(reply) {
-    const at = reply?.author ? `@${reply.author} ` : "";
+    const first = (reply?.author || '').split(' ')[0] || '';
+    const at = first ? `@${first} ` : '';
     setReplyOpen((s) => ({ ...s, [reply.commentId]: true }));
     setReplyText((s) => {
-      const prev = s[reply.commentId] || "";
+      const prev = s[reply.commentId] || '';
       const next = prev.startsWith(at) ? prev : at + prev;
       return { ...s, [reply.commentId]: next };
     });
@@ -524,16 +574,24 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-sm">{c.content}</div>
+                  <div className="text-sm">{renderWithMentions(c.content)}</div>
                 )}
 
                 {/* Action row */}
                 <div className="flex items-center gap-4 text-xs">
                   <button
                     type="button"
-                    onClick={() =>
-                      setReplyOpen((s) => ({ ...s, [c.id]: !s[c.id] }))
-                    }
+                    onClick={() => {
+                      const first = (c.author || '').split(' ')[0] || '';
+                      if (!replyOpen[c.id] && first) {
+                        setReplyText((s) => {
+                          const prev = s[c.id] || '';
+                          const at = `@${first} `;
+                          return { ...s, [c.id]: prev.startsWith(at) ? prev : at + prev };
+                        });
+                      }
+                      setReplyOpen((s) => ({ ...s, [c.id]: !s[c.id] }));
+                    }}
                     className="text-blue-600 hover:underline"
                   >
                     Reply
@@ -643,7 +701,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                                   </div>
                                 </div>
                               ) : (
-                                <div className="text-sm mt-1">{r.content}</div>
+                                <div className="text-sm mt-1">{renderWithMentions(r.content)}</div>
                               )}
 
                               {/* Reply action row */}
