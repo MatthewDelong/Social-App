@@ -379,7 +379,7 @@ export default function GroupPostPage() {
               const atName = post.author;
               const el = document.querySelector('textarea[placeholder="Write a comment..."]');
               if (el) {
-                const prefix = atName ? `@${atName} ` : '';
+                const prefix = atName ? `@${atName}: ` : '';
                 const current = el.value || '';
                 const next = prefix && !current.startsWith(prefix) ? prefix + current : current;
                 try {

@@ -320,7 +320,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
   // Reply to a reply (open parent’s reply box, prefill @mention)
   function replyToReply(reply) {
     const first = (reply?.author || '').split(' ')[0] || '';
-    const at = first ? `@${first} ` : '';
+    const at = first ? `@${first}: ` : '';
     setReplyOpen((s) => ({ ...s, [reply.commentId]: true }));
     setReplyText((s) => {
       const prev = s[reply.commentId] || '';
@@ -586,7 +586,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                       if (!replyOpen[c.id] && first) {
                         setReplyText((s) => {
                           const prev = s[c.id] || '';
-                          const at = `@${first} `;
+                          const at = `@${first}: `;
                           return { ...s, [c.id]: prev.startsWith(at) ? prev : at + prev };
                         });
                       }

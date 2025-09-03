@@ -351,7 +351,7 @@ export default function Home() {
                 onClick={() => {
                   const atName = postUser?.displayName || post.author;
                   setCommentMap((prev) => {
-                    const prefix = atName ? `@${atName} ` : "";
+                    const prefix = atName ? `@${atName}: ` : "";
                     const prevText = prev[post.id] || "";
                     return { ...prev, [post.id]: prefix && !prevText.startsWith(prefix) ? prefix + prevText : prevText };
                   });
@@ -535,7 +535,7 @@ export default function Home() {
                               setShowReplyBoxMap((prev) => ({ ...prev, [key]: !prev[key] }));
                               if (!showReplyBoxMap[key]) {
                                 setCommentMap((prev) => {
-                                  const prefix = atName ? `@${atName} ` : "";
+                                  const prefix = atName ? `@${atName}: ` : "";
                                   const prevText = prev[key] || "";
                                   return { ...prev, [key]: prefix && !prevText.startsWith(prefix) ? prefix + prevText : prevText };
                                 });
@@ -737,7 +737,7 @@ export default function Home() {
                                         setShowReplyBoxMap((prev) => ({ ...prev, [key]: !prev[key] }));
                                         if (!showReplyBoxMap[key]) {
                                           setCommentMap((prev) => {
-                                            const prefix = atName ? `@${atName} ` : "";
+                                            const prefix = atName ? `@${atName}: ` : "";
                                             const prevText = prev[key] || "";
                                             return { ...prev, [key]: prefix && !prevText.startsWith(prefix) ? prefix + prevText : prevText };
                                           });
