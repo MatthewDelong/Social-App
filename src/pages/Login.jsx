@@ -3,11 +3,13 @@ import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/aut
 import { auth } from '../firebase';
 import { useNavigate, Link } from 'react-router-dom';
 import Input from '../components/ui/input';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 import Button from '../components/ui/button';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
@@ -38,12 +40,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
-         style={{ backgroundImage: `url('/images/login&signup.png')` }}>
-      
+    <div
+      className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url('/images/login&signup.png')` }}
+    >
       <div className="w-full max-w-md bg-white/90 backdrop-blur-sm p-6 md:p-8 rounded-xl shadow-2xl border border-white/20 mx-auto">
         <h1 className="text-2xl md:text-3xl font-bold mb-6 text-center text-gray-800">Log In</h1>
-        
+
         <div className="space-y-4">
           <Input
             placeholder="Email"
@@ -52,15 +55,26 @@ export default function Login() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-4 py-3 text-base"
           />
-          <Input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 text-base"
-          />
+
+          <div className="relative">
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 text-base pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+            </button>
+          </div>
         </div>
-        
+
         <Button onClick={handleLogin} className="w-1/2 mx-auto block mt-6 py-0 text-base bg-blue-200 hover:bg-blue-700">
           Log In
         </Button>
@@ -80,7 +94,7 @@ export default function Login() {
             <p className="text-sm text-gray-600 mb-3">
               Enter your email address and we'll send you a link to reset your password.
             </p>
-            
+
             <Input
               placeholder="Enter your email"
               type="email"
@@ -88,17 +102,13 @@ export default function Login() {
               onChange={(e) => setResetEmail(e.target.value)}
               className="w-full px-4 py-3 text-base mb-3"
             />
-            
+
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button 
-                onClick={handlePasswordReset}
-                disabled={resetSent}
-                className="flex-1 py-2 text-sm"
-              >
+              <Button onClick={handlePasswordReset} disabled={resetSent} className="flex-1 py-2 text-sm">
                 {resetSent ? 'Email Sent' : 'Send Reset Link'}
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setIsResetting(false);
                   setResetSent(false);
