@@ -64,6 +64,11 @@ export default function GroupReplies({
     })();
   }, []);
 
+  const getUserFullName = (uid, fallback = "") => {
+    const dn = (usersMap?.[uid]?.displayName || "").trim();
+    return dn || (fallback || "").trim();
+  };
+
   const resolveHandleToUid = (handle) => {
     const lower = (handle || "").toLowerCase();
     for (const [uid, u] of Object.entries(usersMap || {})) {
@@ -77,19 +82,6 @@ export default function GroupReplies({
     return null;
   };
 
-  const getUserFullName = (uid) => {
-    const u = usersMap?.[uid] || {};
-    const dn = (u.displayName || "").trim();
-    const first = (u.firstName || "").trim();
-    const last = (u.lastName || "").trim();
-    const un = (u.username || "").trim();
-    if (dn) return dn;
-    if (first && last) return `${first} ${last}`.trim();
-    if (first) return first;
-    if (un) return un;
-    return "";
-  };
-
   const renderWithMentions = (text) => {
     if (!text) return null;
     const parts = [];
@@ -99,6 +91,8 @@ export default function GroupReplies({
       if (index > last) parts.push(text.slice(last, index));
       const uid = resolveHandleToUid(handle);
       if (uid) {
+        const userData = usersMap[uid];
+        const displayName = userData?.displayName || handle;
         parts.push(
           <span
             key={index}
@@ -108,7 +102,7 @@ export default function GroupReplies({
               navigate(`/profile/${uid}`);
             }}
           >
-            {match}
+            @{displayName}
           </span>
         );
       } else {
@@ -382,11 +376,10 @@ export default function GroupReplies({
                   <button
                     onClick={() => {
                       const fullName =
-                        getUserFullName(reply.uid) ||
-                        (reply.author || "").trim();
+                        getUserFullName(reply.uid, reply.author) || "";
                       if (activeReplyBox !== reply.id && fullName) {
                         setReplyText((prev) => {
-                          const at = `@${fullName} `;
+                          const at = `@${fullName}: `;
                           return prev.startsWith(at) ? prev : at + prev;
                         });
                       }
@@ -446,9 +439,15 @@ export default function GroupReplies({
                     onSubmit={(e) => {
                       e.preventDefault();
                       const fullName =
-                        getUserFullName(reply.uid) ||
-                        (reply.author || "").trim();
-                      handleAddReply(reply.id, replyText, fullName || null);
+                        getUserFullName(reply.uid, reply.author) || "";
+                      const fullAt = `@${fullName}: `;
+                      let text = (replyText || "").trimStart();
+                      text = text.replace(
+                        /^@([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)?)\s*:?\s*/,
+                        ""
+                      );
+                      text = fullAt + text;
+                      handleAddReply(reply.id, text, fullName || null);
                     }}
                     className="flex flex-wrap gap-2 mt-2 sm:gap-1 sm:mt-1 relative"
                   >
