@@ -30,6 +30,7 @@ export default function GroupReplies({
   DEFAULT_AVATAR,
   depth = 0,
 }) {
+  const navigate = useNavigate();
   const [replies, setReplies] = useState([]);
   const [editReplyId, setEditReplyId] = useState(null);
   const [editContent, setEditContent] = useState("");
@@ -69,10 +70,8 @@ export default function GroupReplies({
     for (const [uid, u] of Object.entries(usersMap || {})) {
       const dn = (u?.displayName || "").toLowerCase().trim();
       const un = (u?.username || "").toLowerCase().trim();
-      const first = dn.split(" ")[0];
       if (un && un === lower) return uid;
       if (dn && dn === lower) return uid;
-      if (first && first === lower) return uid;
     }
     return null;
   };
