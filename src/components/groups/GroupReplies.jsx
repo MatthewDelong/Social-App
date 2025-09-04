@@ -69,33 +69,12 @@ export default function GroupReplies({
     for (const [uid, u] of Object.entries(usersMap || {})) {
       const dn = (u?.displayName || "").toLowerCase().trim();
       const un = (u?.username || "").toLowerCase().trim();
+      const first = dn.split(" ")[0];
       if (un && un === lower) return uid;
       if (dn && dn === lower) return uid;
-      const firstPart = dn.split(" ")[0];
-      if (firstPart && firstPart === lower) return uid;
+      if (first && first === lower) return uid;
     }
     return null;
-  };
-
-  const ensureFullFromUsers = (name) => {
-    const n = (name || "").trim();
-    if (!n) return "";
-    if (n.includes(" ")) return n;
-    const lower = n.toLowerCase();
-    for (const u of Object.values(usersMap || {})) {
-      const dn = (u?.displayName || "").trim();
-      if (dn.toLowerCase().startsWith(lower + " ")) return dn;
-    }
-    return n;
-  };
-
-  const targetFullName = (reply) => {
-    const mapName = (usersMap[reply.uid]?.displayName || "").trim();
-    const author = (reply.author || "").trim();
-    if (mapName.includes(" ")) return mapName;
-    if (author.includes(" ")) return author;
-    const expanded = ensureFullFromUsers(mapName || author);
-    return expanded || mapName || author || "";
   };
 
   const renderWithMentions = (text) => {
@@ -389,10 +368,10 @@ export default function GroupReplies({
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600 sm:mt-0.5 sm:gap-1 max-w-full">
                   <button
                     onClick={() => {
-                      const full = targetFullName(reply);
-                      if (activeReplyBox !== reply.id && full) {
+                      const fullName = (reply.author || "").trim();
+                      if (activeReplyBox !== reply.id && fullName) {
                         setReplyText((prev) => {
-                          const at = `@${full}: `;
+                          const at = `@${fullName}: `;
                           return prev.startsWith(at) ? prev : at + prev;
                         });
                       }
@@ -451,14 +430,14 @@ export default function GroupReplies({
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const full = targetFullName(reply);
-                      const t = (replyText || "").trimStart();
-                      const rest = t.replace(
+                      const fullName = (reply.author || "").trim();
+                      let t = (replyText || "").trimStart();
+                      t = t.replace(
                         /^@([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)?)\s*:?\s*/,
                         ""
                       );
-                      const content = `@${full}: ${rest}`;
-                      handleAddReply(reply.id, content, full || null);
+                      const content = fullName ? `@${fullName}: ${t}` : t;
+                      handleAddReply(reply.id, content, fullName || null);
                     }}
                     className="flex flex-wrap gap-2 mt-2 sm:gap-1 sm:mt-1 relative"
                   >
