@@ -43,7 +43,6 @@ export default function GroupReplies({
   const [replyText, setReplyText] = useState("");
   const inputRef = useRef(null);
 
-  // Get group permissions
   const {
     isMember,
     canEditContent,
@@ -70,16 +69,25 @@ export default function GroupReplies({
     for (const [uid, u] of Object.entries(usersMap || {})) {
       const dn = (u?.displayName || "").toLowerCase().trim();
       const un = (u?.username || "").toLowerCase().trim();
-      
-      // Check if the handle matches either username or full display name
       if (un && un === lower) return uid;
       if (dn && dn === lower) return uid;
-      
-      // Check if handle matches the first part of display name (for @FirstName mentions)
       const firstPart = dn.split(" ")[0];
       if (firstPart && firstPart === lower) return uid;
     }
     return null;
+  };
+
+  const getUserFullName = (uid) => {
+    const u = usersMap?.[uid] || {};
+    const dn = (u.displayName || "").trim();
+    const first = (u.firstName || "").trim();
+    const last = (u.lastName || "").trim();
+    const un = (u.username || "").trim();
+    if (dn) return dn;
+    if (first && last) return `${first} ${last}`.trim();
+    if (first) return first;
+    if (un) return un;
+    return "";
   };
 
   const renderWithMentions = (text) => {
@@ -91,10 +99,6 @@ export default function GroupReplies({
       if (index > last) parts.push(text.slice(last, index));
       const uid = resolveHandleToUid(handle);
       if (uid) {
-        // Get the full display name for the user
-        const userData = usersMap[uid];
-        const displayName = userData?.displayName || handle;
-        
         parts.push(
           <span
             key={index}
@@ -104,7 +108,7 @@ export default function GroupReplies({
               navigate(`/profile/${uid}`);
             }}
           >
-            @{displayName}
+            {match}
           </span>
         );
       } else {
@@ -117,11 +121,9 @@ export default function GroupReplies({
     return parts;
   };
 
-  // Optimized listener for replies
   useEffect(() => {
     if (!commentId) return;
     let unsub;
-
     (async () => {
       try {
         const q = query(
@@ -130,7 +132,6 @@ export default function GroupReplies({
           where("parentReplyId", "==", parentReplyId),
           orderBy("createdAt", "asc")
         );
-
         unsub = onSnapshot(q, (snapshot) => {
           const docs = snapshot.docs.map((docSnap) => {
             const data = docSnap.data();
@@ -141,12 +142,6 @@ export default function GroupReplies({
               likes: data.likes || [],
             };
           });
-          console.log(
-            "Replies fetched for parentReplyId",
-            parentReplyId,
-            ":",
-            docs
-          );
           setReplies(docs);
           setVisibleCount(INITIAL_VISIBLE);
         });
@@ -155,7 +150,6 @@ export default function GroupReplies({
         setError("Failed to load replies. Please refresh the page.");
       }
     })();
-
     return () => {
       if (unsub) unsub();
     };
@@ -179,20 +173,16 @@ export default function GroupReplies({
       setError("Please log in to reply.");
       return;
     }
-
     if (!isMember) {
       setError("Only group members can reply.");
       return;
     }
-
     if (!text.trim()) {
       setError("Reply cannot be empty.");
       return;
     }
-
     try {
       setError("");
-      console.log("Adding reply with parentId:", parentId);
       await addDoc(collection(db, "groupReplies"), {
         commentId,
         parentReplyId: parentId ?? null,
@@ -216,7 +206,6 @@ export default function GroupReplies({
   const handleUpdateReply = async (e) => {
     e.preventDefault();
     if (!editContent.trim() || !editReplyId) return;
-
     try {
       setError("");
       await updateDoc(doc(db, "groupReplies", editReplyId), {
@@ -233,7 +222,6 @@ export default function GroupReplies({
 
   const handleDeleteReply = async (replyId) => {
     if (!window.confirm("Delete this reply?")) return;
-
     try {
       setError("");
       await deleteDoc(doc(db, "groupReplies", replyId));
@@ -248,23 +236,17 @@ export default function GroupReplies({
       setError("Please log in to like replies.");
       return;
     }
-
     if (!isMember) {
       setError("Only group members can like replies.");
       return;
     }
-
     const replyRef = doc(db, "groupReplies", reply.id);
     try {
       setError("");
       if (reply.likes?.includes(currentUser.uid)) {
-        await updateDoc(replyRef, {
-          likes: arrayRemove(currentUser.uid),
-        });
+        await updateDoc(replyRef, { likes: arrayRemove(currentUser.uid) });
       } else {
-        await updateDoc(replyRef, {
-          likes: arrayUnion(currentUser.uid),
-        });
+        await updateDoc(replyRef, { likes: arrayUnion(currentUser.uid) });
       }
     } catch (err) {
       console.error("Error toggling like:", err);
@@ -272,7 +254,7 @@ export default function GroupReplies({
     }
   };
 
-  const handleEmojiClick = (emojiObject, replyId) => {
+  const handleEmojiClick = (emojiObject) => {
     setReplyText((prev) => prev + emojiObject.emoji);
     setShowEmojiPicker(null);
   };
@@ -282,12 +264,10 @@ export default function GroupReplies({
       setError("Please log in to reply.");
       return;
     }
-
     if (!isMember) {
       setError("Only group members can reply.");
       return;
     }
-
     setError("");
     setActiveReplyBox(activeReplyBox === replyId ? null : replyId);
   };
@@ -296,7 +276,6 @@ export default function GroupReplies({
 
   return (
     <div className="mt-2" style={{ position: "relative", maxWidth: "90vw" }}>
-      {/* Error message */}
       {error && (
         <div className="mb-2 p-2 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
           {error}
@@ -305,9 +284,7 @@ export default function GroupReplies({
 
       <div
         className="space-y-2 relative"
-        style={{
-          marginLeft: depth * 20 + "px",
-        }}
+        style={{ marginLeft: depth * 20 + "px" }}
       >
         {(depth === 0 || depth > 0) && (
           <div
@@ -319,7 +296,8 @@ export default function GroupReplies({
             }}
           />
         )}
-        {visibleReplies.map((reply, index) => (
+
+        {visibleReplies.map((reply) => (
           <Fragment key={reply.id}>
             <div
               className="border rounded-xl bg-white flex items-start gap-2 relative"
@@ -403,9 +381,12 @@ export default function GroupReplies({
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600 sm:mt-0.5 sm:gap-1 max-w-full">
                   <button
                     onClick={() => {
-                      if (activeReplyBox !== reply.id && reply.author) {
+                      const fullName =
+                        getUserFullName(reply.uid) ||
+                        (reply.author || "").trim();
+                      if (activeReplyBox !== reply.id && fullName) {
                         setReplyText((prev) => {
-                          const at = `@${reply.author}: `;
+                          const at = `@${fullName} `;
                           return prev.startsWith(at) ? prev : at + prev;
                         });
                       }
@@ -464,7 +445,10 @@ export default function GroupReplies({
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      handleAddReply(reply.id, replyText, reply.author);
+                      const fullName =
+                        getUserFullName(reply.uid) ||
+                        (reply.author || "").trim();
+                      handleAddReply(reply.id, replyText, fullName || null);
                     }}
                     className="flex flex-wrap gap-2 mt-2 sm:gap-1 sm:mt-1 relative"
                   >
@@ -504,7 +488,7 @@ export default function GroupReplies({
                             </button>
                             <EmojiPicker
                               onEmojiClick={(emojiObject) =>
-                                handleEmojiClick(emojiObject, reply.id)
+                                handleEmojiClick(emojiObject)
                               }
                               width={280}
                               height={350}
@@ -577,6 +561,6 @@ export default function GroupReplies({
           </div>
         )}
       </div>
-    <div>
+    </div>
   );
 }
