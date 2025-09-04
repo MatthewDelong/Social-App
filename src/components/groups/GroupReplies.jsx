@@ -70,8 +70,14 @@ export default function GroupReplies({
     for (const [uid, u] of Object.entries(usersMap || {})) {
       const dn = (u?.displayName || "").toLowerCase().trim();
       const un = (u?.username || "").toLowerCase().trim();
+      
+      // Check if the handle matches either username or full display name
       if (un && un === lower) return uid;
       if (dn && dn === lower) return uid;
+      
+      // Check if handle matches the first part of display name (for @FirstName mentions)
+      const firstPart = dn.split(" ")[0];
+      if (firstPart && firstPart === lower) return uid;
     }
     return null;
   };
@@ -85,6 +91,10 @@ export default function GroupReplies({
       if (index > last) parts.push(text.slice(last, index));
       const uid = resolveHandleToUid(handle);
       if (uid) {
+        // Get the full display name for the user
+        const userData = usersMap[uid];
+        const displayName = userData?.displayName || handle;
+        
         parts.push(
           <span
             key={index}
@@ -94,7 +104,7 @@ export default function GroupReplies({
               navigate(`/profile/${uid}`);
             }}
           >
-            {match}
+            @{displayName}
           </span>
         );
       } else {
@@ -567,6 +577,6 @@ export default function GroupReplies({
           </div>
         )}
       </div>
-    </div>
+    <div>
   );
 }
