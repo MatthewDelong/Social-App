@@ -64,11 +64,6 @@ export default function GroupReplies({
     })();
   }, []);
 
-  const getUserFullName = (uid, fallback = "") => {
-    const dn = (usersMap?.[uid]?.displayName || "").trim();
-    return dn || (fallback || "").trim();
-  };
-
   const resolveHandleToUid = (handle) => {
     const lower = (handle || "").toLowerCase();
     for (const [uid, u] of Object.entries(usersMap || {})) {
@@ -91,8 +86,6 @@ export default function GroupReplies({
       if (index > last) parts.push(text.slice(last, index));
       const uid = resolveHandleToUid(handle);
       if (uid) {
-        const userData = usersMap[uid];
-        const displayName = userData?.displayName || handle;
         parts.push(
           <span
             key={index}
@@ -102,7 +95,7 @@ export default function GroupReplies({
               navigate(`/profile/${uid}`);
             }}
           >
-            @{displayName}
+            {match}
           </span>
         );
       } else {
@@ -375,8 +368,11 @@ export default function GroupReplies({
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600 sm:mt-0.5 sm:gap-1 max-w-full">
                   <button
                     onClick={() => {
-                      const fullName =
-                        getUserFullName(reply.uid, reply.author) || "";
+                      const fullName = (
+                        usersMap[reply.uid]?.displayName ||
+                        reply.author ||
+                        ""
+                      ).trim();
                       if (activeReplyBox !== reply.id && fullName) {
                         setReplyText((prev) => {
                           const at = `@${fullName}: `;
@@ -438,16 +434,18 @@ export default function GroupReplies({
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const fullName =
-                        getUserFullName(reply.uid, reply.author) || "";
-                      const fullAt = `@${fullName}: `;
-                      let text = (replyText || "").trimStart();
-                      text = text.replace(
+                      const fullName = (
+                        usersMap[reply.uid]?.displayName ||
+                        reply.author ||
+                        ""
+                      ).trim();
+                      let t = (replyText || "").trimStart();
+                      t = t.replace(
                         /^@([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)?)\s*:?\s*/,
                         ""
                       );
-                      text = fullAt + text;
-                      handleAddReply(reply.id, text, fullName || null);
+                      const content = `@${fullName}: ${t}`;
+                      handleAddReply(reply.id, content, fullName || null);
                     }}
                     className="flex flex-wrap gap-2 mt-2 sm:gap-1 sm:mt-1 relative"
                   >
