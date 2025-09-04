@@ -25,51 +25,41 @@ import { useNavigate } from "react-router-dom";
 
 export default function GroupComments({ groupId, postId, currentUser }) {
   const navigate = useNavigate();
-  // Data
   const [comments, setComments] = useState([]);
   const [repliesByComment, setRepliesByComment] = useState({});
 
-  // Compose state
   const [newComment, setNewComment] = useState("");
   const [replyText, setReplyText] = useState({});
   const [replyOpen, setReplyOpen] = useState({});
 
-  // Edit state
   const [editCommentId, setEditCommentId] = useState(null);
   const [editCommentText, setEditCommentText] = useState("");
   const [editReplyId, setEditReplyId] = useState(null);
   const [editReplyText, setEditReplyText] = useState("");
 
-  // Emoji modal (Home.jsx style): overlay picker with close X, z-50
-  // Keys: "new-comment" | "reply:<commentId>" | "edit-comment:<commentId>" | "edit-reply:<replyId>"
   const [emojiFor, setEmojiFor] = useState(null);
 
-  // Likes
   const [likedComments, setLikedComments] = useState({});
   const [likedReplies, setLikedReplies] = useState({});
   const [likeBusyId, setLikeBusyId] = useState(null);
   const [commentLikeCounts, setCommentLikeCounts] = useState({});
   const [replyLikeCounts, setReplyLikeCounts] = useState({});
 
-  // Errors/loading
   const [error, setError] = useState("");
   const [loadingComments, setLoadingComments] = useState(true);
   const [loadingReplies, setLoadingReplies] = useState(true);
 
-  // “mins ago” ticker
   const [, setNowTick] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNowTick(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  // Permissions
   const { isMember, isSiteAdmin, canDeleteContent, getUserRole } =
     useGroupPermissions(groupId, currentUser?.uid, currentUser?.isAdmin === true);
   const canPost = useMemo(() => isSiteAdmin || isMember, [isSiteAdmin, isMember]);
   const roleOf = useCallback((uid) => (uid ? getUserRole?.(uid) : null), [getUserRole]);
 
-  // Users for mentions
   const [usersMap, setUsersMap] = useState({});
   useEffect(() => {
     (async () => {
@@ -95,6 +85,18 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     return null;
   };
 
+  const ensureFullFromUsers = (name) => {
+    const n = (name || "").trim();
+    if (!n) return "";
+    if (n.includes(" ")) return n;
+    const lower = n.toLowerCase();
+    for (const u of Object.values(usersMap || {})) {
+      const dn = (u?.displayName || "").trim();
+      if (dn.toLowerCase().startsWith(lower + " ")) return dn;
+    }
+    return n;
+  };
+
   const renderWithMentions = (text) => {
     if (!text) return null;
     const parts = [];
@@ -117,12 +119,11 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     return parts;
   };
 
-  // Helpers
   const toDate = (v) => (v?.toDate ? v.toDate() : v instanceof Date ? v : v ? new Date(v) : null);
   const rel = (ts) => {
     const d = toDate(ts);
     if (!d) return "";
-    let s = formatDistanceToNow(d, { addSuffix: true }); // "2 minutes ago"
+    let s = formatDistanceToNow(d, { addSuffix: true });
     s = s.replace("about ", "").replace("less than a minute", "just now");
     s = s.replace(" minutes", " mins").replace(" minute", " min");
     s = s.replace(" hours", " hrs").replace(" hour", " hr");
@@ -130,7 +131,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     return s;
   };
 
-  // Comments listener
   useEffect(() => {
     if (!groupId || !postId) return;
     setLoadingComments(true);
@@ -155,7 +155,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     return () => unsub();
   }, [groupId, postId]);
 
-  // Replies listener
   useEffect(() => {
     if (!groupId || !postId) return;
     setLoadingReplies(true);
@@ -186,7 +185,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     return () => unsub();
   }, [groupId, postId]);
 
-  // “Liked by me” flags (non-blocking, initial)
   useEffect(() => {
     async function loadLikes() {
       if (!currentUser?.uid) return;
@@ -214,7 +212,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     loadLikes();
   }, [comments, repliesByComment, currentUser?.uid]);
 
-  // Live like counts
   useEffect(() => {
     const unsubs = comments.map((c) =>
       onSnapshot(collection(db, "groupComments", c.id, "likes"), (snap) =>
@@ -234,11 +231,9 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     return () => unsubs.forEach((u) => u && u());
   }, [allReplies]);
 
-  // Emoji modal controls (Home.jsx style)
   const openEmoji = (key) => setEmojiFor(key);
   const closeEmoji = () => setEmojiFor(null);
 
-  // Insert emoji (matches Home.jsx behavior)
   const insertEmoji = (key, data) => {
     const ch = data?.emoji || data?.native || "";
     if (!ch) return;
@@ -260,7 +255,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     }
   };
 
-  // Create comment
   async function handleAddComment(e) {
     e.preventDefault();
     setError("");
@@ -288,7 +282,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     }
   }
 
-  // Create reply
   async function handleAddReply(commentId) {
     setError("");
     const text = (replyText[commentId] || "").trim();
@@ -297,6 +290,12 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     if (!canPost) return setError("Join the group to reply.");
 
     try {
+      let content = text;
+      const m = content.match(/^@([A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+)?)\s*:?\s*(.*)$/);
+      if (m) {
+        const full = ensureFullFromUsers(m[1]);
+        content = `@${full}: ${m[2] || ""}`;
+      }
       await addDoc(collection(db, "groupReplies"), {
         groupId,
         postId,
@@ -304,7 +303,7 @@ export default function GroupComments({ groupId, postId, currentUser }) {
         uid: currentUser.uid,
         author: currentUser.displayName || currentUser.email || "Member",
         authorPhotoURL: currentUser.photoURL || "",
-        content: text,
+        content,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -317,10 +316,9 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     }
   }
 
-  // Reply to a reply (open parent’s reply box, prefill @mention)
   function replyToReply(reply) {
-    const first = (reply?.author || '').split(' ')[0] || '';
-    const at = first ? `@${first}: ` : '';
+    const full = (usersMap[reply.uid]?.displayName || reply.author || '').trim();
+    const at = full ? `@${full}: ` : '';
     setReplyOpen((s) => ({ ...s, [reply.commentId]: true }));
     setReplyText((s) => {
       const prev = s[reply.commentId] || '';
@@ -329,7 +327,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     });
   }
 
-  // Edit comment/reply
   function startEditComment(c) {
     setEditReplyId(null);
     setEditReplyText("");
@@ -378,7 +375,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     }
   }
 
-  // Delete
   async function handleDeleteComment(c) {
     setError("");
     const allowed =
@@ -404,7 +400,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
     }
   }
 
-  // Likes
   async function toggleLikeComment(c) {
     if (!currentUser?.uid) return setError("Sign in to like.");
     setLikeBusyId(c.id);
@@ -475,7 +470,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
         </div>
       )}
 
-      {/* New comment */}
       {canPost ? (
         <form onSubmit={handleAddComment} className="space-y-2">
           <div className="relative">
@@ -509,7 +503,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
         </div>
       )}
 
-      {/* Comments list */}
       <div className="space-y-3">
         {loadingComments ? (
           <div className="text-sm text-gray-500">Loading comments…</div>
@@ -535,7 +528,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                   />
                 </div>
 
-                {/* Text or Edit box */}
                 {editCommentId === c.id ? (
                   <div className="relative">
                     <textarea
@@ -577,16 +569,15 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                   <div className="text-sm">{renderWithMentions(c.content)}</div>
                 )}
 
-                {/* Action row */}
                 <div className="flex items-center gap-4 text-xs">
                   <button
                     type="button"
                     onClick={() => {
-                      const first = (c.author || '').split(' ')[0] || '';
-                      if (!replyOpen[c.id] && first) {
+                      const full = (usersMap[c.uid]?.displayName || c.author || '').trim();
+                      if (!replyOpen[c.id] && full) {
                         setReplyText((s) => {
                           const prev = s[c.id] || '';
-                          const at = `@${first}: `;
+                          const at = `@${full}: `;
                           return { ...s, [c.id]: prev.startsWith(at) ? prev : at + prev };
                         });
                       }
@@ -628,7 +619,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                   )}
                 </div>
 
-                {/* Replies */}
                 <div className="pl-6 space-y-2">
                   {loadingReplies ? (
                     <div className="text-xs text-gray-500">Loading replies…</div>
@@ -704,7 +694,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                                 <div className="text-sm mt-1">{renderWithMentions(r.content)}</div>
                               )}
 
-                              {/* Reply action row */}
                               <div className="mt-1 flex items-center gap-4 text-xs">
                                 <button
                                   type="button"
@@ -753,7 +742,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
                     })
                   )}
 
-                  {/* Reply composer */}
                   {canPost && replyOpen[c.id] && (
                     <div className="mt-1">
                       <div className="relative">
@@ -802,7 +790,6 @@ export default function GroupComments({ groupId, postId, currentUser }) {
         )}
       </div>
 
-      {/* Emoji modal (Home.jsx style) */}
       {emojiFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white shadow-lg rounded-lg p-2 border max-w-sm w-full mx-4 relative">
