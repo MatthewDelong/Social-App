@@ -12,28 +12,25 @@
 - Run firebase init hosting in project root (Select build directory dist)
 - Replace placeholders in firebase.js and .firebaserc
 
-# Install dependencies
+# Install dependencies in package.json, npm install
 - npm install react react-dom react-router-dom react-icons firebase
-- npm install -D vite @vitejs/plugin-react tailwindcss postcss autoprefixer
-- npm install -g firebase-tools
 - npm install date-fns
 - npm install firebase storage
 - npm install emoji-picker-react
+- npm install -D vite @vitejs/plugin-react tailwindcss postcss autoprefixer
+# Global and init, seperate from package.json
 - npx tailwindcss init -p
-- npm install lucide-react
+- npm install -g firebase-tools
 
 # Setup for CORS policy (No Errors) Google Cloud SDK
-
 - https://cloud.google.com/sdk/docs/install
 - Change to directory the cors.json is in the root of project.
 - gcloud config set project social-app-8a28d
 - gcloud storage buckets update gs://social-app-8a28d.firebasestorage.app --cors-file=cors.json
 
-# Firebase login/Deploy
+# Firebase login
 - firebase login
 - firebase init hosting (If you ever need to reset or reconfigure)
-- npm run build
-- firebase deploy
 
 # Firebase Functions
 - install NVM for Windows https://github.com/coreybutler/nvm-windows
@@ -49,6 +46,11 @@
 ## Build for Production
 - npm run build
 
+## Build and Deploy
+- npm run deploy (Builds and Deploys)
+- npm run dev
+- firebase deploy
+
 ---
 
 ### Core Technologies  
@@ -60,7 +62,7 @@
 
 ---
 
-## :deciduous_tree: File Tree
+## :deciduous_tree: Core File Tree
 ```
 ├── .firebaserc
 ├── .gitignore
@@ -142,7 +144,7 @@
  
 ## 📜 License  
 - **Code (MIT License)**:  
-  - Covers all original source code (HTML, CSS, JavaScript)  
+  - Covers all original source code (React, Vite CSS, JavaScript)  
   - [View MIT License](LICENSE)  
 - **Content (CC BY 4.0)**:  
   - Applies to original text, graphics, and media created for Matthews-World-Social 
