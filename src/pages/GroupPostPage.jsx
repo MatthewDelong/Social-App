@@ -390,7 +390,7 @@ export default function GroupPostPage() {
                 el.focus();
               }
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
+            className="bg-blue-500 text-white px-3 py-1 text-sm rounded font-semibold hover:bg-blue-600"
           >
             Reply
           </button>
@@ -402,7 +402,7 @@ export default function GroupPostPage() {
             {canEditThisPost && (
               <button
                 onClick={startEdit}
-                className="text-xs bg-yellow-500 text-black-800 px-2 py-0.5 rounded hover:bg-yellow-600 transition-colors"
+                className="bg-yellow-400 text-black px-3 py-1 text-sm rounded font-semibold hover:bg-yellow-500"
               >
                 Edit
               </button>
@@ -410,7 +410,7 @@ export default function GroupPostPage() {
             {canDeleteThisPost && (
               <button
                 onClick={deletePost}
-                className="text-xs bg-red-500 text-black-800 px-2 py-0.5 rounded hover:bg-red-600 transition-colors"
+                className="bg-red-500 text-white px-3 py-1 text-sm rounded font-semibold hover:bg-red-600"
               >
                 Delete
               </button>

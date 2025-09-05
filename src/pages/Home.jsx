@@ -467,7 +467,7 @@ export default function Home() {
               </div>
               <button
                 onClick={() => handleComment(post.id)}
-                className="mt-2 bg-blue-500 text-white px-4 py-2 rounded font-medium hover:bg-blue-600"
+                className="bg-blue-600 text-white px-3 py-1 text-sm rounded font-semibold disabled:opacity-50"
               >
                 Post
               </button>
