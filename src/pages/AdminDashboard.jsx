@@ -13,6 +13,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { useAppContext } from '../context/AppContext';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Link } from 'react-router-dom';
 
 const FUNCTIONS_REGION = 'europe-west2';
 
@@ -132,7 +133,6 @@ export default function AdminDashboard() {
       const adminDeleteUser = httpsCallable(functions, 'adminDeleteUser');
       const res = await adminDeleteUser({ uid: userId });
 
-      // Optimistic UI removal of the user and their posts across common id fields
       setUsers((prev) => prev.filter((u) => u.id !== userId));
       setUsersMap((prev) => {
         const copy = { ...prev };
@@ -143,10 +143,8 @@ export default function AdminDashboard() {
         (p) => p.uid !== userId && p.authorUid !== userId && p.authorId !== userId && p.userId !== userId
       ));
 
-      // Re-fetch from server to reflect server-side cascade deletes
       await refreshData();
 
-      // Optional: show counts in console (hook up your toast system if you have one)
       if (res?.data) {
         console.log('Delete counts:', res.data);
       }
@@ -325,14 +323,18 @@ export default function AdminDashboard() {
         {users.length === 0 && <p className="text-gray-500">No users found.</p>}
         {sortUsers(users).map((u) => (
           <div key={u.id} className="border p-3 mb-3 rounded bg-white flex items-center gap-4">
-            <img
-              src={u.photoURL || defaultAvatar}
-              alt="avatar"
-              className="w-10 h-10 rounded-full object-cover"
-            />
+            <Link to={`/profile/${u.id}`}>
+              <img
+                src={u.photoURL || defaultAvatar}
+                alt="avatar"
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            </Link>
             <div className="flex-1">
               <p className="font-medium flex items-center gap-2">
-                {u.displayName || u.email || 'Unknown'}
+                <Link to={`/profile/${u.id}`} className="hover:underline">
+                  {u.displayName || u.email || 'Unknown'}
+                </Link>
                 {u.isAdmin && (
                   <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
                     Admin
