@@ -1,0 +1,283 @@
+rules_version = '2';
+service cloud.firestore {
+match /databases/{database}/documents {
+
+function isSignedIn() { return request.auth != null; }
+
+function isSiteAdmin() {
+  return isSignedIn() &&
+    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+}
+
+function roleLevel(r) {
+  return r == 'creator' ? 4
+    : r == 'admin' ? 3
+    : r == 'moderator' ? 2
+    : r == 'member' ? 1
+    : 0;
+}
+
+function myGroupRole(groupId) {
+  return exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid))
+    ? get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role
+    : null;
+}
+
+function hasGroupRoleAtLeast(groupId, minRole) {
+  let r = myGroupRole(groupId);
+  return r != null && roleLevel(r) >= roleLevel(minRole);
+}
+
+match /settings/theme {
+  allow read: if true;
+  allow write: if isSiteAdmin();
+}
+
+// Users + Friends
+match /users/{userId} {
+  allow read: if isSignedIn();
+  allow create: if isSignedIn() && request.auth.uid == userId;
+
+  // Allow self-updates only for profile fields (no privilege elevation). Admins can update anyone.
+  allow update: if isSignedIn() && (
+    (request.auth.uid == userId
+      && resource.data.diff(request.resource.data).changedKeys().hasOnly([
+        'displayName','bio','location','website','photoURL','bannerURL'
+      ])
+    )
+    || isSiteAdmin()
+  );
+
+  // Friends subcollection
+  match /friends/{friendUid} {
+    allow read: if isSignedIn() && (userId == request.auth.uid || friendUid == request.auth.uid);
+    allow create: if isSignedIn() && (
+      // Owner can create their own friend doc
+      (userId == request.auth.uid && request.resource.data.friendUid == friendUid)
+      // The other side can be created by the recipient during acceptance if a pending request exists
+      || (
+        friendUid == request.auth.uid
+        && request.resource.data.friendUid == friendUid
+        && request.resource.data.rid is string
+        && exists(/databases/$(database)/documents/friendRequests/$(request.resource.data.rid))
+        && get(/databases/$(database)/documents/friendRequests/$(request.resource.data.rid)).data.fromUid == userId
+        && get(/databases/$(database)/documents/friendRequests/$(request.resource.data.rid)).data.toUid == friendUid
+      )
+    );
+    allow delete: if isSignedIn() && (userId == request.auth.uid || friendUid == request.auth.uid);
+    allow update: if false;
+  }
+}
+
+// Groups + Members
+match /groups/{groupId} {
+  allow read: if true;
+
+  allow create: if isSignedIn()
+    && request.resource.data.creatorId == request.auth.uid;
+
+  allow update, delete: if isSiteAdmin()
+    || hasGroupRoleAtLeast(groupId, 'admin')
+    || (isSignedIn() && resource.data.creatorId == request.auth.uid);
+
+  match /members/{uid} {
+    allow read: if true;
+
+    allow create: if isSignedIn() && (
+      (isSiteAdmin() && request.resource.data.role != 'creator')
+      || (uid == request.auth.uid
+          && request.resource.data.role == 'creator'
+          && get(/databases/$(database)/documents/groups/$(groupId)).data.creatorId == request.auth.uid)
+      || (myGroupRole(groupId) == 'creator'
+          && request.resource.data.role != 'creator')
+      || (hasGroupRoleAtLeast(groupId, 'admin')
+          && (request.resource.data.role == 'member' || request.resource.data.role == 'moderator'))
+      || (uid == request.auth.uid
+          && request.resource.data.role == 'member'
+          && get(/databases/$(database)/documents/groups/$(groupId)).data.joinPolicy == 'open')
+    );
+
+    allow update: if isSignedIn() && (
+      (isSiteAdmin() && resource.data.role != 'creator' && request.resource.data.role != 'creator')
+      || (uid == request.auth.uid && request.resource.data.role == resource.data.role)
+      || (myGroupRole(groupId) == 'creator'
+          && resource.data.role != 'creator'
+          && request.resource.data.role != 'creator')
+      || (hasGroupRoleAtLeast(groupId, 'admin')
+          && resource.data.role != 'creator'
+          && request.resource.data.role != 'admin'
+          && request.resource.data.role != 'creator')
+    );
+
+    allow delete: if isSignedIn() && (
+      (isSiteAdmin() && resource.data.role != 'creator')
+      || uid == request.auth.uid
+      || (hasGroupRoleAtLeast(groupId, 'admin') && resource.data.role != 'creator')
+    );
+  }
+}
+
+// Home.jsx embedded posts
+match /posts/{postId} {
+  allow read: if true;
+  allow create: if isSignedIn();
+  allow update: if isSignedIn() && (
+    request.auth.uid == resource.data.uid
+    || resource.data.diff(request.resource.data).changedKeys().hasOnly(['comments','likes'])
+  );
+  allow delete: if isSignedIn() && (
+    request.auth.uid == resource.data.uid || isSiteAdmin()
+  );
+}
+
+// Top-level posts
+match /groupPosts/{postId} {
+  allow read: if true;
+  allow create: if isSignedIn()
+    && (
+      isSiteAdmin()
+      || (
+        request.resource.data.groupId is string
+        && hasGroupRoleAtLeast(request.resource.data.groupId, 'member')
+      )
+    );
+  allow update, delete: if isSignedIn()
+    && (
+      isSiteAdmin()
+      || (resource.data.groupId is string
+          && hasGroupRoleAtLeast(resource.data.groupId, 'moderator'))
+      || request.auth.uid == resource.data.uid
+    );
+  match /likes/{uid} {
+    allow read: if true;
+    allow create: if isSignedIn()
+      && uid == request.auth.uid
+      && (
+        isSiteAdmin()
+        || (
+          exists(/databases/$(database)/documents/groupPosts/$(postId))
+          && hasGroupRoleAtLeast(
+               get(/databases/$(database)/documents/groupPosts/$(postId)).data.groupId,
+               'member'
+             )
+        )
+      );
+    allow delete: if isSignedIn() && uid == request.auth.uid;
+    allow update: if false;
+  }
+}
+
+// Top-level comments
+match /groupComments/{commentId} {
+  allow read: if true;
+  allow create: if isSignedIn()
+    && (
+      isSiteAdmin()
+      || (
+        request.resource.data.groupId is string
+        && request.resource.data.postId is string
+        && hasGroupRoleAtLeast(request.resource.data.groupId, 'member')
+        && exists(/databases/$(database)/documents/groupPosts/$(request.resource.data.postId))
+        && get(/databases/$(database)/documents/groupPosts/$(request.resource.data.postId)).data.groupId
+             == request.resource.data.groupId
+      )
+    );
+  allow update, delete: if isSignedIn()
+    && (
+      isSiteAdmin()
+      || (resource.data.groupId is string
+          && hasGroupRoleAtLeast(resource.data.groupId, 'moderator'))
+      || request.auth.uid == resource.data.uid
+    );
+  match /likes/{uid} {
+    allow read: if true;
+    allow create: if isSignedIn()
+      && uid == request.auth.uid
+      && (
+        isSiteAdmin()
+        || (
+          exists(/databases/$(database)/documents/groupComments/$(commentId))
+          && hasGroupRoleAtLeast(
+               get(/databases/$(database)/documents/groupComments/$(commentId)).data.groupId,
+               'member'
+             )
+        )
+      );
+    allow delete: if isSignedIn() && uid == request.auth.uid;
+    allow update: if false;
+  }
+}
+
+// Top-level replies
+match /groupReplies/{replyId} {
+  allow read: if true;
+  allow create: if isSignedIn()
+    && (
+      isSiteAdmin()
+      || (
+        request.resource.data.groupId is string
+        && request.resource.data.postId is string
+        && request.resource.data.commentId is string
+        && hasGroupRoleAtLeast(request.resource.data.groupId, 'member')
+        && exists(/databases/$(database)/documents/groupComments/$(request.resource.data.commentId))
+        && get(/databases/$(database)/documents/groupComments/$(request.resource.data.commentId)).data.groupId
+             == request.resource.data.groupId
+        && get(/databases/$(database)/documents/groupComments/$(request.resource.data.commentId)).data.postId
+             == request.resource.data.postId
+      )
+    );
+  allow update, delete: if isSignedIn()
+    && (
+      isSiteAdmin()
+      || (resource.data.groupId is string
+          && hasGroupRoleAtLeast(resource.data.groupId, 'moderator'))
+      || request.auth.uid == resource.data.uid
+    );
+  match /likes/{uid} {
+    allow read: if true;
+    allow create: if isSignedIn()
+      && uid == request.auth.uid
+      && (
+        isSiteAdmin()
+        || (
+          exists(/databases/$(database)/documents/groupReplies/$(replyId))
+          && hasGroupRoleAtLeast(
+               get(/databases/$(database)/documents/groupReplies/$(replyId)).data.groupId,
+               'member'
+             )
+        )
+      );
+    allow delete: if isSignedIn() && uid == request.auth.uid;
+    allow update: if false;
+  }
+}
+
+// Your top-level comments/replies used by Profile.jsx
+match /comments/{commentId} {
+  allow read: if true;
+  allow create: if isSignedIn();
+  allow update, delete: if isSignedIn() && request.auth.uid == resource.data.uid;
+}
+
+match /replies/{replyId} {
+  allow read: if true;
+  allow create: if isSignedIn();
+  allow update, delete: if isSignedIn() && request.auth.uid == resource.data.uid;
+}
+
+// Friend requests
+match /friendRequests/{rid} {
+  allow create: if isSignedIn()
+    && request.resource.data.fromUid == request.auth.uid
+    && request.resource.data.toUid != request.auth.uid;
+  allow read, delete: if isSignedIn()
+    && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+  allow update: if false;
+}
+
+match /{document=**} {
+  allow read: if isSignedIn();
+  allow write: if false;
+}
+}
+}

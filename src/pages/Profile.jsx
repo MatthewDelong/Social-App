@@ -24,10 +24,15 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useNavigate } from 'react-router-dom';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Card from '../components/ui/card';
+import FriendRequestsInbox from '../components/FriendRequestsInbox';
+import FriendList from '../components/FriendList';
+import { useToasts } from '../hooks/useToasts';
+import Toaster from '../components/ui/Toaster';
 
 export default function Profile() {
   const { user, logout } = useAppContext();
   const navigate = useNavigate();
+  const { toasts, pushToast, removeToast } = useToasts();
   const [posts, setPosts] = useState([]);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
@@ -147,8 +152,8 @@ export default function Profile() {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage('File is too large. Please select an image under 5MB.');
+    if (file.size > 1 * 1024 * 1024) {
+      setMessage('File is too large. Please select an image under 1MB.');
       return;
     }
 
@@ -198,7 +203,7 @@ export default function Profile() {
     setUploading(true);
     try {
       const storageRef = ref(storage, `avatars/${user.uid}`);
-      await uploadBytes(storageRef, newAvatarFile);
+      await uploadBytes(storageRef, newAvatarFile, { contentType: newAvatarFile.type || 'image/jpeg', cacheControl: 'public,max-age=3600' });
       const downloadURL = await getDownloadURL(storageRef);
 
       await updateProfile(auth.currentUser, { photoURL: downloadURL });
@@ -286,7 +291,7 @@ export default function Profile() {
     setUploading(true);
     try {
       const storageRef = ref(storage, `banners/${user.uid}`);
-      await uploadBytes(storageRef, newBannerFile);
+      await uploadBytes(storageRef, newBannerFile, { contentType: newBannerFile.type || 'image/jpeg', cacheControl: 'public,max-age=3600' });
       const downloadURL = await getDownloadURL(storageRef);
 
       await updateDoc(doc(db, 'users', user.uid), { bannerURL: downloadURL });
@@ -440,6 +445,13 @@ export default function Profile() {
       <button onClick={handleUpdate} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4">Save Profile Details</button>
       {message && <p className="text-green-600 text-sm">{message}</p>}
 
+      <FriendRequestsInbox currentUid={user?.uid} onToast={(m,t)=>pushToast(m,t)} />
+
+      <div className="mt-6">
+        <h3 className="text-xl font-bold mb-2">Friends</h3>
+        <FriendList uid={user?.uid} />
+      </div>
+
       <div className="bg-white border rounded shadow mt-6 overflow-hidden">
         <h2 className="text-xl font-semibold mb-4 p-4 pb-0">Profile Preview</h2>
         <div className="relative">
@@ -479,6 +491,8 @@ export default function Profile() {
           </Card>
         ))}
       </div>
+
+      <Toaster toasts={toasts} removeToast={removeToast} />
 
       {/* Danger zone */}
       <div className="border border-red-200 bg-red-50 rounded p-4 mt-8">
