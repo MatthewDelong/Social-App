@@ -97,6 +97,8 @@
     ├── main.jsx
     ├── components/
     │   ├── Footer.jsx
+    │   ├── FriendList.jsx
+    │   ├── FriendRequestsInbox.jsx
     │   ├── Layout.jsx
     │   ├── MembersList
     │   ├── Navbar.jsx
@@ -106,15 +108,23 @@
     │   │   ├── GroupReplies.jsx
     │   │   ├── GroupRoleManager.jsx
     │   │   └── RoleBadge.jsx
+    │   ├── nav/
+    │   │   └── FriendRequestsMenu.jsx
     │   └── ui/
     │       ├── button.jsx
     │       ├── card.jsx
     │       ├── input.jsx
-    │       └── textarea.jsx
+    │       ├── textarea.jsx
+    │       └── Toaster.jsx     
     ├── context/
     │   └── AppContext.jsx
     ├── hooks/
-    │   └── useGroupPermissions.jsx
+    │   ├── useFriendship.js     
+    │   ├── useGroupPermissions.jsx
+    │   ├── usePresence.js
+    │   └── useToasts.js
+    ├── lib/
+    │   └── friends.js
     └── pages/
         ├── AdminDashboard.jsx
         ├── CreateGroup.jsx
