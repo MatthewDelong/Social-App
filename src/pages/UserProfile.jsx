@@ -207,7 +207,7 @@ export default function UserProfile() {
         {posts.map((post) => (
           <Card key={post.id}>
             <div className="flex items-center space-x-2">
-              <img src={profile.photoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 border-2 border-white rounded-full" />
+              <img src={profile.photoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 border-2 border-black rounded-full" />
               <p className="font-bold">{post.author}</p>
             </div>
             <p>{post.content}</p>

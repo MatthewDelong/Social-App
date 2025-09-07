@@ -390,7 +390,7 @@ export default function Profile() {
         <img
           src={newAvatarPreview || profileData.photoURL || DEFAULT_AVATAR}
           alt="Profile Avatar"
-          className="w-20 h-20 rounded-full object-cover"
+          className="w-20 h-20 border-4 bordeer-white rounded-full object-cover"
         />
         <label className="cursor-pointer bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
           Select Picture
@@ -421,7 +421,7 @@ export default function Profile() {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Profile Banner</h3>
         {(newBannerPreview || profileData.bannerURL) && (
-          <div className="relative w-full h-32 bg-gray-200 rounded-lg overflow-hidden">
+          <div className="relative w-full h-32 border-4 border-white bg-gray-200 rounded-lg overflow-hidden">
             <img src={newBannerPreview || profileData.bannerURL} alt="Profile Banner" className="w-full h-full object-cover" />
           </div>
         )}
@@ -484,7 +484,7 @@ export default function Profile() {
         {posts.map((post) => (
           <Card key={post.id}>
             <div className="flex items-center space-x-2">
-              <img src={profileData.photoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 rounded-full" />
+              <img src={profileData.photoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 border-2 border-black rounded-full" />
               <p className="font-bold">{post.author}</p>
             </div>
             <p>{post.content}</p>
