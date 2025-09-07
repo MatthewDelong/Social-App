@@ -35,18 +35,23 @@ match /settings/theme {
 
 // Users + Friends
 match /users/{userId} {
-  allow read: if isSignedIn();
-  allow create: if isSignedIn() && request.auth.uid == userId;
+allow read: if isSignedIn();
+allow create: if isSignedIn() && request.auth.uid == userId;
 
-  // Allow self-updates only for profile fields (no privilege elevation). Admins can update anyone.
-  allow update: if isSignedIn() && (
-    (request.auth.uid == userId
-      && resource.data.diff(request.resource.data).changedKeys().hasOnly([
-        'displayName','bio','location','website','photoURL','bannerURL'
-      ])
-    )
-    || isSiteAdmin()
-  );
+// Allow self-updates only for profile fields (no privilege elevation). Admins can update anyone.
+allow update: if isSignedIn() && (
+(request.auth.uid == userId
+&& resource.data.diff(request.resource.data).changedKeys().hasOnly([
+'displayName','bio','location','website','photoURL','bannerURL'
+])
+)
+|| isSiteAdmin()
+);
+
+// Presence-only self-updates
+allow update: if isSignedIn()
+&& request.auth.uid == userId
+&& resource.data.diff(request.resource.data).changedKeys().hasOnly(['online','lastSeen']);
 
   // Friends subcollection
   match /friends/{friendUid} {

@@ -26,11 +26,12 @@ import CreateGroup from "./pages/CreateGroup";
 import GroupPage from "./pages/GroupPage";
 import GroupPostPage from "./pages/GroupPostPage";
 
+import { usePresence } from "./hooks/usePresence";
+
 function AppRoutes() {
   const { user, loading, theme } = useAppContext();
   const location = useLocation();
 
-  // Show loading until both `user` and `theme` are ready
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -56,11 +57,9 @@ function AppRoutes() {
       className="min-h-screen transition-colors duration-300"
       style={{ backgroundColor: theme?.backgroundColor || "#f9f9f9" }}
     >
-      {/* Show Auth Navbar on login/signup pages, else main navbar for logged in users */}
       {isAuthPage ? <AuthNavbar /> : user && <Navbar />}
 
       <Routes>
-        {/* Main App Routes */}
         <Route
           path="/"
           element={user ? <Home /> : <Navigate to="/login" replace />}
@@ -74,19 +73,16 @@ function AppRoutes() {
           element={!user ? <Signup /> : <Navigate to="/" replace />}
         />
 
-        {/* Your own profile page */}
         <Route
           path="/profile"
           element={user ? <Profile /> : <Navigate to="/login" replace />}
         />
 
-        {/* ✅ New route for logged-in user's UserProfile.jsx */}
         <Route
           path="/user-profile"
           element={user ? <UserProfile /> : <Navigate to="/login" replace />}
         />
 
-        {/* ✅ Other users' profile pages by UID */}
         <Route path="/profile/:uid" element={<UserProfile />} />
 
         <Route
@@ -131,6 +127,7 @@ function AppRoutes() {
 }
 
 export default function App() {
+  usePresence();
   return (
     <AppProvider>
       <Layout>

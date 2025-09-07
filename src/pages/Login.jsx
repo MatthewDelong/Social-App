@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useNavigate, Link } from 'react-router-dom';
 import Input from '../components/ui/input';
@@ -9,6 +9,7 @@ import Button from '../components/ui/button';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -17,6 +18,7 @@ export default function Login() {
 
   const handleLogin = async () => {
     try {
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/');
     } catch (err) {
@@ -29,7 +31,6 @@ export default function Login() {
       alert('Please enter your email address');
       return;
     }
-
     try {
       await sendPasswordResetEmail(auth, resetEmail);
       setResetSent(true);
@@ -72,6 +73,17 @@ export default function Login() {
             >
               {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
             </button>
+          </div>
+
+          <div className="flex items-center">
+            <input
+              id="remember"
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+            />
+            <label htmlFor="remember" className="ml-2 text-sm text-gray-700">Remember me</label>
           </div>
         </div>
 

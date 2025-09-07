@@ -1,14 +1,14 @@
 // src/firebase.js
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage'; // ✅ Added
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBLRU-79wJ88jj775FAxO8buS6cFI-U6lg",
   authDomain: "social-app-8a28d.firebaseapp.com",
   projectId: "social-app-8a28d",
-  storageBucket: "social-app-8a28d.firebasestorage.app", // ✅ Correct
+  storageBucket: "social-app-8a28d.firebasestorage.app",
   messagingSenderId: "443274605720",
   appId: "1:443274605720:web:92bb9948cb62efe6288ced",
   measurementId: "G-8Y06BB76GK"
@@ -16,7 +16,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Firebase services
 export const auth = getAuth(app);
+setPersistence(auth, browserSessionPersistence).catch(() => {});
+
 export const db = getFirestore(app);
-export const storage = getStorage(app); // ✅ Added export
+export const storage = getStorage(app);
