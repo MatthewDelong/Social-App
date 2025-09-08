@@ -95,7 +95,7 @@ export default function FriendList({ uid }) {
                   )}
                   <span
                     title={f.online ? "Online" : "Offline"}
-                    className={`absolute -bottom-0 -right-0 w-3.5 h-3.5 rounded-full ring-2 ring-white ${
+                    className={`absolute -bottom-0 -right-0 w-3.5 h-3.5 rounded-full ring-2 ring-blue ${
                       f.online ? "bg-emerald-500" : "bg-gray-300"
                     }`}
                   />
