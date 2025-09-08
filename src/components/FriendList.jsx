@@ -83,7 +83,7 @@ export default function FriendList({ uid }) {
               >
                 <div className="relative">
                   {f.photoURL ? (
-                    <div className="w-16 h-16 rounded-full overflow-hidden ring-1 ring-gray-200 group-hover:ring-gray-300">
+                    <div className="w-16 h-16 border-2 border-black rounded-full overflow-hidden ring-1 ring-gray-200 group-hover:ring-gray-300">
                       <img
                         src={f.photoURL}
                         alt={f.displayName}

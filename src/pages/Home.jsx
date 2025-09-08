@@ -13,7 +13,7 @@ import { db } from "../firebase";
 import { useAppContext } from "../context/AppContext";
 import { formatDistanceToNow } from "date-fns";
 import EmojiPicker from "emoji-picker-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ThumbsUp } from "lucide-react";
 
 export default function Home() {
@@ -30,6 +30,7 @@ export default function Home() {
   const [showReplyBoxMap, setShowReplyBoxMap] = useState({});
   const { user, theme } = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const DEFAULT_AVATAR =
     "https://firebasestorage.googleapis.com/v0/b/social-app-8a28d.firebasestorage.app/o/default-avatar.png?alt=media&token=78165d2b-f095-496c-9de2-5e143bfc41cc";
@@ -76,6 +77,34 @@ export default function Home() {
     });
     return () => unsub();
   }, []);
+
+  // Scroll to a specific post if coming from UserProfile (via location.state) or using hash
+  useEffect(() => {
+    const fromState = location.state && location.state.scrollToPostId;
+    const fromHash = location.hash && location.hash.startsWith("#post-")
+      ? location.hash.slice(6) // remove '#post-'
+      : null;
+    const targetId = fromState || fromHash;
+    if (!targetId) return;
+
+    let tries = 0;
+    const iv = setInterval(() => {
+      const el = document.getElementById(`post-${targetId}`);
+      tries++;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.classList.add("ring-2", "ring-blue-500");
+        setTimeout(() => el.classList.remove("ring-2", "ring-blue-500"), 2000);
+        clearInterval(iv);
+        if (fromState) {
+          navigate(location.pathname, { replace: true, state: {} });
+        }
+      } else if (tries > 40) {
+        clearInterval(iv);
+      }
+    }, 50);
+    return () => clearInterval(iv);
+  }, [location, posts, navigate]);
 
   const handleEditPost = async (id) => {
     if (!editedContent.trim()) return;
@@ -293,7 +322,7 @@ export default function Home() {
       {posts.map((post) => {
         const postUser = usersMap[post.uid];
         return (
-          <div key={post.id} className="border-2 border-black-500 p-4 rounded mb-4 shadow-sm ">
+          <div key={post.id} id={`post-${post.id}`} className="border-2 border-black-500 p-4 rounded mb-4 shadow-sm ">
             {/* Post header */}
             <div className="flex justify-between">
               <div className="flex items-center space-x-2">

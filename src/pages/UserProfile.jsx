@@ -206,11 +206,14 @@ export default function UserProfile() {
         {posts.length === 0 && <p className="text-gray-500">No posts yet.</p>}
         {posts.map((post) => (
           <Card key={post.id}>
-            <div className="flex items-center space-x-2">
-              <img src={profile.photoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 border-2 border-black rounded-full" />
-              <p className="font-bold">{post.author}</p>
-            </div>
-            <p>{post.content}</p>
+            <Link to="/" state={{ scrollToPostId: post.id }} className="block group">
+              <div className="flex items-center space-x-2">
+                <img src={profile.photoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 border-2 border-black rounded-full" />
+                <p className="font-bold">{post.author}</p>
+              </div>
+              <p className="mt-1 group-hover:underline">{post.content}</p>
+              <span className="mt-2 inline-flex text-sm text-blue-600 group-hover:underline">View post</span>
+            </Link>
           </Card>
         ))}
       </div>
