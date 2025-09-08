@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signInWithEmailAndPassword, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useNavigate, Link } from 'react-router-dom';
 import Input from '../components/ui/input';
@@ -18,12 +18,32 @@ export default function Login() {
 
   const handleLogin = async () => {
     try {
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+      if (rememberMe) localStorage.setItem('rememberMe', '1');
+      else localStorage.removeItem('rememberMe');
+
       await signInWithEmailAndPassword(auth, email, password);
+
+      try {
+        if ('credentials' in navigator && 'PasswordCredential' in window) {
+          const cred = await navigator.credentials.create({
+            password: { id: email, password }
+          });
+          if (cred) await navigator.credentials.store(cred);
+        }
+      } catch {}
+
       navigate('/');
     } catch (err) {
       alert(err.message);
     }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (showPassword) setShowPassword(false);
+    setTimeout(() => {
+      handleLogin();
+    }, 0);
   };
 
   const handlePasswordReset = async () => {
@@ -48,22 +68,28 @@ export default function Login() {
       <div className="w-full max-w-md bg-white/90 backdrop-blur-sm p-6 md:p-8 rounded-xl shadow-2xl border border-white/20 mx-auto">
         <h1 className="text-2xl md:text-3xl font-bold mb-6 text-center text-gray-800">Log In</h1>
 
-        <div className="space-y-4">
+        <form autoComplete="on" onSubmit={handleSubmit} className="space-y-4">
           <Input
+            id="email"
+            name="email"
             placeholder="Email"
             type="email"
+            autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-4 py-3 text-base"
           />
 
           <div className="relative">
-            <Input
+            <input
+              id="password"
+              name="password"
               type={showPassword ? 'text' : 'password'}
               placeholder="Password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 text-base pr-10"
+              className="w-full px-4 py-3 text-base pr-10 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button
               type="button"
@@ -85,11 +111,11 @@ export default function Login() {
             />
             <label htmlFor="remember" className="ml-2 text-sm text-gray-700">Remember me</label>
           </div>
-        </div>
 
-        <Button onClick={handleLogin} className="w-1/2 mx-auto block mt-6 py-0 text-base bg-blue-200 hover:bg-blue-700">
-          Log In
-        </Button>
+          <Button type="submit" className="w-1/2 mx-auto block mt-2 py-0 text-base bg-blue-200 hover:bg-blue-700">
+            Log In
+          </Button>
+        </form>
 
         <p className="mt-4 text-sm text-center">
           <button
@@ -110,6 +136,7 @@ export default function Login() {
             <Input
               placeholder="Enter your email"
               type="email"
+              autoComplete="email"
               value={resetEmail}
               onChange={(e) => setResetEmail(e.target.value)}
               className="w-full px-4 py-3 text-base mb-3"
@@ -135,7 +162,7 @@ export default function Login() {
         )}
 
         <p className="mt-6 text-sm text-center text-gray-600">
-          Don't have an account?{' '}
+          Don't have an account{' '}?
           <Link to="/signup" className="text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors">
             Sign up
           </Link>
