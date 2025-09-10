@@ -151,7 +151,7 @@
 | Profile   | ![Profile](https://github.com/user-attachments/assets/80fbaa7e-7ce5-4ee7-9906-18d5492aa1c6) |
 | Admin     | ![Admin](https://github.com/user-attachments/assets/ccd7e211-8c2d-4fdb-ab12-dc5bf816500d) |
 | Group Page| ![Group Page](https://github.com/user-attachments/assets/2e352d5d-79af-4ec6-adbc-580b81d0317d) |
-| Group Posts| ![Group Page](https://github.com/user-attachments/assets/5ccae4d7-6d0b-4eda-a178-e823fe06b343) |
+| Group Posts| ![Group Post](https://github.com/user-attachments/assets/5ccae4d7-6d0b-4eda-a178-e823fe06b343) |
 ---
  
 ## 📜 License  
