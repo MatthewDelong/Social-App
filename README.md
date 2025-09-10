@@ -48,7 +48,7 @@
 
 ## Build and Deploy
 - npm run deploy (Builds and Deploys)
-- npm run dev
+- npm run build
 - firebase deploy
 
 ---
