@@ -68,13 +68,14 @@
 ├── .gitignore
 ├── LICENSE
 ├── README.md
+├── cors.json
 ├── firebase.json
 ├── index.html
 ├── package-lock.json
 ├── package.json
 ├── postcss.config.js
 ├── tailwind.config.js
-├── vite.config.js
+├── vite.config.mjs
 ├── functions/
 │   ├── .eslint.js
 │   ├── .gcloudignore
@@ -145,11 +146,12 @@
 
 | Page      | Preview |
 |-----------|---------|
-| Login     | ![Login](https://github.com/user-attachments/assets/8d6f1399-c8f9-49e1-8b69-272d8b536c68) |
-| Posts     | ![Posts](https://github.com/user-attachments/assets/52a5534a-0ec8-4bd3-81b2-b3afb4e06b0f) |
-| Profile   | ![Profile](https://github.com/user-attachments/assets/d2d0530f-072f-4bc1-bf1e-f589419dc783) |
+| Login     | ![Login](https://github.com/user-attachments/assets/d2955bf1-f447-409f-83cf-ba2a0887b251) |
+| Posts     | ![Posts](https://github.com/user-attachments/assets/79ea29b9-97ce-4fc7-ad4d-b7b2fe494176) |
+| Profile   | ![Profile](https://github.com/user-attachments/assets/80fbaa7e-7ce5-4ee7-9906-18d5492aa1c6) |
 | Admin     | ![Admin](https://github.com/user-attachments/assets/ccd7e211-8c2d-4fdb-ab12-dc5bf816500d) |
-| Group Page| ![Group Page](https://github.com/user-attachments/assets/f00173d1-bfd6-4bc3-ac72-0b778dcec4d0) |
+| Group Page| ![Group Page](https://github.com/user-attachments/assets/2e352d5d-79af-4ec6-adbc-580b81d0317d) |
+| Group Posts| ![Group Page](https://github.com/user-attachments/assets/5ccae4d7-6d0b-4eda-a178-e823fe06b343) |
 ---
  
 ## 📜 License  
