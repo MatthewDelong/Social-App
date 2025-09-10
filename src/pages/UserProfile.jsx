@@ -18,6 +18,7 @@ import {
   declineFriendRequest,
   removeFriend,
 } from "../lib/friends";
+import { X as CloseIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function UserProfile() {
   const { uid } = useParams();
@@ -35,15 +36,17 @@ export default function UserProfile() {
   const currentUid = user?.uid;
   const { state: friendState } = useFriendship(currentUid, targetUid);
 
+  const [photos, setPhotos] = useState([]);
+  const [lbOpen, setLbOpen] = useState(false);
+  const [lbIndex, setLbIndex] = useState(0);
+
   useEffect(() => {
     const loadDefaultAvatar = async () => {
       try {
         const defaultRef = ref(storage, "default-avatar.png");
         const url = await getDownloadURL(defaultRef);
         setDEFAULT_AVATAR(url);
-      } catch (err) {
-        console.error("Error loading default avatar:", err);
-      }
+      } catch (err) {}
     };
     loadDefaultAvatar();
   }, []);
@@ -54,13 +57,13 @@ export default function UserProfile() {
       try {
         const userRef = doc(db, "users", userId);
         const snap = await getDoc(userRef);
-        if (snap.exists()) setProfile(snap.data());
-        else setProfile(null);
+        if (snap.exists()) setProfile(snap.data()); else setProfile(null);
 
         const postsRef = collection(db, "posts");
         const qPosts = query(postsRef, where("uid", "==", userId));
         const postSnap = await getDocs(qPosts);
-        setPosts(postSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        const postDocs = postSnap.docs.map((docx) => ({ id: docx.id, ...docx.data() }));
+        setPosts(postDocs);
 
         const allGroupsRef = collection(db, "groups");
         const allGroupsSnap = await getDocs(allGroupsRef);
@@ -72,53 +75,54 @@ export default function UserProfile() {
           if (memberSnap.exists()) userGroups.push(groupData);
         }
         setGroups(userGroups);
-      } catch (err) {
-        console.error("Error loading user profile:", err);
-      }
+
+        const gpRef = collection(db, "groupPosts");
+        const qGp = query(gpRef, where("uid", "==", userId));
+        const gpSnap = await getDocs(qGp);
+        const gpDocs = gpSnap.docs.map((docx) => ({ id: docx.id, ...docx.data() }));
+
+        const pImgs = postDocs.flatMap((p) => Array.isArray(p.images) ? p.images.map((it) => typeof it === "string" ? it : it?.url).filter(Boolean) : []);
+        const gpImgs = gpDocs.flatMap((p) => Array.isArray(p.images) ? p.images.map((it) => typeof it === "string" ? it : it?.url).filter(Boolean) : []);
+        setPhotos([...
+          pImgs,
+          ...gpImgs
+        ]);
+      } catch (err) {}
       setLoading(false);
     };
     loadUserProfile();
   }, [userId]);
 
+  useEffect(() => {
+    if (!lbOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setLbOpen(false);
+      if (e.key === "ArrowRight") setLbIndex((i) => (i + 1) % Math.max(photos.length, 1));
+      if (e.key === "ArrowLeft") setLbIndex((i) => (i - 1 + Math.max(photos.length, 1)) % Math.max(photos.length, 1));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lbOpen, photos.length]);
+
+  const openLb = (i) => { setLbIndex(i); setLbOpen(true); };
+  const closeLb = () => setLbOpen(false);
+  const nextLb = (e) => { e?.stopPropagation?.(); setLbIndex((i) => (i + 1) % photos.length); };
+  const prevLb = (e) => { e?.stopPropagation?.(); setLbIndex((i) => (i - 1 + photos.length) % photos.length); };
+
   const onSend = async () => {
-    try {
-      await sendFriendRequest(currentUid, targetUid);
-      pushToast("Friend request sent");
-    } catch (e) {
-      pushToast("Failed to send request", "error");
-    }
+    try { await sendFriendRequest(currentUid, targetUid); pushToast("Friend request sent"); } catch (e) { pushToast("Failed to send request", "error"); }
   };
   const onCancel = async () => {
-    try {
-      await cancelFriendRequest(currentUid, targetUid);
-      pushToast("Request canceled", "info");
-    } catch (e) {
-      pushToast("Failed to cancel request", "error");
-    }
+    try { await cancelFriendRequest(currentUid, targetUid); pushToast("Request canceled", "info"); } catch (e) { pushToast("Failed to cancel request", "error"); }
   };
   const onAccept = async () => {
-    try {
-      await acceptFriendRequest(currentUid, targetUid);
-      pushToast("Friend added");
-    } catch (e) {
-      pushToast("Failed to accept request", "error");
-    }
+    try { await acceptFriendRequest(currentUid, targetUid); pushToast("Friend added"); } catch (e) { pushToast("Failed to accept request", "error"); }
   };
   const onDecline = async () => {
-    try {
-      await declineFriendRequest(currentUid, targetUid);
-      pushToast("Request declined", "info");
-    } catch (e) {
-      pushToast("Failed to decline request", "error");
-    }
+    try { await declineFriendRequest(currentUid, targetUid); pushToast("Request declined", "info"); } catch (e) { pushToast("Failed to decline request", "error"); }
   };
   const onRemove = async () => {
-    try {
-      await removeFriend(currentUid, targetUid);
-      pushToast("Friend removed", "info");
-    } catch (e) {
-      pushToast("Failed to remove friend", "error");
-    }
+    try { await removeFriend(currentUid, targetUid); pushToast("Friend removed", "info"); } catch (e) { pushToast("Failed to remove friend", "error"); }
   };
 
   if (loading) return <p>Loading profile...</p>;
@@ -180,6 +184,20 @@ export default function UserProfile() {
         )}
       </div>
 
+      <div className="bg-white border rounded-lg shadow-lg p-6">
+        <h3 className="text-xl font-bold mb-4">Photos</h3>
+        {photos.length === 0 && <p className="text-gray-500">No photos yet.</p>}
+        {photos.length > 0 && (
+          <div className="grid grid-cols-5 gap-2">
+            {photos.map((url, idx) => (
+              <button key={idx} className="relative group" onClick={() => openLb(idx)}>
+                <img src={url} alt="photo" loading="lazy" className="w-full aspect-square object-cover border-2 border-black rounded" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div>
         <h3 className="text-xl font-bold mb-4">Friends</h3>
         <FriendList uid={userId} />
@@ -219,6 +237,17 @@ export default function UserProfile() {
       </div>
 
       <Toaster toasts={toasts} removeToast={removeToast} />
+
+      {lbOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center" onClick={closeLb}>
+          <button onClick={prevLb} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2"><ChevronLeft size={32} /></button>
+          <div className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center">
+            <img src={photos[lbIndex]} alt="photo" className="max-w-[90vw] max-h-[90vh] object-contain" />
+          </div>
+          <button onClick={nextLb} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2"><ChevronRight size={32} /></button>
+          <button onClick={closeLb} className="absolute top-4 right-4 text-white/80 hover:text-white p-2"><CloseIcon size={28} /></button>
+        </div>
+      )}
     </div>
   );
 }
