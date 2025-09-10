@@ -62,7 +62,7 @@ export default function Navbar() {
             </Link>
             <Link to="/new" className="text-sm hover:underline">New Post</Link>
             <Link to="/groups" className="text-sm hover:underline">Groups</Link>
-            <Link to="/settings" className="text-sm hover:underline">Settings</Link>
+            {/*<Link to="/settings" className="text-sm hover:underline">Settings</Link>*/}
             {user.isAdmin && (
               <Link to="/admin" className="text-sm hover:underline">Admin Dashboard</Link>
             )}
@@ -93,7 +93,7 @@ export default function Navbar() {
           </Link>
           <Link to="/new" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>New Post</Link>
           <Link to="/groups" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Groups</Link>
-          <Link to="/settings" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Settings</Link>
+          {/*<Link to="/settings" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Settings</Link>*/}
           {user.isAdmin && (
             <Link to="/admin" className="text-sm hover:underline" onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>
           )}

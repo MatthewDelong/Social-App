@@ -36,7 +36,7 @@ export default function UserProfile() {
   const currentUid = user?.uid;
   const { state: friendState } = useFriendship(currentUid, targetUid);
 
-  const [photos, setPhotos] = useState([]);
+  const [photos, setPhotos] = useState([]); // { url, createdAtMs, source, postId, groupId? }
   const [lbOpen, setLbOpen] = useState(false);
   const [lbIndex, setLbIndex] = useState(0);
 
@@ -81,12 +81,31 @@ export default function UserProfile() {
         const gpSnap = await getDocs(qGp);
         const gpDocs = gpSnap.docs.map((docx) => ({ id: docx.id, ...docx.data() }));
 
-        const pImgs = postDocs.flatMap((p) => Array.isArray(p.images) ? p.images.map((it) => typeof it === "string" ? it : it?.url).filter(Boolean) : []);
-        const gpImgs = gpDocs.flatMap((p) => Array.isArray(p.images) ? p.images.map((it) => typeof it === "string" ? it : it?.url).filter(Boolean) : []);
-        setPhotos([...
-          pImgs,
-          ...gpImgs
-        ]);
+        const tsToMs = (v) => {
+          try {
+            if (!v) return 0;
+            if (typeof v.toDate === "function") return v.toDate().getTime();
+            if (v.seconds) return v.seconds * 1000;
+            const n = new Date(v).getTime();
+            return isNaN(n) ? 0 : n;
+          } catch { return 0; }
+        };
+
+        const pImgs = postDocs.flatMap((p) => {
+          const createdAtMs = tsToMs(p.createdAt);
+          return Array.isArray(p.images)
+            ? p.images.map((it) => ({ url: typeof it === "string" ? it : it?.url, createdAtMs, source: "post", postId: p.id })).filter((i) => !!i.url)
+            : [];
+        });
+        const gpImgs = gpDocs.flatMap((p) => {
+          const createdAtMs = tsToMs(p.createdAt);
+          return Array.isArray(p.images)
+            ? p.images.map((it) => ({ url: typeof it === "string" ? it : it?.url, createdAtMs, source: "group", postId: p.id, groupId: p.groupId })).filter((i) => !!i.url)
+            : [];
+        });
+
+        const merged = [...pImgs, ...gpImgs].sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+        setPhotos(merged);
       } catch (err) {}
       setLoading(false);
     };
@@ -109,24 +128,19 @@ export default function UserProfile() {
   const nextLb = (e) => { e?.stopPropagation?.(); setLbIndex((i) => (i + 1) % photos.length); };
   const prevLb = (e) => { e?.stopPropagation?.(); setLbIndex((i) => (i - 1 + photos.length) % photos.length); };
 
-  const onSend = async () => {
-    try { await sendFriendRequest(currentUid, targetUid); pushToast("Friend request sent"); } catch (e) { pushToast("Failed to send request", "error"); }
-  };
-  const onCancel = async () => {
-    try { await cancelFriendRequest(currentUid, targetUid); pushToast("Request canceled", "info"); } catch (e) { pushToast("Failed to cancel request", "error"); }
-  };
-  const onAccept = async () => {
-    try { await acceptFriendRequest(currentUid, targetUid); pushToast("Friend added"); } catch (e) { pushToast("Failed to accept request", "error"); }
-  };
-  const onDecline = async () => {
-    try { await declineFriendRequest(currentUid, targetUid); pushToast("Request declined", "info"); } catch (e) { pushToast("Failed to decline request", "error"); }
-  };
-  const onRemove = async () => {
-    try { await removeFriend(currentUid, targetUid); pushToast("Friend removed", "info"); } catch (e) { pushToast("Failed to remove friend", "error"); }
-  };
+  const onSend = async () => { try { await sendFriendRequest(currentUid, targetUid); pushToast("Friend request sent"); } catch (e) { pushToast("Failed to send request", "error"); } };
+  const onCancel = async () => { try { await cancelFriendRequest(currentUid, targetUid); pushToast("Request canceled", "info"); } catch (e) { pushToast("Failed to cancel request", "error"); } };
+  const onAccept = async () => { try { await acceptFriendRequest(currentUid, targetUid); pushToast("Friend added"); } catch (e) { pushToast("Failed to accept request", "error"); } };
+  const onDecline = async () => { try { await declineFriendRequest(currentUid, targetUid); pushToast("Request declined", "info"); } catch (e) { pushToast("Failed to decline request", "error"); } };
+  const onRemove = async () => { try { await removeFriend(currentUid, targetUid); pushToast("Friend removed", "info"); } catch (e) { pushToast("Failed to remove friend", "error"); } };
 
   if (loading) return <p>Loading profile...</p>;
   if (!profile) return <p>User not found.</p>;
+
+  const isOwner = currentUid === targetUid;
+  const isFriends = friendState === 'friends';
+  const visibility = profile.visibility || 'public';
+  const canView = isOwner || visibility === 'public' || isFriends;
 
   return (
     <div className="max-w-2xl mx-auto mt-10 px-4 space-y-8">
@@ -184,57 +198,66 @@ export default function UserProfile() {
         )}
       </div>
 
-      <div className="bg-white border rounded-lg shadow-lg p-6">
-        <h3 className="text-xl font-bold mb-4">Photos</h3>
-        {photos.length === 0 && <p className="text-gray-500">No photos yet.</p>}
-        {photos.length > 0 && (
-          <div className="grid grid-cols-5 gap-2">
-            {photos.map((url, idx) => (
-              <button key={idx} className="relative group" onClick={() => openLb(idx)}>
-                <img src={url} alt="photo" loading="lazy" className="w-full aspect-square object-cover border-2 border-black rounded" />
-              </button>
+      {!canView ? (
+        <div className="bg-white border rounded-lg shadow-lg p-6">
+          <p className="text-gray-700">This profile is visible to friends only.</p>
+          <p className="text-gray-600 text-sm mt-1">Send a friend request to see photos, friends, groups, and posts.</p>
+        </div>
+      ) : (
+        <>
+          <div className="bg-white border rounded-lg shadow-lg p-6">
+            <h3 className="text-xl font-bold mb-4">Photos</h3>
+            {photos.length === 0 && <p className="text-gray-500">No photos yet.</p>}
+            {photos.length > 0 && (
+              <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                {photos.map((item, idx) => (
+                  <button key={idx} className="relative group" onClick={() => openLb(idx)}>
+                    <img src={item.url} alt="photo" loading="lazy" className="w-full aspect-square object-cover rounded" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-xl font-bold mb-4">Friends</h3>
+            <FriendList uid={userId} />
+          </div>
+
+          <div>
+            <h3 className="text-xl w-auto font-bold mb-4">Groups I'm part of</h3>
+            {groups.length === 0 && <p className="text-gray-500">Not a member of any groups yet.</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {groups.map((group) => (
+                <Card key={group.id}>
+                  <h4 className="font-bold text-lg">{group.name}</h4>
+                  {group.description && <p className="text-gray-600 text-sm">{group.description}</p>}
+                  <Link to={`/groups/${group.id}`} className="text-blue-500 hover:underline mt-2 block">
+                    View Group
+                  </Link>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-bold mb-4">Posts by {profile.displayName}</h3>
+            {posts.length === 0 && <p className="text-gray-500">No posts yet.</p>}
+            {posts.map((post) => (
+              <Card key={post.id}>
+                <Link to="/" state={{ scrollToPostId: post.id }} className="block group">
+                  <div className="flex items-center space-x-2">
+                    <img src={profile.photoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 border-2 border-black rounded-full" />
+                    <p className="font-bold">{post.author}</p>
+                  </div>
+                  <p className="mt-1 group-hover:underline">{post.content}</p>
+                  <span className="mt-2 inline-flex text-sm text-blue-600 group-hover:underline">View post</span>
+                </Link>
+              </Card>
             ))}
           </div>
-        )}
-      </div>
-
-      <div>
-        <h3 className="text-xl font-bold mb-4">Friends</h3>
-        <FriendList uid={userId} />
-      </div>
-
-      <div>
-        <h3 className="text-xl w-auto font-bold mb-4">Groups I'm part of</h3>
-        {groups.length === 0 && <p className="text-gray-500">Not a member of any groups yet.</p>}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {groups.map((group) => (
-            <Card key={group.id}>
-              <h4 className="font-bold text-lg">{group.name}</h4>
-              {group.description && <p className="text-gray-600 text-sm">{group.description}</p>}
-              <Link to={`/groups/${group.id}`} className="text-blue-500 hover:underline mt-2 block">
-                View Group
-              </Link>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-xl font-bold mb-4">Posts by {profile.displayName}</h3>
-        {posts.length === 0 && <p className="text-gray-500">No posts yet.</p>}
-        {posts.map((post) => (
-          <Card key={post.id}>
-            <Link to="/" state={{ scrollToPostId: post.id }} className="block group">
-              <div className="flex items-center space-x-2">
-                <img src={profile.photoURL || DEFAULT_AVATAR} alt="Author" className="w-8 h-8 border-2 border-black rounded-full" />
-                <p className="font-bold">{post.author}</p>
-              </div>
-              <p className="mt-1 group-hover:underline">{post.content}</p>
-              <span className="mt-2 inline-flex text-sm text-blue-600 group-hover:underline">View post</span>
-            </Link>
-          </Card>
-        ))}
-      </div>
+        </>
+      )}
 
       <Toaster toasts={toasts} removeToast={removeToast} />
 
@@ -242,7 +265,7 @@ export default function UserProfile() {
         <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center" onClick={closeLb}>
           <button onClick={prevLb} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2"><ChevronLeft size={32} /></button>
           <div className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center">
-            <img src={photos[lbIndex]} alt="photo" className="max-w-[90vw] max-h-[90vh] object-contain" />
+            <img src={photos[lbIndex]?.url} alt="photo" className="max-w-[90vw] max-h-[90vh] object-contain" />
           </div>
           <button onClick={nextLb} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2"><ChevronRight size={32} /></button>
           <button onClick={closeLb} className="absolute top-4 right-4 text-white/80 hover:text-white p-2"><CloseIcon size={28} /></button>

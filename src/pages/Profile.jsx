@@ -51,12 +51,13 @@ export default function Profile() {
     bannerURL: ''
   });
 
+  const [visibility, setVisibility] = useState('public');
+
   const [newAvatarFile, setNewAvatarFile] = useState(null);
   const [newAvatarPreview, setNewAvatarPreview] = useState(null);
   const [newBannerFile, setNewBannerFile] = useState(null);
   const [newBannerPreview, setNewBannerPreview] = useState(null);
 
-  // Self-delete state
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -72,9 +73,7 @@ export default function Profile() {
           ...prev,
           photoURL: prev.photoURL || url
         }));
-      } catch (error) {
-        console.error('Error loading default avatar:', error);
-      }
+      } catch (error) {}
     };
     loadDefaultAvatar();
   }, []);
@@ -88,6 +87,7 @@ export default function Profile() {
         setBio(data.bio || '');
         setLocation(data.location || '');
         setWebsite(data.website || '');
+        setVisibility(data.visibility || 'public');
         setProfileData({
           displayName: data.displayName || user.displayName || '',
           bio: data.bio || '',
@@ -103,7 +103,8 @@ export default function Profile() {
           location: '',
           website: '',
           photoURL: user.photoURL || DEFAULT_AVATAR,
-          bannerURL: ''
+          bannerURL: '',
+          visibility: 'public'
         });
       }
     };
@@ -129,7 +130,8 @@ export default function Profile() {
       await updateDoc(doc(db, 'users', user.uid), {
         bio,
         location,
-        website
+        website,
+        visibility
       });
 
       setProfileData((prev) => ({
@@ -143,7 +145,6 @@ export default function Profile() {
       setMessage('Profile updated successfully!');
       setName('');
     } catch (error) {
-      console.error('Error updating profile:', error);
       setMessage('Failed to update profile.');
     }
   };
@@ -229,7 +230,6 @@ export default function Profile() {
       setNewAvatarFile(null);
       setNewAvatarPreview(null);
     } catch (error) {
-      console.error('Error uploading image:', error);
       setMessage('Failed to upload image.');
     }
     setUploading(false);
@@ -301,7 +301,6 @@ export default function Profile() {
       setNewBannerFile(null);
       setNewBannerPreview(null);
     } catch (error) {
-      console.error('Error uploading banner:', error);
       setMessage('Failed to upload banner.');
     }
     setUploading(false);
@@ -315,7 +314,6 @@ export default function Profile() {
     setDeleting(true);
     setDeleteError('');
     try {
-      // Reauthenticate
       const providerId = auth.currentUser.providerData?.[0]?.providerId || 'password';
       if (providerId === 'password') {
         if (!deletePassword) {
@@ -329,23 +327,18 @@ export default function Profile() {
         const provider = new GoogleAuthProvider();
         await reauthenticateWithPopup(auth.currentUser, provider);
       } else {
-        // Generic fallback
         alert('Please sign out and sign in again to continue with account deletion.');
         setDeleting(false);
         return;
       }
 
-      // Call server cascade delete (self allowed)
       const functions = getFunctions(undefined, 'europe-west2');
       const adminDeleteUser = httpsCallable(functions, 'adminDeleteUser');
       const res = await adminDeleteUser({ uid: auth.currentUser.uid });
-      console.log('Delete counts:', res?.data);
 
-      // Sign out and redirect
       await logout();
       navigate('/');
     } catch (e) {
-      console.error('Self-delete error', e);
       setDeleteError(e?.message || 'Failed to delete account.');
     } finally {
       setDeleting(false);
@@ -386,6 +379,24 @@ export default function Profile() {
         className="w-full border border-gray-300 p-2 rounded"
       />
 
+      <div className="space-y-2">
+        <h3 className="text-lg font-semibold">Profile visibility</h3>
+        <div className="inline-flex rounded overflow-hidden border border-gray-300">
+          <button
+            onClick={() => setVisibility('public')}
+            className={`px-4 py-1 text-sm ${visibility === 'public' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+          >
+            Anyone
+          </button>
+          <button
+            onClick={() => setVisibility('friends')}
+            className={`px-4 py-1 text-sm ${visibility === 'friends' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
+          >
+            Friends Only
+          </button>
+        </div>
+      </div>
+
       <div className="flex items-center space-x-4">
         <img
           src={newAvatarPreview || profileData.photoURL || DEFAULT_AVATAR}
@@ -417,7 +428,6 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Banner Upload Section */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Profile Banner</h3>
         {(newBannerPreview || profileData.bannerURL) && (
@@ -494,7 +504,6 @@ export default function Profile() {
 
       <Toaster toasts={toasts} removeToast={removeToast} />
 
-      {/* Danger zone */}
       <div className="border border-red-200 bg-red-50 rounded p-4 mt-8">
         <h3 className="text-lg font-semibold text-red-700 mb-2">Delete my account</h3>
         <p className="text-sm text-red-700 mb-3">This permanently deletes your account and all of your content. This action cannot be undone.</p>

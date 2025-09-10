@@ -21,7 +21,7 @@ const Footer = () => {
             </a>
           </div>
 
-          <div className="text-xs">
+          {/*<div className="text-xs">
             <span className="small">
               Site content licensed under{" "}
               <a
@@ -51,7 +51,7 @@ const Footer = () => {
                 />
               </a>
             </span>
-          </div>
+          </div>*/}
         </div>
       </div>
     </footer>

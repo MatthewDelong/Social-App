@@ -89,10 +89,10 @@ function AppRoutes() {
           path="/new"
           element={user ? <NewPost /> : <Navigate to="/login" replace />}
         />
-        <Route
+        {/*<Route
           path="/settings"
           element={user ? <ProfileSettings /> : <Navigate to="/login" replace />}
-        />
+        />*/}
         <Route
           path="/admin"
           element={
