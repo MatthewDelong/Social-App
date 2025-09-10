@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   collection,
   onSnapshot,
@@ -9,12 +9,17 @@ import {
   doc,
   getDocs,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, storage } from "../firebase";
 import { useAppContext } from "../context/AppContext";
 import { formatDistanceToNow } from "date-fns";
 import EmojiPicker from "emoji-picker-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ThumbsUp } from "lucide-react";
+import { ThumbsUp, Image as ImageIcon, X as CloseIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
+
+const MAX_IMAGES_PER_POST = 4;
+const TARGET_SIZE = 512;
+const MAX_UPLOAD_BYTES = 1024 * 1024; // 1 MB
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
@@ -28,6 +33,9 @@ export default function Home() {
   const [editReplyMap, setEditReplyMap] = useState({});
   const [editingReplyIndexMap, setEditingReplyIndexMap] = useState({});
   const [showReplyBoxMap, setShowReplyBoxMap] = useState({});
+  const [uploadingMap, setUploadingMap] = useState({});
+  const [uploadProgressMap, setUploadProgressMap] = useState({});
+  const [lightbox, setLightbox] = useState({ open: false, postId: null, index: 0 });
   const { user, theme } = useAppContext();
   const navigate = useNavigate();
   const location = useLocation();
@@ -54,6 +62,7 @@ export default function Home() {
       return "";
     }
   };
+
   const fetchUsers = async () => {
     const snap = await getDocs(collection(db, "users"));
     const map = {};
@@ -165,9 +174,7 @@ export default function Home() {
     ];
     await updateDoc(doc(db, "posts", postId), { comments: updatedComments });
     setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, comments: updatedComments } : p
-      )
+      prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p))
     );
     setCommentMap((prev) => ({ ...prev, [key]: "" }));
     setShowReplyBoxMap((prev) => ({ ...prev, [key]: false }));
@@ -178,11 +185,7 @@ export default function Home() {
     const updatedComments = [...post.comments];
     updatedComments.splice(index, 1);
     await updateDoc(doc(db, "posts", postId), { comments: updatedComments });
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, comments: updatedComments } : p
-      )
-    );
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
   };
 
   const handleEditComment = async (postId, index) => {
@@ -192,11 +195,7 @@ export default function Home() {
     const updatedComments = [...post.comments];
     updatedComments[index].text = newText;
     await updateDoc(doc(db, "posts", postId), { comments: updatedComments });
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, comments: updatedComments } : p
-      )
-    );
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
     setEditCommentMap((prev) => ({ ...prev, [`${postId}-${index}`]: "" }));
   };
 
@@ -205,11 +204,7 @@ export default function Home() {
     const updatedComments = [...post.comments];
     updatedComments[commentIndex].replies.splice(replyIndex, 1);
     await updateDoc(doc(db, "posts", postId), { comments: updatedComments });
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, comments: updatedComments } : p
-      )
-    );
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
   };
 
   const handleEditReply = async (postId, commentIndex, replyIndex) => {
@@ -217,11 +212,7 @@ export default function Home() {
     const updatedComments = [...posts.find((p) => p.id === postId).comments];
     updatedComments[commentIndex].replies[replyIndex].text = editReplyMap[key];
     await updateDoc(doc(db, "posts", postId), { comments: updatedComments });
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, comments: updatedComments } : p
-      )
-    );
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p)));
     setEditingReplyIndexMap((prev) => ({ ...prev, [key]: false }));
     setEditReplyMap((prev) => ({ ...prev, [key]: "" }));
   };
@@ -235,9 +226,7 @@ export default function Home() {
     else setLikes.add(user.uid);
     updated[commentIndex] = { ...current, commentLikes: Array.from(setLikes) };
     await updateDoc(doc(db, "posts", postId), { comments: updated });
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, comments: updated } : p))
-    );
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updated } : p)));
   };
 
   const handleLikeReply = async (postId, commentIndex, replyIndex) => {
@@ -252,25 +241,7 @@ export default function Home() {
     replies[replyIndex] = { ...r, replyLikes: Array.from(setLikes) };
     updated[commentIndex] = { ...comment, replies };
     await updateDoc(doc(db, "posts", postId), { comments: updated });
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, comments: updated } : p))
-    );
-  };
-
-  const addEmoji = (key, emoji) => {
-    setCommentMap((prev) => ({
-      ...prev,
-      [key]: (prev[key] || "") + emoji.emoji,
-    }));
-    setShowEmojiPicker((prev) => ({ ...prev, [key]: false }));
-  };
-
-  const addReplyEmoji = (key, emoji) => {
-    setCommentMap((prev) => ({
-      ...prev,
-      [key]: (prev[key] || "") + emoji.emoji,
-    }));
-    setShowReplyEmojiPicker((prev) => ({ ...prev, [key]: false }));
+    setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments: updated } : p)));
   };
 
   const resolveHandleToUid = (handle) => {
@@ -314,6 +285,203 @@ export default function Home() {
     return parts;
   };
 
+  const triggerUpload = (postId) => {
+    const el = document.getElementById(`upload-${postId}`);
+    el?.click();
+  };
+
+  const extractStoragePathFromUrl = (url) => {
+    try {
+      const u = new URL(url);
+      const part = u.pathname.split('/o/')[1];
+      if (!part) return null;
+      return decodeURIComponent(part);
+    } catch {
+      return null;
+    }
+  };
+
+  const resizeToSquare512 = async (file) => {
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = URL.createObjectURL(file);
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = TARGET_SIZE;
+    canvas.height = TARGET_SIZE;
+    const ctx = canvas.getContext('2d');
+    const scale = Math.max(TARGET_SIZE / img.width, TARGET_SIZE / img.height);
+    const w = img.width * scale;
+    const h = img.height * scale;
+    const dx = (TARGET_SIZE - w) / 2;
+    const dy = (TARGET_SIZE - h) / 2;
+    ctx.drawImage(img, dx, dy, w, h);
+    URL.revokeObjectURL(img.src);
+
+    let quality = 0.92;
+    let blob = await new Promise((res) => canvas.toBlob(res, 'image/webp', quality));
+    while (blob && blob.size > MAX_UPLOAD_BYTES && quality > 0.5) {
+      quality -= 0.08;
+      blob = await new Promise((res) => canvas.toBlob(res, 'image/webp', quality));
+    }
+    if (!blob || blob.size > MAX_UPLOAD_BYTES) {
+      // fallback to jpeg
+      quality = 0.9;
+      blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
+      while (blob && blob.size > MAX_UPLOAD_BYTES && quality > 0.5) {
+        quality -= 0.08;
+        blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
+      }
+    }
+    if (!blob || blob.size > MAX_UPLOAD_BYTES) {
+      throw new Error('Image exceeds 1 MB after compression');
+    }
+    return blob;
+  };
+
+  const handleFilesChange = async (postId, fileList) => {
+    if (!fileList || fileList.length === 0) return;
+    const post = posts.find((p) => p.id === postId) || {};
+    const currentCount = Array.isArray(post.images) ? post.images.length : 0;
+    const available = Math.max(0, MAX_IMAGES_PER_POST - currentCount);
+    if (available <= 0) {
+      alert(`You can attach up to ${MAX_IMAGES_PER_POST} images per post.`);
+      const input = document.getElementById(`upload-${postId}`);
+      if (input) input.value = "";
+      return;
+    }
+
+    const files = Array.from(fileList).slice(0, available);
+    setUploadingMap((prev) => ({ ...prev, [postId]: true }));
+    setUploadProgressMap((prev) => ({ ...prev, [postId]: 0 }));
+
+    try {
+      const uploaded = [];
+      let totalBytes = 0;
+      let transferred = 0;
+
+      // Preprocess: resize and create blobs
+      const blobs = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const blob = await resizeToSquare512(file);
+        blobs.push({ blob, name: file.name });
+        totalBytes += blob.size;
+      }
+
+      for (let i = 0; i < blobs.length; i++) {
+        const { blob, name } = blobs[i];
+        const path = `posts/${postId}/${Date.now()}-${i}-${name.replace(/[^a-zA-Z0-9_.-]/g, '_')}.webp`;
+        const sref = storageRef(storage, path);
+        const task = uploadBytesResumable(sref, blob, { contentType: blob.type || 'image/webp' });
+        await new Promise((resolve, reject) => {
+          task.on('state_changed', (snap) => {
+            transferred = transferred + (snap.bytesTransferred - (snap._last || 0));
+            snap._last = snap.bytesTransferred;
+            const percent = Math.min(100, Math.round((transferred / totalBytes) * 100));
+            setUploadProgressMap((prev) => ({ ...prev, [postId]: percent }));
+          }, reject, async () => {
+            const url = await getDownloadURL(task.snapshot.ref);
+            uploaded.push({ url, path, w: TARGET_SIZE, h: TARGET_SIZE });
+            resolve();
+          });
+        });
+      }
+
+      const updatedImages = [ ...(post.images || []), ...uploaded ];
+      await updateDoc(doc(db, "posts", postId), { images: updatedImages });
+      setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, images: updatedImages } : p));
+    } catch (e) {
+      console.error("Image upload failed", e);
+      alert(e?.message || 'Failed to upload image(s)');
+    } finally {
+      setUploadingMap((prev) => ({ ...prev, [postId]: false }));
+      setUploadProgressMap((prev) => ({ ...prev, [postId]: 0 }));
+      const input = document.getElementById(`upload-${postId}`);
+      if (input) input.value = "";
+    }
+  };
+
+  const removeImage = async (postId, index) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post || post.uid !== user.uid) return; // only author can
+
+    const list = Array.isArray(post.images) ? [...post.images] : [];
+    const item = list[index];
+    if (!item) return;
+    const url = typeof item === 'string' ? item : item.url;
+    const path = typeof item === 'object' && item.path ? item.path : extractStoragePathFromUrl(url);
+
+    try {
+      if (path) {
+        await deleteObject(storageRef(storage, path));
+      } else {
+        console.warn('Could not resolve storage path, removing URL only');
+      }
+    } catch (e) {
+      console.warn('Delete object failed (will still remove from Firestore):', e);
+    }
+
+    list.splice(index, 1);
+    await updateDoc(doc(db, 'posts', postId), { images: list });
+    setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, images: list } : p));
+  };
+
+  const openLightbox = (postId, index) => setLightbox({ open: true, postId, index });
+  const closeLightbox = () => setLightbox({ open: false, postId: null, index: 0 });
+  const nextLightbox = useCallback(() => {
+    setLightbox((lb) => {
+      if (!lb.open) return lb;
+      const post = posts.find((p) => p.id === lb.postId);
+      const imgs = Array.isArray(post?.images) ? post.images : [];
+      const len = imgs.length;
+      if (len === 0) return lb;
+      return { ...lb, index: (lb.index + 1) % len };
+    });
+  }, [posts]);
+  const prevLightbox = useCallback(() => {
+    setLightbox((lb) => {
+      if (!lb.open) return lb;
+      const post = posts.find((p) => p.id === lb.postId);
+      const imgs = Array.isArray(post?.images) ? post.images : [];
+      const len = imgs.length;
+      if (len === 0) return lb;
+      return { ...lb, index: (lb.index - 1 + len) % len };
+    });
+  }, [posts]);
+
+  useEffect(() => {
+    if (!lightbox.open) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowRight') nextLightbox();
+      if (e.key === 'ArrowLeft') prevLightbox();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox.open, nextLightbox, prevLightbox]);
+
+  const renderLightbox = () => {
+    if (!lightbox.open) return null;
+    const post = posts.find((p) => p.id === lightbox.postId);
+    const imgs = Array.isArray(post?.images) ? post.images : [];
+    const item = imgs[lightbox.index];
+    const url = typeof item === 'string' ? item : item?.url;
+    if (!url) return null;
+    return (
+      <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center" onClick={closeLightbox}>
+        <button onClick={(e) => { e.stopPropagation(); prevLightbox(); }} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2"><ChevronLeft size={32} /></button>
+        <img src={url} alt="media" className="max-h-[90vh] max-w-[90vw] object-contain" loading="eager" />
+        <button onClick={(e) => { e.stopPropagation(); nextLightbox(); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2"><ChevronRight size={32} /></button>
+        <button onClick={(e) => { e.stopPropagation(); closeLightbox(); }} className="absolute top-4 right-4 text-white/80 hover:text-white p-2"><CloseIcon size={28} /></button>
+      </div>
+    );
+  };
+
+  const canEditPost = useCallback((post) => post.uid === user.uid, [user.uid]);
+
   return (
     <div
       className="max-w-xl mx-auto mt-10"
@@ -321,6 +489,7 @@ export default function Home() {
     >
       {posts.map((post) => {
         const postUser = usersMap[post.uid];
+        const images = Array.isArray(post.images) ? post.images : [];
         return (
           <div key={post.id} id={`post-${post.id}`} className="border-2 border-black-500 p-4 rounded mb-4 shadow-sm ">
             {/* Post header */}
@@ -336,18 +505,12 @@ export default function Home() {
                   <div className="flex items-center">
                     <span className="font-bold text-gray-800">{postUser?.displayName || post.author}</span>
                     {postUser?.isAdmin && (
-                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded ml-1">
-                        Admin
-                      </span>
+                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded ml-1">Admin</span>
                     )}
                     {postUser?.isModerator && (
-                      <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded ml-1">
-                        Mod
-                      </span>
+                      <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded ml-1">Mod</span>
                     )}
-                    <span className="text-xs text-gray-500 ml-2">
-                      {safeFormatDate(post.createdAt)}
-                    </span>
+                    <span className="text-xs text-gray-500 ml-2">{safeFormatDate(post.createdAt)}</span>
                   </div>
                 </div>
               </div>
@@ -374,8 +537,62 @@ export default function Home() {
               )}
             </div>
 
-            {/* Post Reply */}
-            <div className="mt-3">
+            {/* Post images */}
+            {images.length === 1 && (() => {
+              const it = images[0];
+              const url = typeof it === 'string' ? it : it.url;
+              return (
+                <div className="mt-2 relative">
+                  <img
+                    src={url}
+                    alt="post media"
+                    loading="lazy"
+                    className="w-full max-h-[70vh] object-contain rounded cursor-pointer"
+                    onClick={() => openLightbox(post.id, 0)}
+                  />
+                  {canEditPost(post) && (
+                    <button
+                      onClick={() => removeImage(post.id, 0)}
+                      className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1"
+                      title="Remove image"
+                    >
+                      <CloseIcon size={16} />
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
+            {images.length > 1 && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {images.map((it, idx) => {
+                  const url = typeof it === 'string' ? it : it.url;
+                  return (
+                    <div key={idx} className="relative group">
+                      <img
+                        src={url}
+                        alt="post media"
+                        loading="lazy"
+                        className="w-full aspect-square object-cover rounded cursor-pointer"
+                        onClick={() => openLightbox(post.id, idx)}
+                      />
+                      {canEditPost(post) && (
+                        <button
+                          onClick={() => removeImage(post.id, idx)}
+                          className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1"
+                          title="Remove image"
+                        >
+                          <CloseIcon size={16} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Actions: Reply, Like, Add photo */}
+            <div className="mt-3 flex items-center flex-wrap gap-4">
               <button
                 onClick={() => {
                   const atName = postUser?.displayName || post.author;
@@ -393,56 +610,62 @@ export default function Home() {
               >
                 Reply
               </button>
-            </div>
 
-            {/* Edit/Delete Buttons */}
-            {(post.uid === user.uid ||
-              user.isAdmin ||
-              user.isModerator) && (
-              <div className="flex space-x-2 mt-3">
-                <button
-                  onClick={() => {
-                    setEditingPostId(post.id);
-                    setEditedContent(post.content);
-                  }}
-                  className="bg-yellow-400 text-black px-3 py-1 text-sm rounded font-semibold hover:bg-yellow-500"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => deleteDoc(doc(db, "posts", post.id))}
-                  className="bg-red-500 text-white px-3 py-1 text-sm rounded font-semibold hover:bg-red-600"
-                >
-                  Delete
-                </button>
-              </div>
-            )}
-
-            {/* Like Button */}
-            <div className="flex items-center space-x-4 mt-3">
-              <button
-                onClick={() => handleLike(post.id)}
-                className="text-sm inline-flex items-center space-x-1"
-              >
+              <button onClick={() => handleLike(post.id)} className="text-sm inline-flex items-center space-x-1">
                 <ThumbsUp
                   size={16}
-                  className={
-                    post.likes?.includes(user.uid)
-                      ? "text-blue-500"
-                      : "text-gray-600"
-                  }
+                  className={post.likes?.includes(user.uid) ? "text-blue-500" : "text-gray-600"}
                 />
-                <span
-                  className={
-                    post.likes?.includes(user.uid)
-                      ? "text-blue-500 font-semibold"
-                      : "text-gray-600"
-                  }
-                >
+                <span className={post.likes?.includes(user.uid) ? "text-blue-500 font-semibold" : "text-gray-600"}>
                   {post.likes?.includes(user.uid) ? "Liked" : "Like"}
                 </span>
                 <span className="text-gray-600">{post.likes?.length || 0}</span>
               </button>
+
+              {canEditPost(post) && (
+                <>
+                  <input
+                    id={`upload-${post.id}`}
+                    type="file"
+                    className="hidden"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => handleFilesChange(post.id, e.target.files)}
+                  />
+                  <button
+                    onClick={() => triggerUpload(post.id)}
+                    disabled={!!uploadingMap[post.id] || (Array.isArray(post.images) && post.images.length >= MAX_IMAGES_PER_POST)}
+                    className="text-sm inline-flex items-center space-x-1 disabled:opacity-50"
+                    title="Add photo"
+                  >
+                    <ImageIcon size={16} className={uploadingMap[post.id] ? "text-gray-400" : "text-gray-600"} />
+                    <span className={uploadingMap[post.id] ? "text-gray-400" : "text-gray-600"}>
+                      {uploadingMap[post.id]
+                        ? `Uploading ${uploadProgressMap[post.id] || 0}%`
+                        : (Array.isArray(post.images) && post.images.length >= MAX_IMAGES_PER_POST)
+                          ? `Max ${MAX_IMAGES_PER_POST}`
+                          : 'Add photo'}
+                    </span>
+                  </button>
+                </>
+              )}
+
+              {(post.uid === user.uid || user.isAdmin || user.isModerator) && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setEditingPostId(post.id); setEditedContent(post.content); }}
+                    className="bg-yellow-400 text-black px-3 py-1 text-sm rounded font-semibold hover:bg-yellow-500"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteDoc(doc(db, "posts", post.id))}
+                    className="bg-red-500 text-white px-3 py-1 text-sm rounded font-semibold hover:bg-red-600"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Comment box at top */}
@@ -451,22 +674,12 @@ export default function Home() {
                 <textarea
                   placeholder="Write a comment..."
                   value={commentMap[post.id] || ""}
-                  onChange={(e) =>
-                    setCommentMap((prev) => ({
-                      ...prev,
-                      [post.id]: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => setCommentMap((prev) => ({ ...prev, [post.id]: e.target.value }))}
                   className="border p-3 pr-12 w-full rounded resize-none"
                   rows="2"
                 />
                 <button
-                  onClick={() =>
-                    setShowEmojiPicker((prev) => ({
-                      ...prev,
-                      [post.id]: !prev[post.id],
-                    }))
-                  }
+                  onClick={() => setShowEmojiPicker((prev) => ({ ...prev, [post.id]: !prev[post.id] }))}
                   className="absolute right-3 top-3 text-lg hover:bg-gray-100 p-1 rounded"
                 >
                   😀
@@ -475,21 +688,12 @@ export default function Home() {
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="bg-white shadow-lg rounded-lg p-2 border max-w-sm w-full mx-4 relative">
                       <button
-                        onClick={() =>
-                          setShowEmojiPicker((prev) => ({
-                            ...prev,
-                            [post.id]: false,
-                          }))
-                        }
+                        onClick={() => setShowEmojiPicker((prev) => ({ ...prev, [post.id]: false }))}
                         className="absolute top-2 right-2 z-10 bg-gray-100 hover:bg-gray-200 w-8 h-8 rounded-full flex items-center justify-center text-gray-600 font-bold"
                       >
                         ×
                       </button>
-                      <EmojiPicker
-                        onEmojiClick={(emoji) => addEmoji(post.id, emoji)}
-                        width={280}
-                        height={350}
-                      />
+                      <EmojiPicker onEmojiClick={(emoji) => setCommentMap((prev) => ({ ...prev, [post.id]: (prev[post.id] || "") + emoji.emoji }))} width={280} height={350} />
                     </div>
                   </div>
                 )}
@@ -501,6 +705,7 @@ export default function Home() {
                 Post
               </button>
             </div>
+
             {/* Comments */}
             <div className="mt-4 space-y-4">
               {(post.comments || []).map((comment, i) => {
@@ -510,27 +715,19 @@ export default function Home() {
                     <div className="flex border items-start space-x-2">
                       <img
                         src={commentUser?.photoURL || DEFAULT_AVATAR}
-                        className="w-8 h-8 border-2 border-white rounded-full object-cover flex-shrink-0 cursor-pointer" onClick={() => navigate(`/profile/${comment.uid}`)} alt="avatar"
+                        className="w-8 h-8 border-2 border-white rounded-full object-cover flex-shrink-0 cursor-pointer"
+                        onClick={() => navigate(`/profile/${comment.uid}`)}
+                        alt="avatar"
                       />
                       <div className="flex-1 p-2 rounded ">
                         {editCommentMap[`${post.id}-${i}`] !== undefined ? (
                           <div>
                             <textarea
                               value={editCommentMap[`${post.id}-${i}`]}
-                              onChange={(e) =>
-                                setEditCommentMap((prev) => ({
-                                  ...prev,
-                                  [`${post.id}-${i}`]: e.target.value,
-                                }))
-                              }
+                              onChange={(e) => setEditCommentMap((prev) => ({ ...prev, [`${post.id}-${i}`]: e.target.value }))}
                               className="border p-1 w-full rounded"
                             />
-                            <button
-                              onClick={() => handleEditComment(post.id, i)}
-                              className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded mt-1"
-                            >
-                              Save
-                            </button>
+                            <button onClick={() => handleEditComment(post.id, i)} className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded mt-1">Save</button>
                           </div>
                         ) : (
                           <>
@@ -539,14 +736,10 @@ export default function Home() {
                                 {commentUser?.displayName || comment.author}
                               </span>
                               {commentUser?.isAdmin && (
-                                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded ml-1">
-                                  Admin
-                                </span>
+                                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded ml-1">Admin</span>
                               )}
                               {commentUser?.isModerator && (
-                                <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded ml-1">
-                                  Mod
-                                </span>
+                                <span className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded ml-1">Mod</span>
                               )}
                               <span className="text-xs text-gray-400 font-normal ml-2">
                                 {safeFormatDate(comment.createdAt)}
@@ -574,60 +767,21 @@ export default function Home() {
                           >
                             Reply
                           </button>
-                          <button
-                            onClick={() => handleLikeComment(post.id, i)}
-                            className="text-xs text-gray-600 inline-flex items-center space-x-1 hover:underline"
-                          >
-                            <ThumbsUp
-                              size={14}
-                              className={
-                                comment.commentLikes?.includes(user.uid)
-                                  ? "text-blue-500"
-                                  : "text-gray-600"
-                              }
-                            />
-                            <span
-                              className={
-                                comment.commentLikes?.includes(user.uid)
-                                  ? "text-blue-500 font-semibold"
-                                  : "text-gray-600"
-                              }
-                            >
-                              {comment.commentLikes?.includes(user.uid)
-                                ? "Liked"
-                                : "Like"}
+                          <button onClick={() => handleLikeComment(post.id, i)} className="text-xs text-gray-600 inline-flex items-center space-x-1 hover:underline">
+                            <ThumbsUp size={14} className={comment.commentLikes?.includes(user.uid) ? "text-blue-500" : "text-gray-600"} />
+                            <span className={comment.commentLikes?.includes(user.uid) ? "text-blue-500 font-semibold" : "text-gray-600"}>
+                              {comment.commentLikes?.includes(user.uid) ? "Liked" : "Like"}
                             </span>
-                            <span className="text-gray-600">
-                              {comment.commentLikes?.length || 0}
-                            </span>
+                            <span className="text-gray-600">{comment.commentLikes?.length || 0}</span>
                           </button>
-                          {(comment.uid === user.uid ||
-                            user.isAdmin ||
-                            user.isModerator) &&
-                            editCommentMap[`${post.id}-${i}`] === undefined && (
-                              <>
-                                <button
-                                  onClick={() =>
-                                    setEditCommentMap((prev) => ({
-                                      ...prev,
-                                      [`${post.id}-${i}`]: comment.text,
-                                    }))
-                                  }
-                                  className="text-xs text-blue-600 hover:underline"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleDeleteComment(post.id, i)
-                                  }
-                                  className="text-xs text-red-500 hover:underline"
-                                >
-                                  Delete
-                                </button>
-                              </>
-                            )}
+                          {(comment.uid === user.uid || user.isAdmin || user.isModerator) && editCommentMap[`${post.id}-${i}`] === undefined && (
+                            <>
+                              <button onClick={() => setEditCommentMap((prev) => ({ ...prev, [`${post.id}-${i}`]: comment.text }))} className="text-xs text-blue-600 hover:underline">Edit</button>
+                              <button onClick={() => handleDeleteComment(post.id, i)} className="text-xs text-red-500 hover:underline">Delete</button>
+                            </>
+                          )}
                         </div>
+
                         {/* Replies */}
                         {showReplyBoxMap[`reply-${post.id}-${i}`] && (
                           <div className="mt-2">
@@ -635,23 +789,12 @@ export default function Home() {
                               <textarea
                                 placeholder="Write a reply..."
                                 value={commentMap[`reply-${post.id}-${i}`] || ""}
-                                onChange={(e) =>
-                                  setCommentMap((prev) => ({
-                                    ...prev,
-                                    [`reply-${post.id}-${i}`]: e.target.value,
-                                  }))
-                                }
+                                onChange={(e) => setCommentMap((prev) => ({ ...prev, [`reply-${post.id}-${i}`]: e.target.value }))}
                                 className="border p-3 pr-12 w-full rounded resize-none"
                                 rows="2"
                               />
                               <button
-                                onClick={() =>
-                                  setShowReplyEmojiPicker((prev) => ({
-                                    ...prev,
-                                    [`reply-${post.id}-${i}`]:
-                                      !prev[`reply-${post.id}-${i}`],
-                                  }))
-                                }
+                                onClick={() => setShowReplyEmojiPicker((prev) => ({ ...prev, [`reply-${post.id}-${i}`]: !prev[`reply-${post.id}-${i}`] }))}
                                 className="absolute right-3 top-3 text-lg hover:bg-gray-100 p-1 rounded"
                               >
                                 😀
@@ -660,23 +803,13 @@ export default function Home() {
                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                                   <div className="bg-white shadow-lg rounded-lg p-2 border max-w-sm w-full mx-4 relative">
                                     <button
-                                      onClick={() =>
-                                        setShowReplyEmojiPicker((prev) => ({
-                                          ...prev,
-                                          [`reply-${post.id}-${i}`]: false,
-                                        }))
-                                      }
+                                      onClick={() => setShowReplyEmojiPicker((prev) => ({ ...prev, [`reply-${post.id}-${i}`]: false }))}
                                       className="absolute top-2 right-2 z-10 bg-gray-100 hover:bg-gray-200 w-8 h-8 rounded-full flex items-center justify-center text-gray-600 font-bold"
                                     >
                                       ×
                                     </button>
                                     <EmojiPicker
-                                      onEmojiClick={(emoji) =>
-                                        addReplyEmoji(
-                                          `reply-${post.id}-${i}`,
-                                          emoji
-                                        )
-                                      }
+                                      onEmojiClick={(emoji) => setCommentMap((prev) => ({ ...prev, [`reply-${post.id}-${i}`]: (prev[`reply-${post.id}-${i}`] || "") + emoji.emoji }))}
                                       width={280}
                                       height={350}
                                     />
@@ -685,13 +818,7 @@ export default function Home() {
                               )}
                             </div>
                             <button
-                              onClick={() =>
-                                handleReply(
-                                  post.id,
-                                  i,
-                                  `reply-${post.id}-${i}`
-                                )
-                              }
+                              onClick={() => handleReply(post.id, i, `reply-${post.id}-${i}`)}
                               className="mt-2 bg-blue-500 text-white px-4 py-2 rounded font-medium hover:bg-blue-600"
                             >
                               Reply
@@ -710,7 +837,9 @@ export default function Home() {
                               >
                                 <img
                                   src={replyUser?.photoURL || DEFAULT_AVATAR}
-                                  className="w-5 h-5 rounded-full cursor-pointer" onClick={() => navigate(`/profile/${reply.uid}`)} alt="avatar"
+                                  className="w-5 h-5 rounded-full cursor-pointer"
+                                  onClick={() => navigate(`/profile/${reply.uid}`)}
+                                  alt="avatar"
                                 />
                                 <div className="flex-1">
                                   {editingReplyIndexMap[replyKey] ? (
@@ -718,10 +847,7 @@ export default function Home() {
                                       <textarea
                                         value={editReplyMap[replyKey]}
                                         onChange={(e) =>
-                                          setEditReplyMap((prev) => ({
-                                            ...prev,
-                                            [replyKey]: e.target.value,
-                                          }))
+                                          setEditReplyMap((prev) => ({ ...prev, [replyKey]: e.target.value }))
                                         }
                                         className="border p-1 w-full rounded"
                                       />
@@ -838,88 +964,6 @@ export default function Home() {
                                         </>
                                       )}
                                   </div>
-
-                                  {/* Nested reply box */}
-                                  {showReplyBoxMap[
-                                    `reply-${post.id}-${i}-${ri}`
-                                  ] && (
-                                    <div className="mt-2">
-                                      <div className="relative">
-                                        <textarea
-                                          placeholder="Write a reply..."
-                                          value={
-                                            commentMap[
-                                              `reply-${post.id}-${i}-${ri}`
-                                            ] || ""
-                                          }
-                                          onChange={(e) =>
-                                            setCommentMap((prev) => ({
-                                              ...prev,
-                                              [`reply-${post.id}-${i}-${ri}`]:
-                                                e.target.value,
-                                            }))
-                                          }
-                                          className="border p-3 pr-12 w-full rounded resize-none"
-                                          rows="2"
-                                        />
-                                        <button
-                                          onClick={() =>
-                                            setShowReplyEmojiPicker((prev) => ({
-                                              ...prev,
-                                              [`reply-${post.id}-${i}-${ri}`]:
-                                                !prev[
-                                                  `reply-${post.id}-${i}-${ri}`
-                                                ],
-                                            }))
-                                          }
-                                          className="absolute right-3 top-3 text-lg hover:bg-gray-100 p-1 rounded"
-                                        >
-                                          😀
-                                        </button>
-                                        {showReplyEmojiPicker[
-                                          `reply-${post.id}-${i}-${ri}`
-                                        ] && (
-                                          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                                            <div className="bg-white shadow-lg rounded-lg p-2 border max-w-sm w-full mx-4 relative">
-                                              <button
-                                                onClick={() =>
-                                                  setShowReplyEmojiPicker((prev) => ({
-                                                    ...prev,
-                                                    [`reply-${post.id}-${i}-${ri}`]: false,
-                                                  }))
-                                                }
-                                                className="absolute top-2 right-2 z-10 bg-gray-100 hover:bg-gray-200 w-8 h-8 rounded-full flex items-center justify-center text-gray-600 font-bold"
-                                              >
-                                                ×
-                                              </button>
-                                              <EmojiPicker
-                                                onEmojiClick={(emoji) =>
-                                                  addReplyEmoji(
-                                                    `reply-${post.id}-${i}-${ri}`,
-                                                    emoji
-                                                  )
-                                                }
-                                                width={280}
-                                                height={350}
-                                              />
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <button
-                                        onClick={() =>
-                                          handleReply(
-                                            post.id,
-                                            i,
-                                            `reply-${post.id}-${i}-${ri}`
-                                          )
-                                        }
-                                        className="mt-2 bg-blue-500 text-white px-4 py-2 rounded font-medium hover:bg-blue-600"
-                                      >
-                                        Reply
-                                      </button>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             );
@@ -934,6 +978,7 @@ export default function Home() {
           </div>
         );
       })}
+      {renderLightbox()}
     </div>
   );
 }
