@@ -29,8 +29,8 @@
 - gcloud storage buckets update gs://social-app-8a28d.firebasestorage.app --cors-file=cors.json
 
 # npm.ps1 cannot be loaded because running scripts is disabled 
-- Open Powershell
-- Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope CurrentUser
+- Open Powershell (As Administrator)
+- Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 # Firebase login
 - firebase login
