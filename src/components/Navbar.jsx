@@ -1,5 +1,3 @@
-[file name]: Navbar.jsx
-[file content begin]
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
@@ -537,4 +535,3 @@ export default function Navbar() {
     </nav>
   );
 }
-[file content end]
