@@ -28,6 +28,10 @@
 - gcloud config set project social-app-8a28d
 - gcloud storage buckets update gs://social-app-8a28d.firebasestorage.app --cors-file=cors.json
 
+# npm.ps1 cannot be loaded because running scripts is disabled 
+- Open Powershell
+- Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope CurrentUser
+
 # Firebase login
 - firebase login
 - firebase init hosting (If you ever need to reset or reconfigure)
