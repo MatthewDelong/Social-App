@@ -1,3 +1,5 @@
+[file name]: Navbar.jsx
+[file content begin]
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
@@ -235,6 +237,7 @@ export default function Navbar() {
           <div
             className={`hidden sm:flex items-center gap-4 ${textColorClass}`}
           >
+            {/* Consistent order: Profile, New Post, Groups, Search, FriendRequests, User Profile, Logout */}
             <Link
               to="/profile"
               className="text-sm hover:underline flex items-center gap-1"
@@ -252,15 +255,6 @@ export default function Navbar() {
             <Link to="/groups" className="text-sm hover:underline">
               Groups
             </Link>
-            {user.isAdmin && (
-              <Link
-                to="/admin"
-                className="text-sm hover:underline"
-                onClick={() => setMenuOpen(false)}
-              >
-                Admin
-              </Link>
-            )}
 
             <div className="relative">
               <input
@@ -354,6 +348,16 @@ export default function Navbar() {
 
             <FriendRequestsMenu />
 
+            {user.isAdmin && (
+              <Link
+                to="/admin"
+                className="text-sm hover:underline"
+                onClick={() => setMenuOpen(false)}
+              >
+                Admin
+              </Link>
+            )}
+
             <Link
               to="/user-profile"
               className="text-sm hidden sm:inline hover:underline"
@@ -370,6 +374,7 @@ export default function Navbar() {
 
       {menuOpen && !shouldHideContent && user && (
         <div className={`sm:hidden mt-4 flex flex-col gap-2 ${textColorClass}`}>
+          {/* Same consistent order: Profile, New Post, Groups, Search, FriendRequests, User Profile, Logout */}
           <Link
             to="/profile"
             className="text-sm hover:underline flex items-center gap-1"
@@ -382,6 +387,21 @@ export default function Navbar() {
               </span>
             )}
           </Link>
+          <Link
+            to="/new"
+            className="text-sm hover:underline"
+            onClick={() => setMenuOpen(false)}
+          >
+            New Post
+          </Link>
+          <Link
+            to="/groups"
+            className="text-sm hover:underline"
+            onClick={() => setMenuOpen(false)}
+          >
+            Groups
+          </Link>
+
           <div className="relative">
             <input
               value={term}
@@ -481,20 +501,10 @@ export default function Navbar() {
             )}
           </div>
 
-          <Link
-            to="/new"
-            className="text-sm hover:underline"
-            onClick={() => setMenuOpen(false)}
-          >
-            New Post
-          </Link>
-          <Link
-            to="/groups"
-            className="text-sm hover:underline"
-            onClick={() => setMenuOpen(false)}
-          >
-            Groups
-          </Link>
+          <div className="pt-2">
+            <FriendRequestsMenu />
+          </div>
+
           {user.isAdmin && (
             <Link
               to="/admin"
@@ -504,10 +514,6 @@ export default function Navbar() {
               Admin
             </Link>
           )}
-
-          <div className="pt-2">
-            <FriendRequestsMenu />
-          </div>
 
           <Link
             to="/user-profile"
@@ -531,3 +537,4 @@ export default function Navbar() {
     </nav>
   );
 }
+[file content end]
