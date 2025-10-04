@@ -1,4 +1,4 @@
-# :speech_balloon: Social-App
+# :speech_balloon: Social-App (Windows OS)
 **Last Updated**: September 04, 2025 
 
 # Requirements
