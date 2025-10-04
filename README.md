@@ -151,12 +151,12 @@
 
 | Page      | Preview |
 |-----------|---------|
-| Login     | ![Login](https://github.com/user-attachments/assets/d2955bf1-f447-409f-83cf-ba2a0887b251) |
-| Posts     | ![Posts](https://github.com/user-attachments/assets/79ea29b9-97ce-4fc7-ad4d-b7b2fe494176) |
-| Profile   | ![Profile](https://github.com/user-attachments/assets/80fbaa7e-7ce5-4ee7-9906-18d5492aa1c6) |
-| Admin     | ![Admin](https://github.com/user-attachments/assets/ccd7e211-8c2d-4fdb-ab12-dc5bf816500d) |
-| Group Page| ![Group Page](https://github.com/user-attachments/assets/2e352d5d-79af-4ec6-adbc-580b81d0317d) |
-| Group Posts| ![Group Post](https://github.com/user-attachments/assets/5ccae4d7-6d0b-4eda-a178-e823fe06b343) |
+| Login     | ![Login](https://github.com/user-attachments/assets/e1d8d78b-235e-4468-84e7-550d9ccfbed6) |
+| Posts     | ![Posts](https://github.com/user-attachments/assets/a008963f-a0cf-48e1-907a-37f0a7c77a9b) |
+| Profile   | ![Profile](https://github.com/user-attachments/assets/43124624-0d5d-4275-913b-040066cc4761) |
+| Admin     | ![Admin](https://github.com/user-attachments/assets/5e94160b-4810-4110-8f18-a0ef08afcb77) |
+| Group Page| ![Group Page](https://github.com/user-attachments/assets/42a12ce4-ef71-4a93-a2f2-9b1dabade2c9) |
+| Group Posts| ![Group Posts](https://github.com/user-attachments/assets/f114b90a-a48d-4f4e-9b73-05b519e41392) |
 ---
  
 ## 📜 License  
